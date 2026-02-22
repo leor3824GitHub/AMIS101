@@ -1,0 +1,24 @@
+@typeparam TItem
+<MudTable Items="@Items"
+          Dense="true"
+          Hover="true"
+          Bordered="false"
+          Striped="false"
+          Loading="@Loading"
+          Breakpoint="Breakpoint.Sm"
+          @attributes="AdditionalAttributes">
+    <HeaderContent>
+        @HeaderContent
+    </HeaderContent>
+    <RowTemplate>
+        @RowTemplate
+    </RowTemplate>
+</MudTable>
+
+@code {
+    [Parameter] public IEnumerable<TItem> Items { get; set; } = Array.Empty<TItem>();
+    [Parameter] public bool Loading { get; set; }
+    [Parameter] public RenderFragment? HeaderContent { get; set; }
+    [Parameter] public RenderFragment<TItem> RowTemplate { get; set; } = default!;
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? AdditionalAttributes { get; set; }
+}
