@@ -1,6 +1,8 @@
 ﻿using FSH.Framework.Web;
 using FSH.Framework.Web.Modules;
 using FSH.Modules.Auditing;
+using FSH.Modules.Expendable;
+using FSH.Modules.Expendable.Contracts.v1.Products;
 using FSH.Modules.Identity;
 using FSH.Modules.Identity.Contracts.v1.Tokens.TokenGeneration;
 using FSH.Modules.Identity.Features.v1.Tokens.TokenGeneration;
@@ -36,14 +38,17 @@ builder.Services.AddMediator(o =>
         typeof(GetTenantStatusQuery),
         typeof(GetTenantStatusQueryHandler),
         typeof(FSH.Modules.Auditing.Contracts.AuditEnvelope),
-        typeof(FSH.Modules.Auditing.Persistence.AuditDbContext)];
+        typeof(FSH.Modules.Auditing.Persistence.AuditDbContext),
+        typeof(CreateProductCommand),
+        typeof(ExpenableModule)];
 });
 
 var moduleAssemblies = new Assembly[]
 {
     typeof(IdentityModule).Assembly,
     typeof(MultitenancyModule).Assembly,
-    typeof(AuditingModule).Assembly
+    typeof(AuditingModule).Assembly,
+    typeof(ExpenableModule).Assembly
 };
 
 builder.AddHeroPlatform(o =>

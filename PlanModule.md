@@ -536,72 +536,20 @@ using Modules.Library.Contracts.v1.Products;
 
 ### 7. Module 2: Expendable (Depends on Library)
 
-**Projects:**
-- `Modules.Expendable.Contracts`
-- `Modules.Expendable`
+**Module 2: Expendable** is a specialized employee-based point-of-sale (POS) system for inventory management and supply request workflows. 
 
 **Location:** `src/Modules/Expendable/`
 
-#### Features Example: Request Supply
-
-**File:** `src/Modules/Expendable/Modules.Expendable.Contracts/v1/Requests/RequestSupplyCommand.cs`
-```csharp
-public class RequestSupplyCommand : ICommand<RequestSupplyResponse>
-{
-    public Guid OfficeId { get; set; }
-    public Guid ProductId { get; set; }
-    public int Quantity { get; set; }
-    public string? Justification { get; set; }
-}
-
-public record RequestSupplyResponse(Guid RequestId, string Status);
-```
-
-**File:** `src/Modules/Expendable/Features/v1/Requests/RequestSupplyCommandHandler.cs`
-```csharp
-public sealed class RequestSupplyCommandHandler : ICommandHandler<RequestSupplyCommand, RequestSupplyResponse>
-{
-    private readonly IMediator _mediator;
-    private readonly IRepository<SupplyRequest> _requestRepo;
-    private readonly ICurrentUser _currentUser;
-    
-    public async ValueTask<RequestSupplyResponse> Handle(
-        RequestSupplyCommand cmd,
-        CancellationToken ct)
-    {
-        // Verify Office exists
-        var office = await _mediator.Send(
-            new GetOfficeQuery(cmd.OfficeId),
-            ct);
-        
-        if (office == null)
-            throw new NotFoundException($"Office {cmd.OfficeId} not found");
-        
-        // Verify Product exists
-        var product = await _mediator.Send(
-            new GetProductQuery(cmd.ProductId),
-            ct);
-        
-        if (product == null)
-            throw new NotFoundException($"Product {cmd.ProductId} not found");
-        
-        // Create request in Expendable module context
-        var request = SupplyRequest.Create(
-            officeId: cmd.OfficeId,
-            productId: cmd.ProductId,
-            quantity: cmd.Quantity,
-            justification: cmd.Justification,
-            requestedBy: _currentUser.UserId);
-        
-        await _requestRepo.AddAsync(request, ct);
-        
-        return new RequestSupplyResponse(request.Id, "Pending Approval");
-    }
-}
-```
+**See:** [Module2-Expendable-POS.md](Module2-Expendable-POS.md) for detailed implementation guide covering:
+- Entity design (SupplyRequest, EmployeeInventory)
+- Supply request workflow (Request → Approve → Allocate → Deliver)
+- Employee inventory tracking
+- API endpoints and permissions
+- Database schema and configurations
 
 **Dependencies in ExpenableModule:**
 ```csharp
+using Modules.Library.Contracts.v1.Employees;
 using Modules.Library.Contracts.v1.Offices;
 using Modules.Library.Contracts.v1.Products;
 
@@ -718,6 +666,9 @@ public static class PPEPermissionConstants
 ```
 
 #### Expendable Module
+See [Module2-Expendable-POS.md](Module2-Expendable-POS.md#permissions) for detailed permission structure.
+
+**Quick Reference:**
 ```csharp
 public static class ExpenablePermissionConstants
 {
