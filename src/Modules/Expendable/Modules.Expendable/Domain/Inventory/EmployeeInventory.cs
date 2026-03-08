@@ -158,3 +158,4 @@ public class InventoryConsumption : BaseEntity<Guid>, IHasTenant, IAuditableEnti
         };
     }
 }
+

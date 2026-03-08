@@ -10,9 +10,9 @@ namespace FSH.Modules.Expendable.Features.v1.Cart;
 
 public sealed class GetEmployeeCartQueryHandler : IQueryHandler<GetEmployeeCartQuery, EmployeeShoppingCartDto?>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
 
-    public GetEmployeeCartQueryHandler(ExpenableDbContext dbContext)
+    public GetEmployeeCartQueryHandler(ExpendableDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -30,9 +30,9 @@ public sealed class GetEmployeeCartQueryHandler : IQueryHandler<GetEmployeeCartQ
 
 public sealed class GetCartQueryHandler : IQueryHandler<GetCartQuery, EmployeeShoppingCartDto?>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
 
-    public GetCartQueryHandler(ExpenableDbContext dbContext)
+    public GetCartQueryHandler(ExpendableDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -45,3 +45,5 @@ public sealed class GetCartQueryHandler : IQueryHandler<GetCartQuery, EmployeeSh
         return cart?.ToEmployeeShoppingCartDto();
     }
 }
+
+

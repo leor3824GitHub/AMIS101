@@ -1,7 +1,7 @@
 using Finbuckle.MultiTenant.Abstractions;
-using Finbuckle.MultiTenant.EntityFrameworkCore;
 using FSH.Framework.Eventing.Inbox;
 using FSH.Framework.Eventing.Outbox;
+using FSH.Framework.Persistence.Context;
 using FSH.Framework.Persistence;
 using FSH.Framework.Shared.Multitenancy;
 using FSH.Framework.Shared.Persistence;
@@ -10,17 +10,15 @@ using FSH.Modules.Expendable.Domain.Inventory;
 using FSH.Modules.Expendable.Domain.Products;
 using FSH.Modules.Expendable.Domain.Purchases;
 using FSH.Modules.Expendable.Domain.Requests;
+using FSH.Modules.Expendable.Domain.Warehouse;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace FSH.Modules.Expendable.Data;
 
-public class ExpenableDbContext : MultiTenantDbContext
+public class ExpendableDbContext : BaseDbContext
 {
-    private readonly DatabaseOptions _settings;
-    private new AppTenantInfo TenantInfo { get; set; }
-    private readonly IHostEnvironment _environment;
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<InboxMessage> InboxMessages => Set<InboxMessage>();
@@ -41,40 +39,31 @@ public class ExpenableDbContext : MultiTenantDbContext
     public DbSet<EmployeeInventory> EmployeeInventories => Set<EmployeeInventory>();
     public DbSet<InventoryConsumption> InventoryConsumptions => Set<InventoryConsumption>();
 
-    public ExpenableDbContext(
+    // Warehouse Operations
+    public DbSet<ProductInventory> ProductInventories => Set<ProductInventory>();
+    public DbSet<PurchaseInspection> PurchaseInspections => Set<PurchaseInspection>();
+    public DbSet<RejectedInventory> RejectedInventories => Set<RejectedInventory>();
+
+    public ExpendableDbContext(
         IMultiTenantContextAccessor<AppTenantInfo> multiTenantContextAccessor,
-        DbContextOptions<ExpenableDbContext> options,
+        DbContextOptions<ExpendableDbContext> options,
         IOptions<DatabaseOptions> settings,
-        IHostEnvironment environment) : base(multiTenantContextAccessor, options)
+        IHostEnvironment environment) : base(multiTenantContextAccessor, options, settings, environment)
     {
         ArgumentNullException.ThrowIfNull(multiTenantContextAccessor);
         ArgumentNullException.ThrowIfNull(settings);
-
-        _environment = environment;
-        _settings = settings.Value;
-        TenantInfo = multiTenantContextAccessor.MultiTenantContext.TenantInfo!;
     }
 
-    protected override void OnModelCreating(ModelBuilder builder)
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        ArgumentNullException.ThrowIfNull(builder);
+        ArgumentNullException.ThrowIfNull(modelBuilder);
 
-        base.OnModelCreating(builder);
-        builder.ApplyConfigurationsFromAssembly(typeof(ExpenableDbContext).Assembly);
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ExpendableDbContext).Assembly);
 
-        builder.ApplyConfiguration(new OutboxMessageConfiguration(ExpenableModuleConstants.SchemaName));
-        builder.ApplyConfiguration(new InboxMessageConfiguration(ExpenableModuleConstants.SchemaName));
-    }
-
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-    {
-        if (!string.IsNullOrWhiteSpace(TenantInfo?.ConnectionString))
-        {
-            optionsBuilder.ConfigureHeroDatabase(
-                _settings.Provider,
-                TenantInfo.ConnectionString,
-                _settings.MigrationsAssembly,
-                _environment.IsDevelopment());
-        }
+        modelBuilder.ApplyConfiguration(new OutboxMessageConfiguration(ExpendableModuleConstants.SchemaName));
+        modelBuilder.ApplyConfiguration(new InboxMessageConfiguration(ExpendableModuleConstants.SchemaName));
     }
 }
+
+

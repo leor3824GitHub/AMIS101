@@ -23,3 +23,4 @@ internal static class ProductMapper
             product.LastModifiedOnUtc,
             product.LastModifiedBy);
 }
+

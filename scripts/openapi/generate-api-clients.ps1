@@ -5,7 +5,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$repoRoot = Resolve-Path (Join-Path $scriptDir ".." "..")
+$repoRoot = Resolve-Path (Join-Path (Join-Path $scriptDir "..") "..")
 $configPath = Join-Path $scriptDir "nswag-playground.json"
 $outputDir = Join-Path $repoRoot "src/Playground/Playground.Blazor/ApiClient"
 

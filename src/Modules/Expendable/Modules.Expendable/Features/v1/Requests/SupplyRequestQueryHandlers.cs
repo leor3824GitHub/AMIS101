@@ -10,9 +10,9 @@ namespace FSH.Modules.Expendable.Features.v1.Requests;
 
 public sealed class GetSupplyRequestQueryHandler : IQueryHandler<GetSupplyRequestQuery, SupplyRequestDto?>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
 
-    public GetSupplyRequestQueryHandler(ExpenableDbContext dbContext)
+    public GetSupplyRequestQueryHandler(ExpendableDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -28,9 +28,9 @@ public sealed class GetSupplyRequestQueryHandler : IQueryHandler<GetSupplyReques
 
 public sealed class SearchSupplyRequestsQueryHandler : IQueryHandler<SearchSupplyRequestsQuery, PagedResponse<SupplyRequestDto>>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
 
-    public SearchSupplyRequestsQueryHandler(ExpenableDbContext dbContext)
+    public SearchSupplyRequestsQueryHandler(ExpendableDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -64,9 +64,9 @@ public sealed class SearchSupplyRequestsQueryHandler : IQueryHandler<SearchSuppl
 
 public sealed class GetEmployeeSupplyRequestsQueryHandler : IQueryHandler<GetEmployeeSupplyRequestsQuery, PagedResponse<SupplyRequestDto>>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
 
-    public GetEmployeeSupplyRequestsQueryHandler(ExpenableDbContext dbContext)
+    public GetEmployeeSupplyRequestsQueryHandler(ExpendableDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -81,3 +81,5 @@ public sealed class GetEmployeeSupplyRequestsQueryHandler : IQueryHandler<GetEmp
         return await projected.ToPagedResponseAsync(query, cancellationToken).ConfigureAwait(false);
     }
 }
+
+

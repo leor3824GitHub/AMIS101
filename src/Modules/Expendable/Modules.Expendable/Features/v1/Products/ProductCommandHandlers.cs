@@ -9,10 +9,10 @@ namespace FSH.Modules.Expendable.Features.v1.Products;
 
 public sealed class CreateProductCommandHandler : ICommandHandler<CreateProductCommand, ProductDto>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public CreateProductCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public CreateProductCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -43,10 +43,10 @@ public sealed class CreateProductCommandHandler : ICommandHandler<CreateProductC
 
 public sealed class UpdateProductCommandHandler : ICommandHandler<UpdateProductCommand, ProductDto>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public UpdateProductCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public UpdateProductCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -78,10 +78,10 @@ public sealed class UpdateProductCommandHandler : ICommandHandler<UpdateProductC
 
 public sealed class ActivateProductCommandHandler : ICommandHandler<ActivateProductCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public ActivateProductCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public ActivateProductCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -105,10 +105,10 @@ public sealed class ActivateProductCommandHandler : ICommandHandler<ActivateProd
 
 public sealed class DeactivateProductCommandHandler : ICommandHandler<DeactivateProductCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public DeactivateProductCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public DeactivateProductCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -132,10 +132,10 @@ public sealed class DeactivateProductCommandHandler : ICommandHandler<Deactivate
 
 public sealed class DiscontinueProductCommandHandler : ICommandHandler<DiscontinueProductCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public DiscontinueProductCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public DiscontinueProductCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -159,10 +159,10 @@ public sealed class DiscontinueProductCommandHandler : ICommandHandler<Discontin
 
 public sealed class MarkOutOfStockCommandHandler : ICommandHandler<MarkOutOfStockCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public MarkOutOfStockCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public MarkOutOfStockCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -183,4 +183,32 @@ public sealed class MarkOutOfStockCommandHandler : ICommandHandler<MarkOutOfStoc
         return default;
     }
 }
+
+public sealed class DeleteProductCommandHandler : ICommandHandler<DeleteProductCommand>
+{
+    private readonly ExpendableDbContext _dbContext;
+    private readonly ICurrentUser _currentUser;
+
+    public DeleteProductCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
+    {
+        _dbContext = dbContext;
+        _currentUser = currentUser;
+    }
+
+    public async ValueTask<Unit> Handle(DeleteProductCommand command, CancellationToken cancellationToken)
+    {
+        var product = await _dbContext.Products
+            .FirstOrDefaultAsync(p => p.Id == command.Id, cancellationToken)
+            .ConfigureAwait(false)
+            ?? throw new InvalidOperationException($"Product {command.Id} not found.");
+
+        product.SoftDelete(_currentUser.GetUserId().ToString());
+
+        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return default;
+    }
+}
+
+
 

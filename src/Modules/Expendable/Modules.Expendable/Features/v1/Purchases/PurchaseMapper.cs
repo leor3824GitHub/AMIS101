@@ -12,7 +12,7 @@ internal static class PurchaseMapper
             purchase.SupplierId,
             purchase.OrderDate,
             purchase.ExpectedDeliveryDate,
-            purchase.DeliveryDate,
+            purchase.ReceiptDate,
             purchase.Status.ToString(),
             purchase.TotalAmount,
             purchase.ReceivingNotes,
@@ -25,3 +25,4 @@ internal static class PurchaseMapper
             purchase.CreatedOnUtc,
             purchase.CreatedBy);
 }
+

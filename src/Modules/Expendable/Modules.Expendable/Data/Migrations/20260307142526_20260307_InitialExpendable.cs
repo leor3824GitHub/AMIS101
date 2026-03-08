@@ -1,5 +1,9 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+
+#pragma warning disable CA1707 // Generated migration class naming with timestamp/underscore.
+#pragma warning disable S101 // Generated migration class naming.
+#pragma warning disable CA1861 // Generated migration constant arrays.
 
 #nullable disable
 
@@ -385,3 +389,9 @@ namespace FSH.Modules.Expendable.Data.Migrations
         }
     }
 }
+
+#pragma warning restore CA1861
+#pragma warning restore S101
+#pragma warning restore CA1707
+
+

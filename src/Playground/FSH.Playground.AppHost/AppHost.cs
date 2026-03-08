@@ -5,7 +5,7 @@ var postgres = builder.AddPostgres("postgres").WithDataVolume("fsh-postgres-data
 
 var redis = builder.AddRedis("redis").WithDataVolume("fsh-redis-data");
 
-builder.AddProject<Projects.Playground_Api>("playground-api")
+var api = builder.AddProject<Projects.Playground_Api>("playground-api")
     .WithReference(postgres)
     .WithEnvironment("ASPNETCORE_ENVIRONMENT", "Development")
     .WithEnvironment("OpenTelemetryOptions__Exporter__Otlp__Endpoint", "https://localhost:4317")
@@ -17,9 +17,11 @@ builder.AddProject<Projects.Playground_Api>("playground-api")
     .WaitFor(postgres)
     .WithReference(redis)
     .WithEnvironment("CachingOptions__Redis", redis.Resource.ConnectionStringExpression)
-    .WithEnvironment("CachingOptions__EnableSsl", "true")
+    .WithEnvironment("CachingOptions__EnableSsl", "false")
     .WaitFor(redis);
 
-builder.AddProject<Projects.Playground_Blazor>("playground-blazor");
+builder.AddProject<Projects.Playground_Blazor>("playground-blazor")
+    .WithReference(api)
+    .WaitFor(api);
 
 await builder.Build().RunAsync();

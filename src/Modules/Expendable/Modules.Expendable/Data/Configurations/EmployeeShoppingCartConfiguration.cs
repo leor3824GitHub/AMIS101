@@ -1,4 +1,5 @@
 using FSH.Modules.Expendable.Domain.Cart;
+using Finbuckle.MultiTenant.EntityFrameworkCore.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -8,7 +9,8 @@ public class EmployeeShoppingCartConfiguration : IEntityTypeConfiguration<Employ
 {
     public void Configure(EntityTypeBuilder<EmployeeShoppingCart> builder)
     {
-        builder.ToTable($"{nameof(EmployeeShoppingCart)}s", ExpenableModuleConstants.SchemaName);
+        builder.ToTable($"{nameof(EmployeeShoppingCart)}s", ExpendableModuleConstants.SchemaName)
+            .IsMultiTenant();
 
         // Primary Key
         builder.HasKey(p => p.Id);
@@ -41,11 +43,9 @@ public class EmployeeShoppingCartConfiguration : IEntityTypeConfiguration<Employ
 
         builder.HasIndex(p => new { p.TenantId, p.Status });
 
-        // BaseDbContext handles tenant scoping; keep explicit soft-delete filter.
-        builder.HasQueryFilter(p => !p.IsDeleted);
-
         // Soft Delete
         builder.Property(p => p.IsDeleted)
             .HasDefaultValue(false);
     }
 }
+

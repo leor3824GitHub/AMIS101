@@ -1,0 +1,130 @@
+@page "/expendable/cart"
+@using FSH.Playground.Blazor.ApiClient
+@using FSH.Playground.Blazor.Services.Api.Expendable
+@inject IExpendableCartClient CartClient
+@inject IExpendableActivityFeed ActivityFeed
+@inject ISnackbar Snackbar
+
+<FshPageHeader Title="Expendable Cart" Description="Create carts, add items, and convert to supply requests." />
+
+<MudGrid>
+    <MudItem xs="12" md="6">
+        <MudPaper Class="fsh-card pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Get / Create Cart</MudText>
+            <MudTextField @bind-Value="_employeeId" Label="Employee Id" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="GetOrCreateAsync"
+                       Disabled="_busy">Get or Create</MudButton>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="6">
+        <MudPaper Class="fsh-card pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Cart Item / Convert</MudText>
+            <MudTextField @bind-Value="_cartId" Label="Cart Id (GUID)" />
+            <MudTextField @bind-Value="_productId" Label="Product Id (GUID)" />
+            <MudNumericField @bind-Value="_quantity" Label="Quantity" />
+            <MudNumericField @bind-Value="_unitPrice" Label="Unit Price" />
+            <MudStack Row="true" Wrap="Wrap.Wrap" Class="mt-2">
+                <MudButton Variant="Variant.Outlined" Color="Color.Info" OnClick="AddItemAsync" Disabled="_busy">Add
+                    Item</MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="GetCartAsync" Disabled="_busy">Get Cart</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="ConvertAsync" Disabled="_busy">
+                        Convert</MudButton>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+<ExpendableRecentActivity />
+
+@code {
+    private const string Category = "Cart";
+    private bool _busy;
+    private string _employeeId = string.Empty;
+    private string _cartId = string.Empty;
+    private string _productId = string.Empty;
+    private int _quantity = 1;
+    private double _unitPrice = 1;
+
+    private async Task GetOrCreateAsync() => await RunAsync("Get or create cart", async () =>
+    {
+        await CartClient.GetOrCreateAsync(new GetOrCreateCartCommand
+        {
+            EmployeeId = _employeeId
+        });
+    });
+
+    private async Task AddItemAsync() => await RunAsync("Add item to cart", async () =>
+    {
+        if (!Guid.TryParse(_cartId, out var cartId))
+        {
+            Snackbar.Add("Cart Id must be a valid GUID.", Severity.Warning);
+            return;
+        }
+
+        if (!Guid.TryParse(_productId, out var productId))
+        {
+            Snackbar.Add("Product Id must be a valid GUID.", Severity.Warning);
+            return;
+        }
+
+        await CartClient.AddItemAsync(cartId, new AddToCartCommand
+        {
+            CartId = cartId,
+            ProductId = productId,
+            Quantity = _quantity,
+            UnitPrice = _unitPrice
+        });
+    });
+
+    private async Task GetCartAsync() => await RunWithIdAsync("Get cart", _cartId, CartClient.GetByIdAsync);
+
+    private async Task ConvertAsync() => await RunAsync("Convert cart", async () =>
+    {
+        if (!Guid.TryParse(_cartId, out var cartId))
+        {
+            Snackbar.Add("Cart Id must be a valid GUID.", Severity.Warning);
+            return;
+        }
+
+        await CartClient.ConvertToSupplyRequestAsync(cartId, new ConvertCartToSupplyRequestCommand
+        {
+            CartId = cartId
+        });
+    });
+
+    private async Task RunWithIdAsync(string action, string rawId, Func<Guid, CancellationToken, Task> op)
+    {
+        if (!Guid.TryParse(rawId, out var id))
+        {
+            Snackbar.Add("Id must be a valid GUID.", Severity.Warning);
+            return;
+        }
+
+        await RunAsync(action, ct => op(id, ct));
+    }
+
+    private async Task RunAsync(string action, Func<Task> op) => await RunAsync(action, _ => op());
+
+    private async Task RunAsync(string action, Func<CancellationToken, Task> op)
+    {
+        if (_busy) return;
+
+        _busy = true;
+        try
+        {
+            await op(CancellationToken.None);
+            ActivityFeed.AddSuccess(Category, action);
+            Snackbar.Add($"{action} succeeded", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            ActivityFeed.AddFailure(Category, action, ex.Message);
+            Snackbar.Add($"{action} failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

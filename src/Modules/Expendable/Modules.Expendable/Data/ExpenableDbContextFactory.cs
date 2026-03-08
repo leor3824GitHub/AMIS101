@@ -11,9 +11,9 @@ using Microsoft.Extensions.Options;
 
 namespace FSH.Modules.Expendable.Data;
 
-public sealed class ExpenableDbContextFactory : IDesignTimeDbContextFactory<ExpenableDbContext>
+public sealed class ExpendableDbContextFactory : IDesignTimeDbContextFactory<ExpendableDbContext>
 {
-    public ExpenableDbContext CreateDbContext(string[] args)
+    public ExpendableDbContext CreateDbContext(string[] args)
     {
         var configuration = new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
@@ -28,7 +28,7 @@ public sealed class ExpenableDbContextFactory : IDesignTimeDbContextFactory<Expe
         var migrationsAssembly = configuration["DatabaseOptions:MigrationsAssembly"]
             ?? "FSH.Modules.Expendable";
 
-        var optionsBuilder = new DbContextOptionsBuilder<ExpenableDbContext>();
+        var optionsBuilder = new DbContextOptionsBuilder<ExpendableDbContext>();
 
         if (provider.Equals(DbProviders.PostgreSQL, StringComparison.OrdinalIgnoreCase))
         {
@@ -36,7 +36,7 @@ public sealed class ExpenableDbContextFactory : IDesignTimeDbContextFactory<Expe
         }
         else
         {
-            throw new NotSupportedException($"Database provider '{provider}' is not supported for ExpenableDbContext migrations.");
+            throw new NotSupportedException($"Database provider '{provider}' is not supported for ExpendableDbContext migrations.");
         }
 
         var tenant = new AppTenantInfo("design-time", "design-time", "Design Time")
@@ -55,7 +55,7 @@ public sealed class ExpenableDbContextFactory : IDesignTimeDbContextFactory<Expe
             MigrationsAssembly = migrationsAssembly
         });
 
-        return new ExpenableDbContext(
+        return new ExpendableDbContext(
             tenantAccessor,
             optionsBuilder.Options,
             databaseOptions,
@@ -78,8 +78,10 @@ public sealed class ExpenableDbContextFactory : IDesignTimeDbContextFactory<Expe
     private sealed class DesignTimeHostEnvironment : IHostEnvironment
     {
         public string EnvironmentName { get; set; } = Environments.Development;
-        public string ApplicationName { get; set; } = nameof(ExpenableDbContextFactory);
+        public string ApplicationName { get; set; } = nameof(ExpendableDbContextFactory);
         public string ContentRootPath { get; set; } = Directory.GetCurrentDirectory();
         public IFileProvider ContentRootFileProvider { get; set; } = new PhysicalFileProvider(Directory.GetCurrentDirectory());
     }
 }
+
+

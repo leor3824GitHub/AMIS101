@@ -49,6 +49,8 @@ public record DiscontinueProductCommand(Guid Id) : ICommand<Unit>;
 
 public record MarkOutOfStockCommand(Guid Id) : ICommand<Unit>;
 
+public record DeleteProductCommand(Guid Id) : ICommand<Unit>;
+
 public record GetProductQuery(Guid Id) : IQuery<ProductDto?>;
 
 public sealed class SearchProductsQuery : IPagedQuery, IQuery<PagedResponse<ProductDto>>
@@ -66,3 +68,4 @@ public sealed class ListActiveProductsQuery : IPagedQuery, IQuery<PagedResponse<
     public int? PageSize { get; set; }
     public string? Sort { get; set; }
 }
+

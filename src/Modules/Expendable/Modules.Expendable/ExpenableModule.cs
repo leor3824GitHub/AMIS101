@@ -1,30 +1,121 @@
 using Asp.Versioning;
 using FSH.Framework.Persistence;
+using FSH.Framework.Shared.Constants;
+using FSH.Framework.Shared.Persistence;
 using FSH.Framework.Shared.Identity.Authorization;
 using FSH.Framework.Web.Modules;
 using FSH.Modules.Expendable.Contracts.v1.Cart;
 using FSH.Modules.Expendable.Contracts.v1.Products;
 using FSH.Modules.Expendable.Contracts.v1.Purchases;
 using FSH.Modules.Expendable.Contracts.v1.Requests;
+using FSH.Modules.Expendable.Contracts.v1.Warehouse;
 using FSH.Modules.Expendable.Data;
+using FSH.Modules.Expendable.Features.v1.Products.CreateProduct;
+using FSH.Modules.Expendable.Features.v1.Products.UpdateProduct;
+using FSH.Modules.Expendable.Features.v1.Products.ActivateProduct;
+using FSH.Modules.Expendable.Features.v1.Products.DeactivateProduct;
+using FSH.Modules.Expendable.Features.v1.Products.DeleteProduct;
+using FSH.Modules.Expendable.Features.v1.Products.GetProduct;
+using FSH.Modules.Expendable.Features.v1.Products.SearchProducts;
+using FSH.Modules.Expendable.Features.v1.Purchases.CreatePurchaseOrder;
+using FSH.Modules.Expendable.Features.v1.Purchases.AddPurchaseLineItem;
+using FSH.Modules.Expendable.Features.v1.Purchases.RemovePurchaseLineItem;
+using FSH.Modules.Expendable.Features.v1.Purchases.SubmitPurchaseOrder;
+using FSH.Modules.Expendable.Features.v1.Purchases.ApprovePurchaseOrder;
+using FSH.Modules.Expendable.Features.v1.Purchases.RecordPurchaseReceipt;
+using FSH.Modules.Expendable.Features.v1.Purchases.CancelPurchaseOrder;
+using FSH.Modules.Expendable.Features.v1.Purchases.GetPurchase;
+using FSH.Modules.Expendable.Features.v1.Purchases.GetPurchasesBySupplier;
+using FSH.Modules.Expendable.Features.v1.Purchases.SearchPurchases;
+using FSH.Modules.Expendable.Features.v1.Requests.CreateSupplyRequest;
+using FSH.Modules.Expendable.Features.v1.Requests.SubmitSupplyRequest;
+using FSH.Modules.Expendable.Features.v1.Requests.ApproveSupplyRequest;
+using FSH.Modules.Expendable.Features.v1.Requests.GetSupplyRequest;
+using FSH.Modules.Expendable.Features.v1.Requests.SearchSupplyRequests;
+using FSH.Modules.Expendable.Features.v1.Requests.RejectSupplyRequest;
+using FSH.Modules.Expendable.Features.v1.Requests.GetEmployeeSupplyRequests;
+using FSH.Modules.Expendable.Features.v1.Cart.GetOrCreateCart;
+using FSH.Modules.Expendable.Features.v1.Cart.AddToCart;
+using FSH.Modules.Expendable.Features.v1.Cart.GetCart;
+using FSH.Modules.Expendable.Features.v1.Cart.ConvertCartToRequest;
+using FSH.Modules.Expendable.Features.v1.Cart.RemoveFromCart;
+using FSH.Modules.Expendable.Features.v1.Cart.ClearCart;
+using FSH.Modules.Expendable.Features.v1.Warehouse.RecordInspection;
+using FSH.Modules.Expendable.Features.v1.Warehouse.ReserveProductInventory;
+using FSH.Modules.Expendable.Features.v1.Warehouse.CancelProductInventoryReservation;
+using FSH.Modules.Expendable.Features.v1.Warehouse.IssueFromProductInventory;
+using FSH.Modules.Expendable.Features.v1.Warehouse.MarkRejectedInventoryReturned;
+using FSH.Modules.Expendable.Features.v1.Warehouse.MarkRejectedInventoryDisposed;
+using FSH.Modules.Expendable.Features.v1.Warehouse.GetProductInventory;
+using FSH.Modules.Expendable.Features.v1.Warehouse.SearchProductInventory;
+using FSH.Modules.Expendable.Features.v1.Warehouse.GetWarehouseStockLevels;
+using FSH.Modules.Expendable.Features.v1.Warehouse.GetRejectedInventory;
+using FSH.Modules.Expendable.Features.v1.Warehouse.GetPendingInspections;
 using Mediator;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
 namespace FSH.Modules.Expendable;
 
-public class ExpenableModule : IModule
+public class ExpendableModule : IModule
 {
+    private static readonly IReadOnlyList<FshPermission> RegisteredPermissions =
+    [
+        new("View Expendable", "View", "Expendable"),
+        new("Create Expendable", "Create", "Expendable"),
+        new("Update Expendable", "Update", "Expendable"),
+        new("Delete Expendable", "Delete", "Expendable"),
+
+        new("View Expendable Products", "View", "Expendable.Products", IsBasic: true),
+        new("Create Expendable Products", "Create", "Expendable.Products"),
+        new("Update Expendable Products", "Update", "Expendable.Products"),
+        new("Delete Expendable Products", "Delete", "Expendable.Products"),
+        new("Activate Expendable Products", "Activate", "Expendable.Products"),
+        new("Deactivate Expendable Products", "Deactivate", "Expendable.Products"),
+
+        new("View Expendable Purchases", "View", "Expendable.Purchases", IsBasic: true),
+        new("Create Expendable Purchases", "Create", "Expendable.Purchases"),
+        new("Update Expendable Purchases", "Update", "Expendable.Purchases"),
+        new("Delete Expendable Purchases", "Delete", "Expendable.Purchases"),
+        new("Approve Expendable Purchases", "Approve", "Expendable.Purchases"),
+        new("Receive Expendable Purchases", "Receive", "Expendable.Purchases"),
+
+        new("View Expendable Supply Requests", "View", "Expendable.SupplyRequests", IsBasic: true),
+        new("Create Expendable Supply Requests", "Create", "Expendable.SupplyRequests"),
+        new("Update Expendable Supply Requests", "Update", "Expendable.SupplyRequests"),
+        new("Delete Expendable Supply Requests", "Delete", "Expendable.SupplyRequests"),
+        new("Approve Expendable Supply Requests", "Approve", "Expendable.SupplyRequests"),
+        new("Reject Expendable Supply Requests", "Reject", "Expendable.SupplyRequests"),
+
+        new("View Expendable Shopping Carts", "View", "Expendable.ShoppingCarts", IsBasic: true),
+        new("Create Expendable Shopping Carts", "Create", "Expendable.ShoppingCarts"),
+        new("Edit Expendable Shopping Carts", "Edit", "Expendable.ShoppingCarts"),
+        new("Clear Expendable Shopping Carts", "Clear", "Expendable.ShoppingCarts"),
+        new("Convert Expendable Shopping Carts", "Convert", "Expendable.ShoppingCarts"),
+
+        new("View Expendable Inventory", "View", "Expendable.Inventory", IsBasic: true),
+        new("Receive Expendable Inventory", "Receive", "Expendable.Inventory"),
+        new("Consume Expendable Inventory", "Consume", "Expendable.Inventory"),
+        new("View Expendable Inventory Reports", "ViewReports", "Expendable.Inventory")
+    ];
+
     public void ConfigureServices(IHostApplicationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
         var services = builder.Services;
 
+        // Register module permissions so Identity role seeding can assign them.
+        PermissionConstants.Register(RegisteredPermissions);
+
         // Register DbContext
-        services.AddHeroDbContext<ExpenableDbContext>();
+        services.AddHeroDbContext<ExpendableDbContext>();
+
+        // Register database initializer for multi-tenant migrations and seeding
+        services.AddScoped<IDbInitializer, ExpendableDbInitializer>();
 
         // Fluent Validation will be auto-discovered
     }
@@ -33,332 +124,57 @@ public class ExpenableModule : IModule
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
-        var group = endpoints.MapGroup("/api/v1/expendable")
-            .WithTags("Expendable");
+        // Product Endpoints - Vertical Slices
+        CreateProductEndpoint.Map(endpoints);
+        UpdateProductEndpoint.Map(endpoints);
+        ActivateProductEndpoint.Map(endpoints);
+        DeactivateProductEndpoint.Map(endpoints);
+        DeleteProductEndpoint.Map(endpoints);
+        GetProductEndpoint.Map(endpoints);
+        SearchProductsEndpoint.Map(endpoints);
 
-        // Product Endpoints
-        group.MapPost("/products", CreateProduct)
-            .WithName("CreateProduct")
-            .WithSummary("Create a new product")
-            .RequirePermission(ExpenableModuleConstants.Permissions.Products.Create);
+        // Purchase Order Endpoints - Vertical Slices
+        CreatePurchaseOrderEndpoint.Map(endpoints);
+        AddPurchaseLineItemEndpoint.Map(endpoints);
+        RemovePurchaseLineItemEndpoint.Map(endpoints);
+        SubmitPurchaseOrderEndpoint.Map(endpoints);
+        ApprovePurchaseOrderEndpoint.Map(endpoints);
+        RecordPurchaseReceiptEndpoint.Map(endpoints);
+        CancelPurchaseOrderEndpoint.Map(endpoints);
+        GetPurchaseEndpoint.Map(endpoints);
+        SearchPurchasesEndpoint.Map(endpoints);
+        GetPurchasesBySupplierEndpoint.Map(endpoints);
 
-        group.MapPut("/products/{id:guid}", UpdateProduct)
-            .WithName("UpdateProduct")
-            .WithSummary("Update product details")
-            .RequirePermission(ExpenableModuleConstants.Permissions.Products.Update);
+        // Supply Request Endpoints - Vertical Slices
+        CreateSupplyRequestEndpoint.Map(endpoints);
+        AddSupplyRequestItemEndpoint.Map(endpoints);
+        RemoveSupplyRequestItemEndpoint.Map(endpoints);
+        SubmitSupplyRequestEndpoint.Map(endpoints);
+        ApproveSupplyRequestEndpoint.Map(endpoints);
+        RejectSupplyRequestEndpoint.Map(endpoints);
+        GetSupplyRequestEndpoint.Map(endpoints);
+        GetEmployeeSupplyRequestsEndpoint.Map(endpoints);
+        SearchSupplyRequestsEndpoint.Map(endpoints);
 
-        group.MapPost("/products/{id:guid}/activate", ActivateProduct)
-            .WithName("ActivateProduct")
-            .WithSummary("Activate a product")
-            .RequirePermission(ExpenableModuleConstants.Permissions.Products.Activate);
+        // Shopping Cart Endpoints - Vertical Slices
+        GetOrCreateCartEndpoint.Map(endpoints);
+        AddToCartEndpoint.Map(endpoints);
+        GetCartEndpoint.Map(endpoints);
+        RemoveFromCartEndpoint.Map(endpoints);
+        ClearCartEndpoint.Map(endpoints);
+        ConvertCartToSupplyRequestEndpoint.Map(endpoints);
 
-        group.MapPost("/products/{id:guid}/deactivate", DeactivateProduct)
-            .WithName("DeactivateProduct")
-            .WithSummary("Deactivate a product")
-            .RequirePermission(ExpenableModuleConstants.Permissions.Products.Deactivate);
-
-        group.MapGet("/products/{id:guid}", GetProduct)
-            .WithName("GetProduct")
-            .WithSummary("Get product by ID")
-            .RequirePermission(ExpenableModuleConstants.Permissions.Products.View);
-
-        group.MapGet("/products", SearchProducts)
-            .WithName("SearchProducts")
-            .WithSummary("Search products")
-            .RequirePermission(ExpenableModuleConstants.Permissions.Products.View);
-
-        // Purchase Order Endpoints
-        group.MapPost("/purchases", CreatePurchaseOrder)
-            .WithName("CreatePurchaseOrder")
-            .WithSummary("Create a new purchase order")
-            .RequirePermission(ExpenableModuleConstants.Permissions.Purchases.Create);
-
-        group.MapPost("/purchases/{id:guid}/submit", SubmitPurchaseOrder)
-            .WithName("SubmitPurchaseOrder")
-            .WithSummary("Submit a purchase order for approval")
-            .RequirePermission(ExpenableModuleConstants.Permissions.Purchases.Update);
-
-        group.MapPost("/purchases/{id:guid}/approve", ApprovePurchaseOrder)
-            .WithName("ApprovePurchaseOrder")
-            .WithSummary("Approve a purchase order")
-            .RequirePermission(ExpenableModuleConstants.Permissions.Purchases.Approve);
-
-        group.MapGet("/purchases/{id:guid}", GetPurchase)
-            .WithName("GetPurchase")
-            .WithSummary("Get purchase order by ID")
-            .RequirePermission(ExpenableModuleConstants.Permissions.Purchases.View);
-
-        group.MapGet("/purchases", SearchPurchases)
-            .WithName("SearchPurchases")
-            .WithSummary("Search purchase orders")
-            .RequirePermission(ExpenableModuleConstants.Permissions.Purchases.View);
-
-        // Supply Request Endpoints
-        group.MapPost("/supply-requests", CreateSupplyRequest)
-            .WithName("CreateSupplyRequest")
-            .WithSummary("Create a new supply request")
-            .RequirePermission(ExpenableModuleConstants.Permissions.SupplyRequests.Create);
-
-        group.MapPost("/supply-requests/{id:guid}/submit", SubmitSupplyRequest)
-            .WithName("SubmitSupplyRequest")
-            .WithSummary("Submit a supply request")
-            .RequirePermission(ExpenableModuleConstants.Permissions.SupplyRequests.Update);
-
-        group.MapPost("/supply-requests/{id:guid}/approve", ApproveSupplyRequest)
-            .WithName("ApproveSupplyRequest")
-            .WithSummary("Approve a supply request")
-            .RequirePermission(ExpenableModuleConstants.Permissions.SupplyRequests.Approve);
-
-        group.MapGet("/supply-requests/{id:guid}", GetSupplyRequest)
-            .WithName("GetSupplyRequest")
-            .WithSummary("Get supply request by ID")
-            .RequirePermission(ExpenableModuleConstants.Permissions.SupplyRequests.View);
-
-        group.MapGet("/supply-requests", SearchSupplyRequests)
-            .WithName("SearchSupplyRequests")
-            .WithSummary("Search supply requests")
-            .RequirePermission(ExpenableModuleConstants.Permissions.SupplyRequests.View);
-
-        // Shopping Cart Endpoints
-        group.MapPost("/cart/get-or-create", GetOrCreateCart)
-            .WithName("GetOrCreateCart")
-            .WithSummary("Get or create employee shopping cart")
-            .RequirePermission(ExpenableModuleConstants.Permissions.ShoppingCarts.Create);
-
-        group.MapPost("/cart/{id:guid}/add-item", AddToCart)
-            .WithName("AddToCart")
-            .WithSummary("Add item to shopping cart")
-            .RequirePermission(ExpenableModuleConstants.Permissions.ShoppingCarts.Edit);
-
-        group.MapGet("/cart/{id:guid}", GetCart)
-            .WithName("GetCart")
-            .WithSummary("Get shopping cart")
-            .RequirePermission(ExpenableModuleConstants.Permissions.ShoppingCarts.View);
-
-        group.MapPost("/cart/{id:guid}/convert-to-request", ConvertCartToRequest)
-            .WithName("ConvertCartToRequest")
-            .WithSummary("Convert shopping cart to supply request")
-            .RequirePermission(ExpenableModuleConstants.Permissions.ShoppingCarts.Convert);
-    }
-
-    // Minimal endpoint implementations
-    private static async Task<IResult> CreateProduct(
-        CreateProductCommand command,
-        IMediator mediator,
-        CancellationToken cancellationToken)
-    {
-        var result = await mediator.Send(command, cancellationToken);
-        return TypedResults.Created($"/api/v1/expendable/products/{result.Id}", result);
-    }
-
-    private static async Task<IResult> UpdateProduct(
-        Guid id,
-        UpdateProductCommand command,
-        IMediator mediator,
-        CancellationToken cancellationToken)
-    {
-        var updatedCommand = command with { Id = id };
-        var result = await mediator.Send(updatedCommand, cancellationToken);
-        return TypedResults.Ok(result);
-    }
-
-    private static async Task<IResult> ActivateProduct(
-        Guid id,
-        IMediator mediator,
-        CancellationToken cancellationToken)
-    {
-        await mediator.Send(new ActivateProductCommand(id), cancellationToken);
-        return TypedResults.NoContent();
-    }
-
-    private static async Task<IResult> DeactivateProduct(
-        Guid id,
-        IMediator mediator,
-        CancellationToken cancellationToken)
-    {
-        await mediator.Send(new DeactivateProductCommand(id), cancellationToken);
-        return TypedResults.NoContent();
-    }
-
-    private static async Task<IResult> GetProduct(
-        Guid id,
-        IMediator mediator,
-        CancellationToken cancellationToken)
-    {
-        var result = await mediator.Send(new GetProductQuery(id), cancellationToken);
-        return result == null ? TypedResults.NotFound() : TypedResults.Ok(result);
-    }
-
-    private static async Task<IResult> SearchProducts(
-        string? keyword,
-        string? status,
-        int pageNumber = 1,
-        int pageSize = 10,
-        IMediator mediator = null!,
-        CancellationToken cancellationToken = default)
-    {
-        var query = new SearchProductsQuery
-        {
-            Keyword = keyword,
-            Status = status,
-            PageNumber = pageNumber,
-            PageSize = pageSize
-        };
-        var result = await mediator.Send(query, cancellationToken);
-        return TypedResults.Ok(result);
-    }
-
-    private static async Task<IResult> CreatePurchaseOrder(
-        CreatePurchaseOrderCommand command,
-        IMediator mediator,
-        CancellationToken cancellationToken)
-    {
-        var result = await mediator.Send(command, cancellationToken);
-        return TypedResults.Created($"/api/v1/expendable/purchases/{result.Id}", result);
-    }
-
-    private static async Task<IResult> SubmitPurchaseOrder(
-        Guid id,
-        IMediator mediator,
-        CancellationToken cancellationToken)
-    {
-        await mediator.Send(new SubmitPurchaseOrderCommand(id), cancellationToken);
-        return TypedResults.NoContent();
-    }
-
-    private static async Task<IResult> ApprovePurchaseOrder(
-        Guid id,
-        IMediator mediator,
-        CancellationToken cancellationToken)
-    {
-        await mediator.Send(new ApprovePurchaseOrderCommand(id), cancellationToken);
-        return TypedResults.NoContent();
-    }
-
-    private static async Task<IResult> GetPurchase(
-        Guid id,
-        IMediator mediator,
-        CancellationToken cancellationToken)
-    {
-        var result = await mediator.Send(new GetPurchaseQuery(id), cancellationToken);
-        return result == null ? TypedResults.NotFound() : TypedResults.Ok(result);
-    }
-
-    private static async Task<IResult> SearchPurchases(
-        string? poNumber,
-        string? status,
-        int pageNumber = 1,
-        int pageSize = 10,
-        IMediator mediator = null!,
-        CancellationToken cancellationToken = default)
-    {
-        var query = new SearchPurchasesQuery
-        {
-            PoNumber = poNumber,
-            Status = status,
-            PageNumber = pageNumber,
-            PageSize = pageSize
-        };
-        var result = await mediator.Send(query, cancellationToken);
-        return TypedResults.Ok(result);
-    }
-
-    private static async Task<IResult> CreateSupplyRequest(
-        CreateSupplyRequestCommand command,
-        IMediator mediator,
-        CancellationToken cancellationToken)
-    {
-        var result = await mediator.Send(command, cancellationToken);
-        return TypedResults.Created($"/api/v1/expendable/supply-requests/{result.Id}", result);
-    }
-
-    private static async Task<IResult> SubmitSupplyRequest(
-        Guid id,
-        IMediator mediator,
-        CancellationToken cancellationToken)
-    {
-        await mediator.Send(new SubmitSupplyRequestCommand(id), cancellationToken);
-        return TypedResults.NoContent();
-    }
-
-    private static async Task<IResult> ApproveSupplyRequest(
-        Guid id,
-        ApproveSupplyRequestCommand command,
-        IMediator mediator,
-        CancellationToken cancellationToken)
-    {
-        var approveCommand = command with { Id = id };
-        await mediator.Send(approveCommand, cancellationToken);
-        return TypedResults.NoContent();
-    }
-
-    private static async Task<IResult> GetSupplyRequest(
-        Guid id,
-        IMediator mediator,
-        CancellationToken cancellationToken)
-    {
-        var result = await mediator.Send(new GetSupplyRequestQuery(id), cancellationToken);
-        return result == null ? TypedResults.NotFound() : TypedResults.Ok(result);
-    }
-
-    private static async Task<IResult> SearchSupplyRequests(
-        string? status,
-        string? employeeId,
-        string? departmentId,
-        int pageNumber = 1,
-        int pageSize = 10,
-        IMediator mediator = null!,
-        CancellationToken cancellationToken = default)
-    {
-        var query = new SearchSupplyRequestsQuery
-        {
-            Status = status,
-            EmployeeId = employeeId,
-            DepartmentId = departmentId,
-            PageNumber = pageNumber,
-            PageSize = pageSize
-        };
-        var result = await mediator.Send(query, cancellationToken);
-        return TypedResults.Ok(result);
-    }
-
-    private static async Task<IResult> GetOrCreateCart(
-        GetOrCreateCartCommand command,
-        IMediator mediator,
-        CancellationToken cancellationToken)
-    {
-        var result = await mediator.Send(command, cancellationToken);
-        return TypedResults.Ok(result);
-    }
-
-    private static async Task<IResult> AddToCart(
-        Guid id,
-        AddToCartCommand command,
-        IMediator mediator,
-        CancellationToken cancellationToken)
-    {
-        var addCommand = command with { CartId = id };
-        await mediator.Send(addCommand, cancellationToken);
-        return TypedResults.NoContent();
-    }
-
-    private static async Task<IResult> GetCart(
-        Guid id,
-        IMediator mediator,
-        CancellationToken cancellationToken)
-    {
-        var result = await mediator.Send(new GetCartQuery(id), cancellationToken);
-        return result == null ? TypedResults.NotFound() : TypedResults.Ok(result);
-    }
-
-    private static async Task<IResult> ConvertCartToRequest(
-        Guid id,
-        ConvertCartToSupplyRequestCommand command,
-        IMediator mediator,
-        CancellationToken cancellationToken)
-    {
-        var convertCommand = command with { CartId = id };
-        var result = await mediator.Send(convertCommand, cancellationToken);
-        return TypedResults.Created($"/api/v1/expendable/supply-requests/{result.Id}", result);
+        // Warehouse Endpoints - Vertical Slices
+        RecordInspectionEndpoint.Map(endpoints);
+        ReserveProductInventoryEndpoint.Map(endpoints);
+        CancelProductInventoryReservationEndpoint.Map(endpoints);
+        IssueFromProductInventoryEndpoint.Map(endpoints);
+        MarkRejectedInventoryReturnedEndpoint.Map(endpoints);
+        MarkRejectedInventoryDisposedEndpoint.Map(endpoints);
+        GetProductInventoryEndpoint.Map(endpoints);
+        SearchProductInventoryEndpoint.Map(endpoints);
+        GetWarehouseStockLevelsEndpoint.Map(endpoints);
+        GetRejectedInventoryEndpoint.Map(endpoints);
+        GetPendingInspectionsEndpoint.Map(endpoints);
     }
 }

@@ -5,6 +5,7 @@ namespace FSH.Modules.Expendable.Domain.Purchases;
 /// <summary>Purchase status enumeration</summary>
 public enum PurchaseStatus
 {
+    None = 0,
     Draft = 1,
     Submitted = 2,
     Approved = 3,
@@ -17,21 +18,28 @@ public enum PurchaseStatus
 public class PurchaseLineItem
 {
     public Guid ProductId { get; set; }
+    public string ProductCode { get; set; }
+    public string ProductName { get; set; }
     public int Quantity { get; set; }
     public decimal UnitPrice { get; set; }
     public int ReceivedQuantity { get; set; }
+    public int QuantityInspection { get; set; }
     public int RejectedQuantity { get; set; }
+    public DateTimeOffset? ReceiptDate { get; set; }
 
-    public PurchaseLineItem(Guid productId, int quantity, decimal unitPrice)
+    public PurchaseLineItem(Guid productId, string productCode, string productName, int quantity, decimal unitPrice)
     {
         ProductId = productId;
+        ProductCode = productCode;
+        ProductName = productName;
         Quantity = quantity;
         UnitPrice = unitPrice;
         ReceivedQuantity = 0;
+        QuantityInspection = 0;
         RejectedQuantity = 0;
     }
 
-    public decimal GetLineTotal() => Quantity * UnitPrice;
+    public decimal LineTotal => Quantity * UnitPrice;
 }
 
 public class Purchase : AggregateRoot<Guid>, IHasTenant, IAuditableEntity, ISoftDeletable
@@ -39,9 +47,13 @@ public class Purchase : AggregateRoot<Guid>, IHasTenant, IAuditableEntity, ISoft
     public string TenantId { get; private set; } = default!;
     public string PurchaseOrderNumber { get; private set; } = default!;
     public string SupplierId { get; private set; } = default!;
+    public string SupplierName { get; private set; } = default!;
+    public Guid WarehouseLocationId { get; private set; }
+    public string WarehouseLocationName { get; private set; } = default!;
     public DateTimeOffset OrderDate { get; private set; }
     public DateTimeOffset? ExpectedDeliveryDate { get; set; }
     public DateTimeOffset? DeliveryDate { get; set; }
+    public DateTimeOffset? ReceiptDate { get; private set; }
     public PurchaseStatus Status { get; set; } = PurchaseStatus.Draft;
     public decimal TotalAmount { get; set; }
     public string? ReceivingNotes { get; set; }
@@ -62,7 +74,14 @@ public class Purchase : AggregateRoot<Guid>, IHasTenant, IAuditableEntity, ISoft
     public bool IsDeleted { get; set; }
 
     /// <summary>Factory method to create a new purchase order</summary>
-    public static Purchase Create(string tenantId, string poNumber, string supplierId, DateTimeOffset? expectedDelivery = null)
+    public static Purchase Create(
+        string tenantId,
+        string poNumber,
+        string supplierId,
+        string supplierName,
+        Guid warehouseLocationId,
+        string warehouseLocationName,
+        DateTimeOffset? expectedDelivery = null)
     {
         return new Purchase
         {
@@ -70,6 +89,9 @@ public class Purchase : AggregateRoot<Guid>, IHasTenant, IAuditableEntity, ISoft
             TenantId = tenantId,
             PurchaseOrderNumber = poNumber,
             SupplierId = supplierId,
+            SupplierName = supplierName,
+            WarehouseLocationId = warehouseLocationId,
+            WarehouseLocationName = warehouseLocationName,
             OrderDate = DateTimeOffset.UtcNow,
             ExpectedDeliveryDate = expectedDelivery,
             Status = PurchaseStatus.Draft,
@@ -78,7 +100,7 @@ public class Purchase : AggregateRoot<Guid>, IHasTenant, IAuditableEntity, ISoft
     }
 
     /// <summary>Add a line item to the purchase order</summary>
-    public void AddLineItem(Guid productId, int quantity, decimal unitPrice)
+    public void AddLineItem(Guid productId, string productCode, string productName, int quantity, decimal unitPrice)
     {
         if (Status != PurchaseStatus.Draft)
             throw new InvalidOperationException("Cannot add line items to a submitted purchase order.");
@@ -87,10 +109,13 @@ public class Purchase : AggregateRoot<Guid>, IHasTenant, IAuditableEntity, ISoft
         if (existingItem != null)
         {
             existingItem.Quantity += quantity;
+            existingItem.ProductCode = productCode;
+            existingItem.ProductName = productName;
+            existingItem.UnitPrice = unitPrice;
         }
         else
         {
-            _lineItems.Add(new PurchaseLineItem(productId, quantity, unitPrice));
+            _lineItems.Add(new PurchaseLineItem(productId, productCode, productName, quantity, unitPrice));
         }
 
         RecalculateTotalAmount();
@@ -134,17 +159,47 @@ public class Purchase : AggregateRoot<Guid>, IHasTenant, IAuditableEntity, ISoft
     /// <summary>Record receipt of items</summary>
     public void RecordReceipt(Guid productId, int receivedQuantity, int rejectedQuantity = 0)
     {
+        if (Status is not PurchaseStatus.Approved and not PurchaseStatus.PartiallyReceived)
+            throw new InvalidOperationException("Can only record receipt for approved purchase orders.");
+
         var lineItem = _lineItems.FirstOrDefault(x => x.ProductId == productId);
         if (lineItem == null)
             throw new InvalidOperationException($"Product {productId} not found in this purchase order.");
 
+        if (receivedQuantity < 0 || rejectedQuantity < 0)
+            throw new InvalidOperationException("Receipt quantities cannot be negative.");
+
         lineItem.ReceivedQuantity += receivedQuantity;
+        lineItem.QuantityInspection += receivedQuantity;
         lineItem.RejectedQuantity += rejectedQuantity;
+        lineItem.ReceiptDate = DateTimeOffset.UtcNow;
 
         if (lineItem.ReceivedQuantity > lineItem.Quantity)
             throw new InvalidOperationException("Received quantity cannot exceed ordered quantity.");
 
+        if (lineItem.RejectedQuantity > lineItem.ReceivedQuantity)
+            throw new InvalidOperationException("Rejected quantity cannot exceed received quantity.");
+
         UpdateStatus();
+        ReceiptDate ??= DateTimeOffset.UtcNow;
+        LastModifiedOnUtc = DateTimeOffset.UtcNow;
+    }
+
+    public void CompleteInspection(Guid productId, int quantityAccepted, int quantityRejected)
+    {
+        var lineItem = _lineItems.FirstOrDefault(x => x.ProductId == productId);
+        if (lineItem == null)
+            throw new InvalidOperationException($"Product {productId} not found in this purchase order.");
+
+        var totalInspected = quantityAccepted + quantityRejected;
+        if (totalInspected <= 0)
+            throw new InvalidOperationException("Inspection total must be greater than zero.");
+
+        if (lineItem.QuantityInspection < totalInspected)
+            throw new InvalidOperationException("Inspection quantities exceed pending inspection quantity.");
+
+        lineItem.QuantityInspection -= totalInspected;
+        lineItem.RejectedQuantity += quantityRejected;
         LastModifiedOnUtc = DateTimeOffset.UtcNow;
     }
 
@@ -168,7 +223,7 @@ public class Purchase : AggregateRoot<Guid>, IHasTenant, IAuditableEntity, ISoft
 
     private void RecalculateTotalAmount()
     {
-        TotalAmount = _lineItems.Sum(x => x.GetLineTotal());
+        TotalAmount = _lineItems.Sum(x => x.LineTotal);
     }
 
     private void UpdateStatus()
@@ -187,3 +242,4 @@ public class Purchase : AggregateRoot<Guid>, IHasTenant, IAuditableEntity, ISoft
         }
     }
 }
+

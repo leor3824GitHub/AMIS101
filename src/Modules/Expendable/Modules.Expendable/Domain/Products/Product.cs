@@ -5,6 +5,7 @@ namespace FSH.Modules.Expendable.Domain.Products;
 /// <summary>Product status enumeration</summary>
 public enum ProductStatus
 {
+    None = 0,
     Active = 1,
     Inactive = 2,
     Discontinued = 3,
@@ -105,3 +106,4 @@ public class Product : AggregateRoot<Guid>, IHasTenant, IAuditableEntity, ISoftD
         DeletedBy = deletedBy;
     }
 }
+

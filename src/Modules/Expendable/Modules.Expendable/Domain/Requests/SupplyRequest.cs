@@ -5,6 +5,7 @@ namespace FSH.Modules.Expendable.Domain.Requests;
 /// <summary>Supply request status enumeration</summary>
 public enum SupplyRequestStatus
 {
+    None = 0,
     Draft = 1,
     Submitted = 2,
     Approved = 3,
@@ -184,3 +185,4 @@ public class SupplyRequest : AggregateRoot<Guid>, IHasTenant, IAuditableEntity, 
         DeletedBy = deletedBy;
     }
 }
+

@@ -4,6 +4,7 @@ using FSH.Playground.Blazor;
 using FSH.Playground.Blazor.Components;
 using FSH.Playground.Blazor.Services;
 using FSH.Playground.Blazor.Services.Api;
+using FSH.Playground.Blazor.Services.Api.Expendable;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 
@@ -71,6 +72,9 @@ builder.Services.AddScoped<AuthorizationHeaderHandler>();
 // Token refresh service for handling expired access tokens
 builder.Services.AddScoped<ITokenRefreshService, TokenRefreshService>();
 
+// Shared activity timeline across Expendable feature pages
+builder.Services.AddScoped<IExpendableActivityFeed, ExpendableActivityFeed>();
+
 builder.Services.AddHttpClient();
 
 var apiBaseUrl = builder.Configuration["Api:BaseUrl"]
@@ -80,15 +84,27 @@ var apiBaseUrl = builder.Configuration["Api:BaseUrl"]
 builder.Services.AddScoped(sp =>
 {
     var handler = sp.GetRequiredService<AuthorizationHeaderHandler>();
-    handler.InnerHandler = new HttpClientHandler();
+
+    var apiUri = new Uri(apiBaseUrl);
+    var innerHandler = new HttpClientHandler();
+
+    if (builder.Environment.IsDevelopment() &&
+        (string.Equals(apiUri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+         string.Equals(apiUri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)))
+    {
+        innerHandler.ServerCertificateCustomValidationCallback =
+            HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+    }
+
+    handler.InnerHandler = innerHandler;
 
     return new HttpClient(handler)
     {
-        BaseAddress = new Uri(apiBaseUrl)
+        BaseAddress = apiUri
     };
 });
 
-builder.Services.AddApiClients(builder.Configuration);
+builder.Services.AddApiClients(builder.Configuration, builder.Environment);
 
 // Response Compression for static assets and API responses
 builder.Services.AddResponseCompression(options =>

@@ -1,0 +1,34 @@
+using FSH.Framework.Core.Context;
+using FSH.Modules.Expendable.Contracts.v1.Requests;
+using FSH.Modules.Expendable.Data;
+using Mediator;
+using Microsoft.EntityFrameworkCore;
+
+namespace FSH.Modules.Expendable.Features.v1.Requests.CreateSupplyRequest;
+
+public sealed class AddSupplyRequestItemCommandHandler : ICommandHandler<AddSupplyRequestItemCommand>
+{
+    private readonly ExpendableDbContext _dbContext;
+    private readonly ICurrentUser _currentUser;
+
+    public AddSupplyRequestItemCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
+    {
+        _dbContext = dbContext;
+        _currentUser = currentUser;
+    }
+
+    public async ValueTask<Unit> Handle(AddSupplyRequestItemCommand command, CancellationToken cancellationToken)
+    {
+        var request = await _dbContext.SupplyRequests
+            .FirstOrDefaultAsync(r => r.Id == command.RequestId, cancellationToken)
+            .ConfigureAwait(false)
+            ?? throw new InvalidOperationException($"Supply request {command.RequestId} not found.");
+
+        request.AddItem(command.ProductId, command.Quantity, command.Notes);
+        request.LastModifiedBy = _currentUser.GetUserId().ToString();
+
+        await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+
+        return default;
+    }
+}

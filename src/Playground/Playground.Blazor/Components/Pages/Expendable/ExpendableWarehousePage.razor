@@ -1,0 +1,438 @@
+@page "/expendable/warehouse"
+@using FSH.Framework.Shared.Persistence
+@using FSH.Playground.Blazor.ApiClient
+@using FSH.Playground.Blazor.Services.Api.Expendable
+@inject IExpendableWarehouseClient WarehouseClient
+@inject IExpendableActivityFeed ActivityFeed
+@inject ISnackbar Snackbar
+
+<FshPageHeader Title="Expendable Warehouse"
+               Description="Inspection, reserve/release, issue, and rejected inventory disposition." />
+
+<MudGrid>
+    <!-- Inspection & Actions -->
+    <MudItem xs="12" lg="4">
+        <MudPaper Class="fsh-card pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Record Inspection</MudText>
+            <MudStack Spacing="2">
+                <MudTextField @bind-Value="_purchaseId" Label="Purchase Id" Disabled="_busy" />
+                <MudTextField @bind-Value="_productId" Label="Product Id" Disabled="_busy" />
+                <MudNumericField @bind-Value="_acceptedQty" Label="Accepted Qty" Disabled="_busy" />
+                <MudNumericField @bind-Value="_rejectedQty" Label="Rejected Qty" Disabled="_busy" />
+                <MudTextField @bind-Value="_rejectionReason" Label="Reason" Disabled="_busy" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="RecordInspectionAsync"
+                           Disabled="_busy" FullWidth>Record</MudButton>
+            </MudStack>
+
+            <MudDivider Class="my-4" />
+
+            <MudText Typo="Typo.h6" Class="mb-3">Inventory Actions</MudText>
+            <MudStack Spacing="2">
+                <MudTextField @bind-Value="_inventoryId" Label="Inventory Id" Disabled="_busy" />
+                <MudNumericField @bind-Value="_inventoryQty" Label="Quantity" Disabled="_busy" />
+                <MudStack Row="true" Spacing="1">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="ReserveAsync" Disabled="_busy"
+                               FullWidth>Reserve</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="CancelReserveAsync"
+                               Disabled="_busy" FullWidth>Release</MudButton>
+                </MudStack>
+                <MudButton Variant="Variant.Filled" Color="Color.Success" OnClick="IssueAsync" Disabled="_busy"
+                           FullWidth>Issue</MudButton>
+            </MudStack>
+
+            <MudDivider Class="my-4" />
+
+            <MudText Typo="Typo.h6" Class="mb-3">Rejected Items</MudText>
+            <MudStack Spacing="2">
+                <MudTextField @bind-Value="_rejectedId" Label="Rejected Id" Disabled="_busy" />
+                <MudTextField @bind-Value="_disposalMethod" Label="Disposal Method" Disabled="_busy" />
+                <MudStack Row="true" Spacing="1">
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="MarkReturnedAsync" Disabled="_busy"
+                               FullWidth>Returned</MudButton>
+                    <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="MarkDisposedAsync" Disabled="_busy"
+                               FullWidth>Disposed</MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <!-- Inventory Views -->
+    <MudItem xs="12" lg="8">
+        <MudTabs Elevation="1" Rounded="true" PanelClass="pa-6">
+            <!-- Stock Levels Tab -->
+            <MudTabPanel Text="Stock Levels" Icon="@Icons.Material.Outlined.Inventory2">
+                <MudPaper Class="fsh-card pa-4">
+                    <MudStack Spacing="2" Class="mb-4">
+                        <MudTextField @bind-Value="_stockWarehouseId" Label="Warehouse Location Id"
+                                      Disabled="_loadingStock" />
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadStockLevelsAsync"
+                                   Disabled="_loadingStock" FullWidth>
+                            Load Stock Levels
+                        </MudButton>
+                    </MudStack>
+
+                    @if (_loadingStock)
+                    {
+                        <MudProgressCircular Color="Color.Primary" Style="display:flex; margin:auto;" />
+                    }
+                    else if (_stockLevels?.Items?.Any() == true)
+                    {
+                        <MudTable Items="@_stockLevels.Items" Hover="true" Dense="true">
+                            <HeaderContent>
+                                <MudTh>Product</MudTh>
+                                <MudTh>Available</MudTh>
+                                <MudTh>Reserved</MudTh>
+                                <MudTh>Status</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.ProductName</MudTd>
+                                <MudTd>@context.AvailableQuantity</MudTd>
+                                <MudTd>@context.ReservedQuantity</MudTd>
+                                <MudTd>
+                                    <MudChip Value="@(context.AvailableQuantity > 0 ? "In Stock" : "Out of Stock")" Color="@(context.AvailableQuantity > 0 ? Color.Success : Color.Error)"
+                                             Text="true" Size="Size.Small">
+                                        @(context.AvailableQuantity > 0 ? "In Stock" : "Out of Stock")
+                                    </MudChip>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="@Severity.Info">Enter a warehouse location id to view stock levels.</MudAlert>
+                    }
+                </MudPaper>
+            </MudTabPanel>
+
+            <!-- Rejected Inventory Tab -->
+            <MudTabPanel Text="Rejected Inventory" Icon="@Icons.Material.Outlined.HighlightOff">
+                <MudPaper Class="fsh-card pa-4">
+                    <MudStack Spacing="2" Class="mb-4">
+                        <MudTextField @bind-Value="_rejectedWarehouseId" Label="Warehouse Location Id"
+                                      Disabled="_loadingRejected" />
+                        <MudSelect @bind-Value="_rejectedStatus" Label="Status" Disabled="_loadingRejected"
+                                   AnchorOrigin="Origin.BottomCenter">
+                            <MudSelectItem Value="@(string.Empty)">All</MudSelectItem>
+                            <MudSelectItem Value="@("Pending")">Pending</MudSelectItem>
+                            <MudSelectItem Value="@("Returned")">Returned</MudSelectItem>
+                            <MudSelectItem Value="@("Disposed")">Disposed</MudSelectItem>
+                        </MudSelect>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadRejectedAsync"
+                                   Disabled="_loadingRejected" FullWidth>
+                            Load Rejected Items
+                        </MudButton>
+                    </MudStack>
+
+                    @if (_loadingRejected)
+                    {
+                        <MudProgressCircular Color="Color.Primary" Style="display:flex; margin:auto;" />
+                    }
+                    else if (_rejectedItems?.Items?.Any() == true)
+                    {
+                        <MudTable Items="@_rejectedItems.Items" Hover="true" Dense="true">
+                            <HeaderContent>
+                                <MudTh>Product</MudTh>
+                                <MudTh>Quantity</MudTh>
+                                <MudTh>Status</MudTh>
+                                <MudTh>Reason</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.ProductName</MudTd>
+                                <MudTd>@context.Quantity</MudTd>
+                                <MudTd>
+                                    <MudChip Value="@context.Status" Color="GetRejectionStatusColor(context.Status)" Text="true" Size="Size.Small">
+                                        @context.Status</MudChip>
+                                </MudTd>
+                                    <MudTd>@(context.RejectionReason ?? "N/A")</MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        }
+                    else
+                    {
+                        <MudAlert Severity="@Severity.Info">No rejected items found.</MudAlert>
+                    }
+                    </MudPaper>
+                </MudTabPanel>
+
+                <!-- Pending Inspections Tab -->
+                <MudTabPanel Text="Pending Inspections" Icon="@Icons.Material.Outlined.LocalShipping">
+                    <MudPaper Class="fsh-card pa-4">
+                        <MudStack Spacing="2" Class="mb-4">
+                            <MudTextField @bind-Value="_inspectionWarehouseId" Label="Warehouse Location Id"
+                                          Disabled="_loadingInspections" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadPendingInspectionsAsync"
+                                       Disabled="_loadingInspections" FullWidth>
+                                Load Pending Inspections
+                            </MudButton>
+                        </MudStack>
+
+                        @if (_loadingInspections)
+                        {
+                            <MudProgressCircular Color="Color.Primary" Style="display:flex; margin:auto;" />
+                        }
+                        else if (_pendingInspections?.Items?.Any() == true)
+                        {
+                            <MudTable Items="@_pendingInspections.Items" Hover="true" Dense="true">
+                                <HeaderContent>
+                                    <MudTh>Purchase</MudTh>
+                                    <MudTh>Product</MudTh>
+                                    <MudTh>Pending Qty</MudTh>
+                                    <MudTh>Expected</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd>@context.PurchaseOrderNumber</MudTd>
+                                    <MudTd>@context.ProductName</MudTd>
+                                    <MudTd>@context.QuantityPendingInspection</MudTd>
+                                    <MudTd>@context.ExpectedDeliveryDate?.ToString("d")</MudTd>
+                                </RowTemplate>
+                            </MudTable>
+                        }
+                        else
+                        {
+                            <MudAlert Severity="@Severity.Success">No pending inspections.</MudAlert>
+                        }
+                    </MudPaper>
+                </MudTabPanel>
+            </MudTabs>
+        </MudItem>
+    </MudGrid>
+
+<ExpendableRecentActivity />
+
+@code {
+    private const string Category = "Warehouse";
+    private bool _busy;
+
+    // Inspection & Actions
+    private string _purchaseId = string.Empty;
+    private string _productId = string.Empty;
+    private int _acceptedQty = 1;
+    private int _rejectedQty;
+    private string _rejectionReason = string.Empty;
+
+    private string _inventoryId = string.Empty;
+    private int _inventoryQty = 1;
+
+    private string _rejectedId = string.Empty;
+    private string _disposalMethod = string.Empty;
+
+    // Stock Levels
+    private bool _loadingStock;
+    private string _stockWarehouseId = string.Empty;
+    private PagedResponse<StockLevelDto>? _stockLevels;
+
+    // Rejected Inventory
+    private bool _loadingRejected;
+    private string _rejectedWarehouseId = string.Empty;
+    private string _rejectedStatus = string.Empty;
+    private PagedResponse<RejectedInventoryDto>? _rejectedItems;
+
+    // Pending Inspections
+    private bool _loadingInspections;
+    private string _inspectionWarehouseId = string.Empty;
+    private PagedResponse<PendingInspectionDto>? _pendingInspections;
+
+    private async Task RecordInspectionAsync() => await RunAsync("Record inspection", async () =>
+    {
+        if (!Guid.TryParse(_purchaseId, out var purchaseId) || !Guid.TryParse(_productId, out var productId))
+        {
+            Snackbar.Add("Purchase and Product IDs must be valid GUIDs.", Severity.Warning);
+            return;
+        }
+
+        await WarehouseClient.RecordInspectionAsync(new RecordInspectionCommand
+        {
+            PurchaseId = purchaseId,
+            ProductId = productId,
+            QuantityAccepted = _acceptedQty,
+            QuantityRejected = _rejectedQty,
+            RejectionReason = string.IsNullOrWhiteSpace(_rejectionReason) ? "N/A" : _rejectionReason
+        });
+        _purchaseId = _productId = _rejectionReason = string.Empty;
+        _acceptedQty = _rejectedQty = 0;
+    });
+
+    private async Task LoadStockLevelsAsync()
+    {
+        _loadingStock = true;
+        try
+        {
+            if (!Guid.TryParse(_stockWarehouseId, out var warehouseId))
+            {
+                Snackbar.Add("Warehouse ID must be a valid GUID.", Severity.Warning);
+                return;
+            }
+            var response = await WarehouseClient.GetStockLevelsAsync(warehouseId, 1, 50);
+            _stockLevels = MapPagedResponse<IExpendableWarehouseClient.StockLevelDto, StockLevelDto>(response);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Load failed: {ex.Message}", Severity.Error);
+            ActivityFeed.AddFailure(Category, "Load stock", ex.Message);
+        }
+        finally { _loadingStock = false; }
+    }
+
+    private async Task LoadRejectedAsync()
+    {
+        _loadingRejected = true;
+        try
+        {
+            if (!Guid.TryParse(_rejectedWarehouseId, out var warehouseId))
+            {
+                Snackbar.Add("Warehouse ID must be a valid GUID.", Severity.Warning);
+                return;
+            }
+            var response = await WarehouseClient.GetRejectedAsync(warehouseId, _rejectedStatus, 1, 50);
+            _rejectedItems = MapPagedResponse<IExpendableWarehouseClient.RejectedInventoryDto, RejectedInventoryDto>(response);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Load failed: {ex.Message}", Severity.Error);
+            ActivityFeed.AddFailure(Category, "Load rejected", ex.Message);
+        }
+        finally { _loadingRejected = false; }
+    }
+
+    private async Task LoadPendingInspectionsAsync()
+    {
+        _loadingInspections = true;
+        try
+        {
+            if (!Guid.TryParse(_inspectionWarehouseId, out var warehouseId))
+            {
+                Snackbar.Add("Warehouse ID must be a valid GUID.", Severity.Warning);
+                return;
+            }
+            var response = await WarehouseClient.GetPendingInspectionsAsync(warehouseId, 1, 50);
+            _pendingInspections = MapPagedResponse<IExpendableWarehouseClient.PendingInspectionDto, PendingInspectionDto>(response);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Load failed: {ex.Message}", Severity.Error);
+            ActivityFeed.AddFailure(Category, "Load inspections", ex.Message);
+        }
+        finally { _loadingInspections = false; }
+    }
+
+    private async Task ReserveAsync() => await RunInventoryAsync("Reserve inventory", (id, ct) =>
+        WarehouseClient.ReserveAsync(id, new ReserveProductInventoryCommand
+        {
+            ProductInventoryId = id,
+            QuantityToReserve = _inventoryQty
+        }, ct));
+
+    private async Task CancelReserveAsync() => await RunInventoryAsync("Release reservation", (id, ct) =>
+        WarehouseClient.CancelReservationAsync(id, new CancelProductInventoryReservationCommand
+        {
+            ProductInventoryId = id,
+            QuantityToRelease = _inventoryQty
+        }, ct));
+
+    private async Task IssueAsync() => await RunInventoryAsync("Issue inventory", (id, ct) =>
+        WarehouseClient.IssueAsync(id, new IssueFromProductInventoryCommand
+        {
+            ProductInventoryId = id,
+            QuantityToIssue = _inventoryQty
+        }, ct));
+
+    private async Task MarkReturnedAsync() => await RunRejectedAsync("Mark returned", (id, ct) =>
+        WarehouseClient.MarkRejectedReturnedAsync(id, new MarkRejectedInventoryReturnedCommand
+        {
+            RejectedInventoryId = id,
+            QuantityReturned = _inventoryQty
+        }, ct));
+
+    private async Task MarkDisposedAsync() => await RunRejectedAsync("Mark disposed", (id, ct) =>
+        WarehouseClient.MarkRejectedDisposedAsync(id, new MarkRejectedInventoryDisposedCommand
+        {
+            RejectedInventoryId = id,
+            DisposalMethod = string.IsNullOrWhiteSpace(_disposalMethod) ? "Standard" : _disposalMethod
+        }, ct));
+
+    private async Task RunInventoryAsync(string action, Func<Guid, CancellationToken, Task> op)
+    {
+        if (!Guid.TryParse(_inventoryId, out var id))
+        {
+            Snackbar.Add("Inventory ID must be a valid GUID.", Severity.Warning);
+            return;
+        }
+        await RunAsync(action, ct => op(id, ct));
+    }
+
+    private async Task RunRejectedAsync(string action, Func<Guid, CancellationToken, Task> op)
+    {
+        if (!Guid.TryParse(_rejectedId, out var id))
+        {
+            Snackbar.Add("Rejected ID must be a valid GUID.", Severity.Warning);
+            return;
+        }
+        await RunAsync(action, ct => op(id, ct));
+    }
+
+    private async Task RunAsync(string action, Func<Task> op) => await RunAsync(action, _ => op());
+
+    private async Task RunAsync(string action, Func<CancellationToken, Task> op)
+    {
+        if (_busy) return;
+        _busy = true;
+        try
+        {
+            await op(CancellationToken.None);
+            ActivityFeed.AddSuccess(Category, action);
+            Snackbar.Add($"{action} succeeded", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            ActivityFeed.AddFailure(Category, action, ex.Message);
+            Snackbar.Add($"{action} failed: {ex.Message}", Severity.Error);
+        }
+        finally { _busy = false; }
+    }
+
+    private static Color GetRejectionStatusColor(string status) => status switch
+    {
+        "Pending" => Color.Warning,
+        "Returned" => Color.Info,
+        "Disposed" => Color.Error,
+        _ => Color.Default
+    };
+
+    // Helper to map between different PagedResponse generic types
+    private static PagedResponse<TDestination> MapPagedResponse<TSource, TDestination>(PagedResponse<TSource> source)
+        where TDestination : new()
+    {
+        return new PagedResponse<TDestination>
+        {
+            Items = Array.Empty<TDestination>(),
+            PageNumber = source.PageNumber,
+            PageSize = source.PageSize,
+            TotalCount = source.TotalCount,
+            TotalPages = source.TotalPages
+        };
+    }
+
+    // Local DTOs (match API response DTOs)
+    private sealed class StockLevelDto
+    {
+        public string ProductName { get; set; } = string.Empty;
+        public int AvailableQuantity { get; set; }
+        public int ReservedQuantity { get; set; }
+    }
+
+    private sealed class RejectedInventoryDto
+    {
+        public string ProductName { get; set; } = string.Empty;
+        public int Quantity { get; set; }
+        public string Status { get; set; } = string.Empty;
+        public string? RejectionReason { get; set; }
+    }
+
+    private sealed class PendingInspectionDto
+    {
+        public string PurchaseOrderNumber { get; set; } = string.Empty;
+        public string ProductName { get; set; } = string.Empty;
+        public int QuantityPendingInspection { get; set; }
+        public DateTimeOffset? ExpectedDeliveryDate { get; set; }
+    }
+}

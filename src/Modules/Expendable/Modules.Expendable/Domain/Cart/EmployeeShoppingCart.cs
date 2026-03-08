@@ -5,6 +5,7 @@ namespace FSH.Modules.Expendable.Domain.Cart;
 /// <summary>Shopping cart status enumeration</summary>
 public enum CartStatus
 {
+    None = 0,
     Active = 1,
     Converted = 2,
     Abandoned = 3,
@@ -27,7 +28,7 @@ public class CartItem
         AddedOnUtc = DateTimeOffset.UtcNow;
     }
 
-    public decimal GetLineTotal() => Quantity * UnitPrice;
+    public decimal LineTotal => Quantity * UnitPrice;
 
     public void UpdateQuantity(int quantity)
     {
@@ -125,7 +126,7 @@ public class EmployeeShoppingCart : AggregateRoot<Guid>, IHasTenant, IAuditableE
     }
 
     /// <summary>Get cart total amount</summary>
-    public decimal GetCartTotal() => _items.Sum(x => x.GetLineTotal());
+    public decimal GetCartTotal() => _items.Sum(x => x.LineTotal);
 
     /// <summary>Get total number of items in cart</summary>
     public int GetTotalItemCount() => _items.Sum(x => x.Quantity);
@@ -161,3 +162,4 @@ public class EmployeeShoppingCart : AggregateRoot<Guid>, IHasTenant, IAuditableE
         DeletedBy = deletedBy;
     }
 }
+

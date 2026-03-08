@@ -57,3 +57,13 @@ public sealed class UpdateProductCommandValidator : AbstractValidator<UpdateProd
             .GreaterThan(0).WithMessage("Reorder quantity must be greater than zero");
     }
 }
+
+public sealed class DeleteProductCommandValidator : AbstractValidator<DeleteProductCommand>
+{
+    public DeleteProductCommandValidator()
+    {
+        RuleFor(x => x.Id)
+            .NotEmpty().WithMessage("Product ID is required");
+    }
+}
+

@@ -9,10 +9,10 @@ namespace FSH.Modules.Expendable.Features.v1.Requests;
 
 public sealed class CreateSupplyRequestCommandHandler : ICommandHandler<CreateSupplyRequestCommand, SupplyRequestDto>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public CreateSupplyRequestCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public CreateSupplyRequestCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -42,10 +42,10 @@ public sealed class CreateSupplyRequestCommandHandler : ICommandHandler<CreateSu
 
 public sealed class AddSupplyRequestItemCommandHandler : ICommandHandler<AddSupplyRequestItemCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public AddSupplyRequestItemCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public AddSupplyRequestItemCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -69,10 +69,10 @@ public sealed class AddSupplyRequestItemCommandHandler : ICommandHandler<AddSupp
 
 public sealed class RemoveSupplyRequestItemCommandHandler : ICommandHandler<RemoveSupplyRequestItemCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public RemoveSupplyRequestItemCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public RemoveSupplyRequestItemCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -96,10 +96,10 @@ public sealed class RemoveSupplyRequestItemCommandHandler : ICommandHandler<Remo
 
 public sealed class SubmitSupplyRequestCommandHandler : ICommandHandler<SubmitSupplyRequestCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public SubmitSupplyRequestCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public SubmitSupplyRequestCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -123,10 +123,10 @@ public sealed class SubmitSupplyRequestCommandHandler : ICommandHandler<SubmitSu
 
 public sealed class ApproveSupplyRequestCommandHandler : ICommandHandler<ApproveSupplyRequestCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public ApproveSupplyRequestCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public ApproveSupplyRequestCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -150,10 +150,10 @@ public sealed class ApproveSupplyRequestCommandHandler : ICommandHandler<Approve
 
 public sealed class RejectSupplyRequestCommandHandler : ICommandHandler<RejectSupplyRequestCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public RejectSupplyRequestCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public RejectSupplyRequestCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -177,10 +177,10 @@ public sealed class RejectSupplyRequestCommandHandler : ICommandHandler<RejectSu
 
 public sealed class MarkSupplyRequestFulfilledCommandHandler : ICommandHandler<MarkSupplyRequestFulfilledCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public MarkSupplyRequestFulfilledCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public MarkSupplyRequestFulfilledCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -204,10 +204,10 @@ public sealed class MarkSupplyRequestFulfilledCommandHandler : ICommandHandler<M
 
 public sealed class CancelSupplyRequestCommandHandler : ICommandHandler<CancelSupplyRequestCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public CancelSupplyRequestCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public CancelSupplyRequestCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -228,4 +228,6 @@ public sealed class CancelSupplyRequestCommandHandler : ICommandHandler<CancelSu
         return default;
     }
 }
+
+
 

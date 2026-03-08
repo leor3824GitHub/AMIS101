@@ -40,7 +40,7 @@ builder.Services.AddMediator(o =>
         typeof(FSH.Modules.Auditing.Contracts.AuditEnvelope),
         typeof(FSH.Modules.Auditing.Persistence.AuditDbContext),
         typeof(CreateProductCommand),
-        typeof(ExpenableModule)];
+        typeof(ExpendableModule)];
 });
 
 var moduleAssemblies = new Assembly[]
@@ -48,7 +48,7 @@ var moduleAssemblies = new Assembly[]
     typeof(IdentityModule).Assembly,
     typeof(MultitenancyModule).Assembly,
     typeof(AuditingModule).Assembly,
-    typeof(ExpenableModule).Assembly
+    typeof(ExpendableModule).Assembly
 };
 
 builder.AddHeroPlatform(o =>

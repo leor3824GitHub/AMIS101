@@ -10,9 +10,9 @@ namespace FSH.Modules.Expendable.Features.v1.Products;
 
 public sealed class GetProductQueryHandler : IQueryHandler<GetProductQuery, ProductDto?>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
 
-    public GetProductQueryHandler(ExpenableDbContext dbContext)
+    public GetProductQueryHandler(ExpendableDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -28,9 +28,9 @@ public sealed class GetProductQueryHandler : IQueryHandler<GetProductQuery, Prod
 
 public sealed class SearchProductsQueryHandler : IQueryHandler<SearchProductsQuery, PagedResponse<ProductDto>>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
 
-    public SearchProductsQueryHandler(ExpenableDbContext dbContext)
+    public SearchProductsQueryHandler(ExpendableDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -62,9 +62,9 @@ public sealed class SearchProductsQueryHandler : IQueryHandler<SearchProductsQue
 
 public sealed class ListActiveProductsQueryHandler : IQueryHandler<ListActiveProductsQuery, PagedResponse<ProductDto>>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
 
-    public ListActiveProductsQueryHandler(ExpenableDbContext dbContext)
+    public ListActiveProductsQueryHandler(ExpendableDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -79,3 +79,5 @@ public sealed class ListActiveProductsQueryHandler : IQueryHandler<ListActivePro
         return await projected.ToPagedResponseAsync(query, cancellationToken).ConfigureAwait(false);
     }
 }
+
+

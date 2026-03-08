@@ -50,3 +50,4 @@ public sealed class ConvertCartToSupplyRequestCommandValidator : AbstractValidat
             .MaximumLength(1000).WithMessage("Business justification must not exceed 1000 characters");
     }
 }
+

@@ -1,6 +1,6 @@
 namespace FSH.Modules.Expendable;
 
-public static class ExpenableModuleConstants
+public static class ExpendableModuleConstants
 {
     public const string SchemaName = "expendable";
     public const string MigrationsTable = "__EFMigrationsHistory";
@@ -72,3 +72,4 @@ public static class ExpenableModuleConstants
         public const string InventoryTracking = $"{ModuleName}:InventoryTracking";
     }
 }
+

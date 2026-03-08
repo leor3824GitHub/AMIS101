@@ -1,4 +1,5 @@
 using FSH.Playground.Blazor.ApiClient;
+using FSH.Framework.Shared.Multitenancy;
 using Microsoft.AspNetCore.Authentication;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -26,11 +27,20 @@ internal static class SimpleBffAuth
                 var password = form["Password"].ToString();
                 var tenant = form["Tenant"].ToString();
 
+                if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(password))
+                {
+                    return Results.BadRequest("Email and password are required.");
+                }
+
+                var normalizedTenant = string.IsNullOrWhiteSpace(tenant)
+                    ? MultitenancyConstants.Root.Id
+                    : tenant.Trim();
+
                 logger.LogInformation("Login attempt for {Email}", email);
 
                 // Call the identity API to get token
                 var token = await tokenClient.IssueAsync(
-                    tenant ?? "root",
+                    normalizedTenant,
                     new GenerateTokenCommand
                     {
                         Email = email,
@@ -52,7 +62,7 @@ internal static class SimpleBffAuth
                     new(ClaimTypes.Email, email),
                     new("access_token", token.AccessToken), // Store JWT for API calls
                     new("refresh_token", token.RefreshToken), // Store refresh token for token renewal
-                    new("tenant", tenant ?? "root"), // Store tenant for token refresh
+                    new("tenant", normalizedTenant), // Store tenant for token refresh
                 };
 
                 // Add name claim
@@ -84,6 +94,16 @@ internal static class SimpleBffAuth
             catch (ApiException ex) when (ex.StatusCode == 401)
             {
                 return Results.Unauthorized();
+            }
+            catch (ApiException ex)
+            {
+                logger.LogError(ex, "Login failed with API status {StatusCode}", ex.StatusCode);
+                return Results.Problem("Login failed", statusCode: ex.StatusCode);
+            }
+            catch (HttpRequestException ex)
+            {
+                logger.LogError(ex, "Login failed due to API connectivity/TLS issue");
+                return Results.Problem("Cannot reach the API for login. Check API availability and local HTTPS certificate trust.", statusCode: StatusCodes.Status503ServiceUnavailable);
             }
             catch (Exception ex)
             {

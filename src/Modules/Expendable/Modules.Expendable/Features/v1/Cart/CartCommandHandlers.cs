@@ -12,10 +12,10 @@ namespace FSH.Modules.Expendable.Features.v1.Cart;
 
 public sealed class GetOrCreateCartCommandHandler : ICommandHandler<GetOrCreateCartCommand, EmployeeShoppingCartDto>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public GetOrCreateCartCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public GetOrCreateCartCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -29,7 +29,9 @@ public sealed class GetOrCreateCartCommandHandler : ICommandHandler<GetOrCreateC
         if (cart == null)
         {
             // Create new cart
-            cart = EmployeeShoppingCart.Create(_currentUser.GetTenant() ?? throw new InvalidOperationException("Tenant ID required"), command.EmployeeId);
+            cart = EmployeeShoppingCart.Create(
+                _currentUser.GetTenant() ?? throw new InvalidOperationException("Tenant ID required"),
+                command.EmployeeId);
             cart.CreatedBy = _currentUser.GetUserId().ToString();
             _dbContext.ShoppingCarts.Add(cart);
             await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -41,10 +43,10 @@ public sealed class GetOrCreateCartCommandHandler : ICommandHandler<GetOrCreateC
 
 public sealed class AddToCartCommandHandler : ICommandHandler<AddToCartCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public AddToCartCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public AddToCartCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -68,10 +70,10 @@ public sealed class AddToCartCommandHandler : ICommandHandler<AddToCartCommand>
 
 public sealed class UpdateCartItemQuantityCommandHandler : ICommandHandler<UpdateCartItemQuantityCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public UpdateCartItemQuantityCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public UpdateCartItemQuantityCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -95,10 +97,10 @@ public sealed class UpdateCartItemQuantityCommandHandler : ICommandHandler<Updat
 
 public sealed class RemoveFromCartCommandHandler : ICommandHandler<RemoveFromCartCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public RemoveFromCartCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public RemoveFromCartCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -122,10 +124,10 @@ public sealed class RemoveFromCartCommandHandler : ICommandHandler<RemoveFromCar
 
 public sealed class ConvertCartToSupplyRequestCommandHandler : ICommandHandler<ConvertCartToSupplyRequestCommand, SupplyRequestDto>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public ConvertCartToSupplyRequestCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public ConvertCartToSupplyRequestCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -172,10 +174,10 @@ public sealed class ConvertCartToSupplyRequestCommandHandler : ICommandHandler<C
 
 public sealed class ClearCartCommandHandler : ICommandHandler<ClearCartCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public ClearCartCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public ClearCartCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -196,4 +198,6 @@ public sealed class ClearCartCommandHandler : ICommandHandler<ClearCartCommand>
         return default;
     }
 }
+
+
 

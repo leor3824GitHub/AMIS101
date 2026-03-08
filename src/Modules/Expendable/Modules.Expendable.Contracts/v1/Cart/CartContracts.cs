@@ -47,3 +47,4 @@ public record ClearCartCommand(Guid CartId) : ICommand<Unit>;
 public record GetEmployeeCartQuery(string EmployeeId) : IQuery<EmployeeShoppingCartDto?>;
 
 public record GetCartQuery(Guid CartId) : IQuery<EmployeeShoppingCartDto?>;
+

@@ -1,4 +1,5 @@
 using FSH.Modules.Expendable.Domain.Products;
+using Finbuckle.MultiTenant.EntityFrameworkCore.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -8,7 +9,8 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
 {
     public void Configure(EntityTypeBuilder<Product> builder)
     {
-        builder.ToTable($"{nameof(Product)}s", ExpenableModuleConstants.SchemaName);
+        builder.ToTable($"{nameof(Product)}s", ExpendableModuleConstants.SchemaName)
+            .IsMultiTenant();
 
         // Primary Key
         builder.HasKey(p => p.Id);
@@ -49,11 +51,9 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
 
         builder.HasIndex(p => new { p.TenantId, p.Status });
 
-        // BaseDbContext handles tenant scoping; keep explicit soft-delete filter.
-        builder.HasQueryFilter(p => !p.IsDeleted);
-
         // Soft Delete
         builder.Property(p => p.IsDeleted)
             .HasDefaultValue(false);
     }
 }
+

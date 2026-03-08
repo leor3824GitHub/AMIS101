@@ -10,9 +10,9 @@ namespace FSH.Modules.Expendable.Features.v1.Purchases;
 
 public sealed class GetPurchaseQueryHandler : IQueryHandler<GetPurchaseQuery, PurchaseDto?>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
 
-    public GetPurchaseQueryHandler(ExpenableDbContext dbContext)
+    public GetPurchaseQueryHandler(ExpendableDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -28,9 +28,9 @@ public sealed class GetPurchaseQueryHandler : IQueryHandler<GetPurchaseQuery, Pu
 
 public sealed class SearchPurchasesQueryHandler : IQueryHandler<SearchPurchasesQuery, PagedResponse<PurchaseDto>>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
 
-    public SearchPurchasesQueryHandler(ExpenableDbContext dbContext)
+    public SearchPurchasesQueryHandler(ExpendableDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -59,9 +59,9 @@ public sealed class SearchPurchasesQueryHandler : IQueryHandler<SearchPurchasesQ
 
 public sealed class GetPurchasesBySupplierQueryHandler : IQueryHandler<GetPurchasesBySupplierQuery, PagedResponse<PurchaseDto>>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
 
-    public GetPurchasesBySupplierQueryHandler(ExpenableDbContext dbContext)
+    public GetPurchasesBySupplierQueryHandler(ExpendableDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -76,3 +76,5 @@ public sealed class GetPurchasesBySupplierQueryHandler : IQueryHandler<GetPurcha
         return await projected.ToPagedResponseAsync(query, cancellationToken).ConfigureAwait(false);
     }
 }
+
+

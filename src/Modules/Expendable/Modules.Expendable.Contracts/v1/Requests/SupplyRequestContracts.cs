@@ -67,10 +67,12 @@ public sealed class SearchSupplyRequestsQuery : IPagedQuery, IQuery<PagedRespons
     public string? Sort { get; set; }
 }
 
-public sealed class GetEmployeeSupplyRequestsQuery : IPagedQuery, IQuery<PagedResponse<SupplyRequestDto>>
+public sealed record GetEmployeeSupplyRequestsQuery : IPagedQuery, IQuery<PagedResponse<SupplyRequestDto>>
 {
     public string? EmployeeId { get; set; }
     public int? PageNumber { get; set; }
     public int? PageSize { get; set; }
     public string? Sort { get; set; }
 }
+
+

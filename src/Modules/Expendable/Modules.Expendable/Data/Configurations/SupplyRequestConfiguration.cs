@@ -1,4 +1,5 @@
 using FSH.Modules.Expendable.Domain.Requests;
+using Finbuckle.MultiTenant.EntityFrameworkCore.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -8,7 +9,8 @@ public class SupplyRequestConfiguration : IEntityTypeConfiguration<SupplyRequest
 {
     public void Configure(EntityTypeBuilder<SupplyRequest> builder)
     {
-        builder.ToTable($"{nameof(SupplyRequest)}s", ExpenableModuleConstants.SchemaName);
+        builder.ToTable($"{nameof(SupplyRequest)}s", ExpendableModuleConstants.SchemaName)
+            .IsMultiTenant();
 
         // Primary Key
         builder.HasKey(p => p.Id);
@@ -61,11 +63,9 @@ public class SupplyRequestConfiguration : IEntityTypeConfiguration<SupplyRequest
 
         builder.HasIndex(p => new { p.TenantId, p.DepartmentId });
 
-        // BaseDbContext handles tenant scoping; keep explicit soft-delete filter.
-        builder.HasQueryFilter(p => !p.IsDeleted);
-
         // Soft Delete
         builder.Property(p => p.IsDeleted)
             .HasDefaultValue(false);
     }
 }
+

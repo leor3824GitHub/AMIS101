@@ -49,3 +49,4 @@ public sealed class ApproveSupplyRequestCommandValidator : AbstractValidator<App
             .Must(kvp => kvp.Value >= 0).WithMessage("Approved quantity cannot be negative");
     }
 }
+

@@ -1,0 +1,210 @@
+@page "/expendable/purchases"
+@using FSH.Framework.Shared.Persistence
+@using FSH.Playground.Blazor.ApiClient
+@using FSH.Playground.Blazor.Services.Api.Expendable
+@inject IExpendablePurchasesClient PurchasesClient
+@inject IExpendableActivityFeed ActivityFeed
+@inject ISnackbar Snackbar
+
+<FshPageHeader Title="Expendable Purchases" Description="Create and manage purchase orders." />
+
+<MudGrid>
+    <!-- Create Form -->
+    <MudItem xs="12" lg="4">
+        <MudPaper Class="fsh-card pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Create Purchase Order</MudText>
+            <MudStack Spacing="2">
+                <MudTextField @bind-Value="_create.SupplierId" Label="Supplier Id" Disabled="_busy" Required />
+                <MudTextField @bind-Value="_create.SupplierName" Label="Supplier Name" Disabled="_busy" Required />
+                <MudTextField @bind-Value="_create.WarehouseLocationId" Label="Warehouse Location Id" Disabled="_busy" Required />
+                <MudTextField @bind-Value="_create.WarehouseLocationName" Label="Warehouse Location Name" Disabled="_busy" />
+                
+                <ExpendableRecentActivity />
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync" Disabled="_busy" FullWidth>Create PO</MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="Reset" Disabled="_busy" FullWidth>Reset</MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <!-- Purchases List & Search -->
+    <MudItem xs="12" lg="8">
+        <MudPaper Class="fsh-card pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Purchase Orders</MudText>
+            
+            <!-- Search Filters -->
+            <MudGrid Class="mb-4">
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_searchPoNumber" Label="Search (PO #)" Disabled="_loadingData" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="_searchStatus" Label="Status" Disabled="_loadingData" AnchorOrigin="Origin.BottomCenter">
+                        <MudSelectItem Value="@(string.Empty)">All</MudSelectItem>
+                        <MudSelectItem Value="@("Created")">Created</MudSelectItem>
+                        <MudSelectItem Value="@("Submitted")">Submitted</MudSelectItem>
+                        <MudSelectItem Value="@("Approved")">Approved</MudSelectItem>
+                        <MudSelectItem Value="@("Received")">Received</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SearchAsync" Disabled="_loadingData" FullWidth>Search</MudButton>
+                </MudItem>
+            </MudGrid>
+
+            <!-- Data Table -->
+            @if (_loadingData)
+            {
+                <MudProgressCircular Color="Color.Primary" Style="display:flex; margin:auto;" />
+            }
+            else if (_purchases?.Items?.Any() == true)
+            {
+                <MudTable Items="@_purchases.Items" Hover="true" Dense="false">
+                    <HeaderContent>
+                        <MudTh>PO #</MudTh>
+                        <MudTh>Supplier</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh>Created</MudTh>
+                        <MudTh>Items</MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.PONumber</MudTd>
+                        <MudTd>@context.SupplierName</MudTd>
+                        <MudTd>
+                            <MudChip Value="@context.Status" Color="GetStatusColor(context.Status)" Text="true" Size="Size.Small">@context.Status</MudChip>
+                        </MudTd>
+                        <MudTd>@context.CreatedDate.ToShortDateString()</MudTd>
+                        <MudTd>@context.LineItemCount</MudTd>
+                        <MudTd>
+                            <MudStack Row="true" Spacing="0">
+                                @if (context.Status == "Created")
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Send" Size="Size.Small" Color="Color.Info" 
+                                                   OnClick="@(() => SubmitAsync(context.Id))" Title="Submit" />
+                                }
+                                @if (context.Status == "Submitted")
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Outlined.CheckCircle" Size="Size.Small" Color="Color.Success" 
+                                                   OnClick="@(() => ApproveAsync(context.Id))" Title="Approve" />
+                                }
+                            </MudStack>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+
+                <!-- Pagination -->
+                <MudStack Row="true" Class="mt-4 justify-content-center" Spacing="2">
+                    <MudButton Variant="Variant.Outlined" OnClick="PrevPageAsync" Disabled="_loadingData || _pageNumber <= 1">Previous</MudButton>
+                    <MudText>Page @_pageNumber of @_totalPages</MudText>
+                    <MudButton Variant="Variant.Outlined" OnClick="NextPageAsync" Disabled="_loadingData || _pageNumber >= _totalPages">Next</MudButton>
+                </MudStack>
+            }
+            else
+            {
+                <MudAlert Severity="@Severity.Info">No purchase orders found. Create one to get started.</MudAlert>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private const string Category = "Purchases";
+    private bool _busy;
+    private bool _loadingData;
+    
+    // Create Form
+    private PurchaseForm _create = new();
+    
+    // Search & Pagination
+    private string _searchPoNumber = string.Empty;
+    private string _searchStatus = string.Empty;
+    private int _pageNumber = 1;
+    private const int PageSize = 10;
+    private int _totalPages = 1;
+    private PagedResponse<IExpendablePurchasesClient.PurchaseDto>? _purchases;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SearchAsync();
+    }
+
+    private async Task CreateAsync() => await RunAsync("Create purchase order", async () =>
+    {
+        if (!Guid.TryParse(_create.WarehouseLocationId, out var warehouseId))
+        {
+            Snackbar.Add("Warehouse Location Id must be a valid GUID.", Severity.Warning);
+            return;
+        }
+
+        await PurchasesClient.CreateAsync(new CreatePurchaseOrderCommand
+        {
+            SupplierId = _create.SupplierId,
+            SupplierName = _create.SupplierName,
+            WarehouseLocationId = warehouseId,
+            WarehouseLocationName = _create.WarehouseLocationName
+        });
+        Reset();
+        _pageNumber = 1;
+        await SearchAsync();
+    });
+
+    private async Task SearchAsync()
+    {
+        _loadingData = true;
+        try
+        {
+            _purchases = await PurchasesClient.SearchAsync(_searchPoNumber, _searchStatus, _pageNumber, PageSize);
+            _totalPages = (int)Math.Ceiling((double)(_purchases?.TotalCount ?? 0) / PageSize);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Search failed: {ex.Message}", Severity.Error);
+            ActivityFeed.AddFailure(Category, "Search", ex.Message);
+        }
+        finally { _loadingData = false; }
+    }
+
+    private async Task NextPageAsync() { if (_pageNumber < _totalPages) { _pageNumber++; await SearchAsync(); } }
+    private async Task PrevPageAsync() { if (_pageNumber > 1) { _pageNumber--; await SearchAsync(); } }
+
+    private async Task SubmitAsync(Guid id) => await RunAsync("Submit", async () => { await PurchasesClient.SubmitAsync(id); await SearchAsync(); });
+    private async Task ApproveAsync(Guid id) => await RunAsync("Approve", async () => { await PurchasesClient.ApproveAsync(id); await SearchAsync(); });
+
+    private async Task RunAsync(string action, Func<Task> op)
+    {
+        if (_busy) return;
+        _busy = true;
+        try
+        {
+            await op();
+            ActivityFeed.AddSuccess(Category, action);
+            Snackbar.Add($"{action} succeeded", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            ActivityFeed.AddFailure(Category, action, ex.Message);
+            Snackbar.Add($"{action} failed: {ex.Message}", Severity.Error);
+        }
+        finally { _busy = false; }
+    }
+
+    private void Reset() => _create = new PurchaseForm();
+
+    private static Color GetStatusColor(string status) => status switch
+    {
+        "Created" => Color.Secondary,
+        "Submitted" => Color.Warning,
+        "Approved" => Color.Success,
+        "Received" => Color.Primary,
+        _ => Color.Default
+    };
+
+    private sealed class PurchaseForm
+    {
+        public string SupplierId { get; set; } = string.Empty;
+        public string SupplierName { get; set; } = string.Empty;
+        public string WarehouseLocationId { get; set; } = string.Empty;
+        public string WarehouseLocationName { get; set; } = string.Empty;
+    }
+}

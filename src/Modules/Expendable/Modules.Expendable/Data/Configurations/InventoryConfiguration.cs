@@ -1,4 +1,5 @@
 using FSH.Modules.Expendable.Domain.Inventory;
+using Finbuckle.MultiTenant.EntityFrameworkCore.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -8,7 +9,8 @@ public class EmployeeInventoryConfiguration : IEntityTypeConfiguration<EmployeeI
 {
     public void Configure(EntityTypeBuilder<EmployeeInventory> builder)
     {
-        builder.ToTable($"{nameof(EmployeeInventory)}", ExpenableModuleConstants.SchemaName);
+        builder.ToTable($"{nameof(EmployeeInventory)}", ExpendableModuleConstants.SchemaName)
+            .IsMultiTenant();
 
         // Primary Key
         builder.HasKey(p => p.Id);
@@ -28,7 +30,7 @@ public class EmployeeInventoryConfiguration : IEntityTypeConfiguration<EmployeeI
         // Batches (Owned Type)
         builder.OwnsMany(p => p.Batches, ob =>
         {
-            ob.ToTable($"{nameof(InventoryBatch)}es", ExpenableModuleConstants.SchemaName);
+            ob.ToTable($"{nameof(InventoryBatch)}es", ExpendableModuleConstants.SchemaName);
             ob.HasKey(x => x.Id);
             ob.Property(x => x.BatchNumber).HasMaxLength(50);
         });
@@ -44,7 +46,8 @@ public class InventoryConsumptionConfiguration : IEntityTypeConfiguration<Invent
 {
     public void Configure(EntityTypeBuilder<InventoryConsumption> builder)
     {
-        builder.ToTable($"{nameof(InventoryConsumption)}s", ExpenableModuleConstants.SchemaName);
+        builder.ToTable($"{nameof(InventoryConsumption)}s", ExpendableModuleConstants.SchemaName)
+            .IsMultiTenant();
 
         // Primary Key
         builder.HasKey(p => p.Id);
@@ -73,3 +76,4 @@ public class InventoryConsumptionConfiguration : IEntityTypeConfiguration<Invent
 
     }
 }
+

@@ -26,11 +26,16 @@ public record PurchaseDto(
 
 public record CreatePurchaseOrderCommand(
     string SupplierId,
+    string SupplierName,
+    Guid WarehouseLocationId,
+    string WarehouseLocationName,
     DateTimeOffset? ExpectedDeliveryDate = null) : ICommand<PurchaseDto>;
 
 public record AddPurchaseLineItemCommand(
     Guid PurchaseId,
     Guid ProductId,
+    string ProductCode,
+    string ProductName,
     int Quantity,
     decimal UnitPrice) : ICommand<Unit>;
 
@@ -62,10 +67,12 @@ public sealed class SearchPurchasesQuery : IPagedQuery, IQuery<PagedResponse<Pur
     public string? Sort { get; set; }
 }
 
-public sealed class GetPurchasesBySupplierQuery : IPagedQuery, IQuery<PagedResponse<PurchaseDto>>
+public sealed record GetPurchasesBySupplierQuery : IPagedQuery, IQuery<PagedResponse<PurchaseDto>>
 {
     public string? SupplierId { get; set; }
     public int? PageNumber { get; set; }
     public int? PageSize { get; set; }
     public string? Sort { get; set; }
 }
+
+

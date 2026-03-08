@@ -1,0 +1,204 @@
+@page "/expendable/supply-requests"
+@using FSH.Framework.Shared.Persistence
+@using FSH.Playground.Blazor.ApiClient
+@using FSH.Playground.Blazor.Services.Api.Expendable
+@inject IExpendableSupplyRequestsClient SupplyRequestsClient
+@inject IExpendableActivityFeed ActivityFeed
+@inject ISnackbar Snackbar
+
+<FshPageHeader Title="Expendable Supply Requests" Description="Create and manage supply requests." />
+
+<MudGrid>
+    <!-- Create Form -->
+    <MudItem xs="12" lg="4">
+        <MudPaper Class="fsh-card pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Create Supply Request</MudText>
+            <MudStack Spacing="2">
+                <MudTextField @bind-Value="_create.DepartmentId" Label="Department Id" Disabled="_busy" Required />
+                <MudTextField @bind-Value="_create.BusinessJustification" Label="Business Justification" Lines="2" Disabled="_busy" />
+                
+                <ExpendableRecentActivity />
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync" Disabled="_busy" FullWidth>Create Request</MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="Reset" Disabled="_busy" FullWidth>Reset</MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <!-- Supply Requests List & Search -->
+    <MudItem xs="12" lg="8">
+        <MudPaper Class="fsh-card pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Supply Requests</MudText>
+            
+            <!-- Search Filters -->
+            <MudGrid Class="mb-4">
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_searchDepartmentId" Label="Search (Department)" Disabled="_loadingData" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="_searchStatus" Label="Status" Disabled="_loadingData" AnchorOrigin="Origin.BottomCenter">
+                        <MudSelectItem Value="@(string.Empty)">All</MudSelectItem>
+                        <MudSelectItem Value="@("Pending")">Pending</MudSelectItem>
+                        <MudSelectItem Value="@("Submitted")">Submitted</MudSelectItem>
+                        <MudSelectItem Value="@("Approved")">Approved</MudSelectItem>
+                        <MudSelectItem Value="@("Fulfilled")">Fulfilled</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SearchAsync" Disabled="_loadingData" FullWidth>Search</MudButton>
+                </MudItem>
+            </MudGrid>
+
+            <!-- Data Table -->
+            @if (_loadingData)
+            {
+                <MudProgressCircular Color="Color.Primary" Style="display:flex; margin:auto;" />
+            }
+            else if (_supplyRequests?.Items?.Any() == true)
+            {
+                <MudTable Items="@_supplyRequests.Items" Hover="true" Dense="false">
+                    <HeaderContent>
+                        <MudTh>Request #</MudTh>
+                        <MudTh>Department</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh>Date</MudTh>
+                        <MudTh>Items</MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.RequestNumber</MudTd>
+                        <MudTd>@context.DepartmentId</MudTd>
+                        <MudTd>
+                            <MudChip Value="@context.Status" Color="GetStatusColor(context.Status)" Text="true" Size="Size.Small">@context.Status</MudChip>
+                        </MudTd>
+                        <MudTd>@context.CreatedDate.ToShortDateString()</MudTd>
+                        <MudTd>@context.ItemCount</MudTd>
+                        <MudTd>
+                            <MudStack Row="true" Spacing="0">
+                                @if (context.Status == "Pending")
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Send" Size="Size.Small" Color="Color.Info" 
+                                                   OnClick="@(() => SubmitAsync(context.Id))" Title="Submit" />
+                                }
+                                @if (context.Status == "Submitted")
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Outlined.CheckCircle" Size="Size.Small" Color="Color.Success" 
+                                                   OnClick="@(() => ApproveAsync(context.Id))" Title="Approve" />
+                                }
+                            </MudStack>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+
+                <!-- Pagination -->
+                <MudStack Row="true" Class="mt-4 justify-content-center" Spacing="2">
+                    <MudButton Variant="Variant.Outlined" OnClick="PrevPageAsync" Disabled="_loadingData || _pageNumber <= 1">Previous</MudButton>
+                    <MudText>Page @_pageNumber of @_totalPages</MudText>
+                    <MudButton Variant="Variant.Outlined" OnClick="NextPageAsync" Disabled="_loadingData || _pageNumber >= _totalPages">Next</MudButton>
+                </MudStack>
+            }
+            else
+            {
+                <MudAlert Severity="@Severity.Info">No supply requests found. Create one to get started.</MudAlert>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private const string Category = "SupplyRequests";
+    private bool _busy;
+    private bool _loadingData;
+    
+    // Create Form
+    private SupplyRequestForm _create = new();
+    
+    // Search & Pagination
+    private string _searchDepartmentId = string.Empty;
+    private string _searchStatus = string.Empty;
+    private int _pageNumber = 1;
+    private const int PageSize = 10;
+    private int _totalPages = 1;
+    private PagedResponse<IExpendableSupplyRequestsClient.SupplyRequestDto>? _supplyRequests;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SearchAsync();
+    }
+
+    private async Task CreateAsync() => await RunAsync("Create supply request", async () =>
+    {
+        await SupplyRequestsClient.CreateAsync(new CreateSupplyRequestCommand
+        {
+            DepartmentId = _create.DepartmentId,
+            BusinessJustification = _create.BusinessJustification
+        });
+        Reset();
+        _pageNumber = 1;
+        await SearchAsync();
+    });
+
+    private async Task SearchAsync()
+    {
+        _loadingData = true;
+        try
+        {
+            _supplyRequests = await SupplyRequestsClient.SearchAsync(
+                status: _searchStatus == string.Empty ? null : _searchStatus,
+                departmentId: _searchDepartmentId == string.Empty ? null : _searchDepartmentId,
+                pageNumber: _pageNumber,
+                pageSize: PageSize);
+            _totalPages = (int)Math.Ceiling((double)(_supplyRequests?.TotalCount ?? 0) / PageSize);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Search failed: {ex.Message}", Severity.Error);
+            ActivityFeed.AddFailure(Category, "Search", ex.Message);
+        }
+        finally { _loadingData = false; }
+    }
+
+    private async Task NextPageAsync() { if (_pageNumber < _totalPages) { _pageNumber++; await SearchAsync(); } }
+    private async Task PrevPageAsync() { if (_pageNumber > 1) { _pageNumber--; await SearchAsync(); } }
+
+    private async Task SubmitAsync(Guid id) => await RunAsync("Submit", async () => { await SupplyRequestsClient.SubmitAsync(id); await SearchAsync(); });
+    private async Task ApproveAsync(Guid id) => await RunAsync("Approve", async () => { await SupplyRequestsClient.ApproveAsync(id, new ApproveSupplyRequestCommand(id, new Dictionary<Guid, int>())); await SearchAsync(); });
+
+    private async Task RunAsync(string action, Func<Task> op)
+    {
+        if (_busy) return;
+        _busy = true;
+        try
+        {
+            await op();
+            ActivityFeed.AddSuccess(Category, action);
+            Snackbar.Add($"{action} succeeded", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            ActivityFeed.AddFailure(Category, action, ex.Message);
+            Snackbar.Add($"{action} failed: {ex.Message}", Severity.Error);
+        }
+        finally { _busy = false; }
+    }
+
+    private void Reset() => _create = new SupplyRequestForm();
+
+    private static Color GetStatusColor(string status) => status switch
+    {
+        "Pending" => Color.Default,
+        "Submitted" => Color.Warning,
+        "Approved" => Color.Success,
+        "Fulfilled" => Color.Success,
+        "Rejected" => Color.Error,
+        "Cancelled" => Color.Error,
+        _ => Color.Default
+    };
+
+    private sealed class SupplyRequestForm
+    {
+        public string DepartmentId { get; set; } = string.Empty;
+        public string? BusinessJustification { get; set; }
+    }
+}

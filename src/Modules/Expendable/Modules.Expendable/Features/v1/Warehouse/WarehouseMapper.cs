@@ -1,0 +1,80 @@
+using FSH.Modules.Expendable.Contracts.v1.Warehouse;
+using FSH.Modules.Expendable.Domain.Inventory;
+using FSH.Modules.Expendable.Domain.Purchases;
+using FSH.Modules.Expendable.Domain.Warehouse;
+
+namespace FSH.Modules.Expendable.Features.v1.Warehouse;
+
+internal static class WarehouseMapper
+{
+    internal static ProductInventoryDto ToProductInventoryDto(this ProductInventory inventory) =>
+        new(
+            inventory.Id,
+            inventory.ProductId,
+            inventory.ProductCode ?? string.Empty,
+            inventory.ProductName ?? string.Empty,
+            inventory.WarehouseLocationId,
+            inventory.WarehouseLocationName ?? string.Empty,
+            inventory.QuantityAvailable,
+            inventory.QuantityReserved,
+            inventory.QuantityOnHand,
+            inventory.QuantityIssued,
+            inventory.TotalValue,
+            inventory.Status.ToString(),
+            inventory.Batches.Select(b => new InventoryBatchDto(
+                b.PurchaseId,
+                b.ProductId,
+                b.QuantityAvailable,
+                b.QuantityIssued,
+                b.QuantityRemaining,
+                b.UnitPrice,
+                b.TotalValue,
+                b.ReceivedDate,
+                b.InspectionDate,
+                b.FirstIssueDate,
+                b.Version
+            )).ToList(),
+            inventory.FirstReceiptDate,
+            inventory.LastReceiptDate,
+            inventory.LastIssueDate
+        );
+
+    internal static RejectedInventoryDto ToRejectedInventoryDto(this RejectedInventory rejected) =>
+        new(
+            rejected.Id,
+            rejected.PurchaseId,
+            rejected.ProductId,
+            rejected.ProductCode ?? string.Empty,
+            rejected.ProductName ?? string.Empty,
+            rejected.WarehouseLocationId,
+            rejected.WarehouseLocationName ?? string.Empty,
+            rejected.QuantityRejected,
+            rejected.UnitPrice,
+            rejected.TotalValue,
+            rejected.RejectionReason ?? string.Empty,
+            rejected.Notes,
+            rejected.Status.ToString(),
+            rejected.RejectionDate,
+            rejected.DispositionDate,
+            rejected.DispositionNotes
+        );
+
+    internal static PurchaseInspectionDto ToPurchaseInspectionDto(this PurchaseInspection inspection) =>
+        new(
+            inspection.Id,
+            inspection.PurchaseId,
+            inspection.ProductId,
+            inspection.QuantityReceivedForInspection,
+            inspection.QuantityAccepted,
+            inspection.QuantityRejected,
+            inspection.Status.ToString(),
+            inspection.RejectionReason ?? string.Empty,
+            inspection.Notes,
+            inspection.InspectionDate,
+            inspection.Defects.Select(d => new InspectionDefectDto(
+                d.UnitNumber,
+                d.DefectDescription ?? string.Empty,
+                d.Severity
+            )).ToList()
+        );
+}

@@ -9,10 +9,10 @@ namespace FSH.Modules.Expendable.Features.v1.Purchases;
 
 public sealed class CreatePurchaseOrderCommandHandler : ICommandHandler<CreatePurchaseOrderCommand, PurchaseDto>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public CreatePurchaseOrderCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public CreatePurchaseOrderCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -27,6 +27,9 @@ public sealed class CreatePurchaseOrderCommandHandler : ICommandHandler<CreatePu
             _currentUser.GetTenant() ?? throw new InvalidOperationException("Tenant ID required"),
             poNumber,
             command.SupplierId,
+            command.SupplierName,
+            command.WarehouseLocationId,
+            command.WarehouseLocationName,
             command.ExpectedDeliveryDate);
 
         purchase.CreatedBy = _currentUser.GetUserId().ToString();
@@ -40,10 +43,10 @@ public sealed class CreatePurchaseOrderCommandHandler : ICommandHandler<CreatePu
 
 public sealed class AddPurchaseLineItemCommandHandler : ICommandHandler<AddPurchaseLineItemCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public AddPurchaseLineItemCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public AddPurchaseLineItemCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -56,7 +59,7 @@ public sealed class AddPurchaseLineItemCommandHandler : ICommandHandler<AddPurch
             .ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Purchase {command.PurchaseId} not found.");
 
-        purchase.AddLineItem(command.ProductId, command.Quantity, command.UnitPrice);
+        purchase.AddLineItem(command.ProductId, command.ProductCode, command.ProductName, command.Quantity, command.UnitPrice);
         purchase.LastModifiedBy = _currentUser.GetUserId().ToString();
 
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -67,10 +70,10 @@ public sealed class AddPurchaseLineItemCommandHandler : ICommandHandler<AddPurch
 
 public sealed class RemovePurchaseLineItemCommandHandler : ICommandHandler<RemovePurchaseLineItemCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public RemovePurchaseLineItemCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public RemovePurchaseLineItemCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -94,10 +97,10 @@ public sealed class RemovePurchaseLineItemCommandHandler : ICommandHandler<Remov
 
 public sealed class SubmitPurchaseOrderCommandHandler : ICommandHandler<SubmitPurchaseOrderCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public SubmitPurchaseOrderCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public SubmitPurchaseOrderCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -121,10 +124,10 @@ public sealed class SubmitPurchaseOrderCommandHandler : ICommandHandler<SubmitPu
 
 public sealed class ApprovePurchaseOrderCommandHandler : ICommandHandler<ApprovePurchaseOrderCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public ApprovePurchaseOrderCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public ApprovePurchaseOrderCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -148,10 +151,10 @@ public sealed class ApprovePurchaseOrderCommandHandler : ICommandHandler<Approve
 
 public sealed class RecordPurchaseReceiptCommandHandler : ICommandHandler<RecordPurchaseReceiptCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public RecordPurchaseReceiptCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public RecordPurchaseReceiptCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -165,6 +168,7 @@ public sealed class RecordPurchaseReceiptCommandHandler : ICommandHandler<Record
             ?? throw new InvalidOperationException($"Purchase {command.PurchaseId} not found.");
 
         purchase.RecordReceipt(command.ProductId, command.ReceivedQuantity, command.RejectedQuantity);
+
         purchase.ReceivingNotes = command.ReceivingNotes;
         purchase.LastModifiedBy = _currentUser.GetUserId().ToString();
 
@@ -176,10 +180,10 @@ public sealed class RecordPurchaseReceiptCommandHandler : ICommandHandler<Record
 
 public sealed class CancelPurchaseOrderCommandHandler : ICommandHandler<CancelPurchaseOrderCommand>
 {
-    private readonly ExpenableDbContext _dbContext;
+    private readonly ExpendableDbContext _dbContext;
     private readonly ICurrentUser _currentUser;
 
-    public CancelPurchaseOrderCommandHandler(ExpenableDbContext dbContext, ICurrentUser currentUser)
+    public CancelPurchaseOrderCommandHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
         _currentUser = currentUser;
@@ -200,4 +204,6 @@ public sealed class CancelPurchaseOrderCommandHandler : ICommandHandler<CancelPu
         return default;
     }
 }
+
+
 

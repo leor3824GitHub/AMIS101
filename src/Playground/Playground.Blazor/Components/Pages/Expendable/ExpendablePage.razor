@@ -1,0 +1,79 @@
+@page "/expendable"
+@using FSH.Framework.Blazor.UI.Components.Cards
+
+<FshPageHeader Title="Expendable Module"
+               Description="Choose a feature workspace to operate the expendable lifecycle." />
+
+<MudGrid>
+    <MudItem xs="12" sm="6" lg="4">
+        <MudPaper Class="fsh-card pa-4">
+            <MudStack Spacing="1">
+                <MudIcon Icon="@Icons.Material.Outlined.Inventory2" Color="Color.Primary" Size="Size.Large" />
+                <MudText Typo="Typo.h6">Products</MudText>
+                <MudText Typo="Typo.body2" Class="text-muted">Create, activate, deactivate, and retire product
+                    definitions.</MudText>
+                    <MudButton Href="/expendable/products" Variant="Variant.Filled" Color="Color.Primary" Class="mt-2">Open
+                        Products</MudButton>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6" lg="4">
+                <MudPaper Class="fsh-card pa-4">
+                    <MudStack Spacing="1">
+                        <MudIcon Icon="@Icons.Material.Outlined.ShoppingBag" Color="Color.Info" Size="Size.Large" />
+                        <MudText Typo="Typo.h6">Purchases</MudText>
+                        <MudText Typo="Typo.body2" Class="text-muted">Create purchase orders and move them through
+                            submit/approve flow.</MudText>
+                            <MudButton Href="/expendable/purchases" Variant="Variant.Filled" Color="Color.Info" Class="mt-2">Open
+                                Purchases</MudButton>
+                            </MudStack>
+                        </MudPaper>
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6" lg="4">
+                        <MudPaper Class="fsh-card pa-4">
+                            <MudStack Spacing="1">
+                                <MudIcon Icon="@Icons.Material.Outlined.Assignment" Color="Color.Warning" Size="Size.Large" />
+                                <MudText Typo="Typo.h6">Supply Requests</MudText>
+                                <MudText Typo="Typo.body2" Class="text-muted">Create requests, then submit and approve allocations.
+                                </MudText>
+                                <MudButton Href="/expendable/requests" Variant="Variant.Filled" Color="Color.Warning" Class="mt-2">Open
+                                    Requests</MudButton>
+                                </MudStack>
+                            </MudPaper>
+                        </MudItem>
+
+                        <MudItem xs="12" sm="6" lg="4">
+                            <MudPaper Class="fsh-card pa-4">
+                                <MudStack Spacing="1">
+                                    <MudIcon Icon="@Icons.Material.Outlined.ShoppingCart" Color="Color.Secondary" Size="Size.Large" />
+                                    <MudText Typo="Typo.h6">Cart</MudText>
+                                    <MudText Typo="Typo.body2" Class="text-muted">Get or create employee carts, add items, and convert to
+                                        requests.</MudText>
+                                        <MudButton Href="/expendable/cart" Variant="Variant.Filled" Color="Color.Secondary" Class="mt-2">Open
+                                            Cart</MudButton>
+                                        </MudStack>
+                                    </MudPaper>
+                                </MudItem>
+
+                                <MudItem xs="12" sm="6" lg="4">
+                                    <MudPaper Class="fsh-card pa-4">
+                                        <MudStack Spacing="1">
+                                            <MudIcon Icon="@Icons.Material.Outlined.Warehouse" Color="Color.Success" Size="Size.Large" />
+                                            <MudText Typo="Typo.h6">Warehouse</MudText>
+                                            <MudText Typo="Typo.body2" Class="text-muted">Record inspections, reserve stock, issue inventory, and
+                                                disposition rejects.</MudText>
+                                                <MudButton Href="/expendable/warehouse" Variant="Variant.Filled" Color="Color.Success" Class="mt-2">Open
+                                                    Warehouse</MudButton>
+                                                </MudStack>
+                                            </MudPaper>
+                                        </MudItem>
+                                    </MudGrid>
+
+                                    <style>
+                                        .fsh-card {
+                                            border: 1px solid rgba(var(--mud-palette-primary-rgb), 0.12);
+                                            height: 100%;
+                                        }
+                                    </style>

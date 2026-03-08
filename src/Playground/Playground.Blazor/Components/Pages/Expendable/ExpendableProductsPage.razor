@@ -1,0 +1,238 @@
+@page "/expendable/products"
+@using FSH.Framework.Shared.Persistence
+@using FSH.Playground.Blazor.ApiClient
+@using FSH.Playground.Blazor.Services.Api.Expendable
+@inject IExpendableProductsClient ProductsClient
+@inject IExpendableActivityFeed ActivityFeed
+@inject ISnackbar Snackbar
+
+<FshPageHeader Title="Expendable Products" Description="Create and manage expendable products." />
+
+<MudGrid>
+    <!-- Create Form -->
+    <MudItem xs="12" lg="4">
+        <MudPaper Class="fsh-card pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Create Product</MudText>
+            <MudStack Spacing="2">
+                <MudTextField @bind-Value="_create.Sku" Label="SKU" Disabled="_busy" Required />
+                <MudTextField @bind-Value="_create.Name" Label="Name" Disabled="_busy" Required />
+                <MudTextField @bind-Value="_create.Description" Label="Description" Lines="2" Disabled="_busy" />
+                <MudNumericField @bind-Value="_create.UnitPrice" Label="Unit Price" Disabled="_busy" />
+                <MudTextField @bind-Value="_create.UnitOfMeasure" Label="Unit" Disabled="_busy" />
+                <MudNumericField @bind-Value="_create.MinimumStockLevel" Label="Min Stock" Disabled="_busy" />
+                <MudNumericField @bind-Value="_create.ReorderQuantity" Label="Reorder Qty" Disabled="_busy" />
+                <MudTextField @bind-Value="_create.SupplierId" Label="Supplier Id" Disabled="_busy" />
+
+                <ExpendableRecentActivity />
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync" Disabled="_busy"
+                               FullWidth>Create</MudButton>
+                    <MudButton Variant="Variant.Text" OnClick="Reset" Disabled="_busy" FullWidth>Reset</MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+    </MudItem>
+
+    <!-- Products List & Search -->
+    <MudItem xs="12" lg="8">
+        <MudPaper Class="fsh-card pa-4">
+            <MudText Typo="Typo.h6" Class="mb-3">Products Catalog</MudText>
+
+            <!-- Search Filters -->
+            <MudGrid Class="mb-4">
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_searchKeyword" Label="Search (Name/SKU)" Disabled="_loadingData" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="_searchStatus" Label="Status" Disabled="_loadingData"
+                               AnchorOrigin="Origin.BottomCenter">
+                        <MudSelectItem Value="@(string.Empty)">All</MudSelectItem>
+                        <MudSelectItem Value="@("Active")">Active</MudSelectItem>
+                        <MudSelectItem Value="@("Inactive")">Inactive</MudSelectItem>
+                        <MudSelectItem Value="@("Discontinued")">Discontinued</MudSelectItem>
+                        <MudSelectItem Value="@("OutOfStock")">Out of Stock</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SearchAsync"
+                               Disabled="_loadingData" FullWidth>Search</MudButton>
+                </MudItem>
+            </MudGrid>
+
+            <!-- Data Table -->
+            @if (_loadingData)
+            {
+                <MudProgressCircular Color="Color.Primary" Style="display:flex; margin:auto;" />
+            }
+            else if (_products?.Items?.Any() == true)
+            {
+                <MudTable Items="@_products.Items" Hover="true" Dense="false">
+                    <HeaderContent>
+                        <MudTh>SKU</MudTh>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Price</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh>Min Stock</MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.SKU</MudTd>
+                        <MudTd>@context.Name</MudTd>
+                        <MudTd>@context.UnitPrice.ToString("C")</MudTd>
+                        <MudTd>
+                            <MudChip Value="@context.Status" Color="GetStatusColor(context.Status)" Text="true"
+                                     Size="Size.Small">@context.Status</MudChip>
+                        </MudTd>
+                        <MudTd>@context.MinimumStockLevel</MudTd>
+                        <MudTd>
+                            <MudStack Row="true" Spacing="0">
+                                @if (context.Status == "Active")
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Block" Size="Size.Small" Color="Color.Warning"
+                                                   OnClick="@(() => DeactivateAsync(context.Id))" Title="Deactivate" />
+                                }
+                                else
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Outlined.CheckCircle" Size="Size.Small"
+                                                   Color="Color.Success" OnClick="@(() => ActivateAsync(context.Id))" Title="Activate" />
+                                }
+                                <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error"
+                                               OnClick="@(() => DeleteAsync(context.Id))" Title="Delete" />
+                            </MudStack>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+
+                <!-- Pagination -->
+                <MudStack Row="true" Class="mt-4 justify-content-center" Spacing="2">
+                    <MudButton Variant="Variant.Outlined" OnClick="PrevPageAsync"
+                               Disabled="_loadingData || _pageNumber <= 1">Previous</MudButton>
+                    <MudText>Page @_pageNumber of @_totalPages</MudText>
+                    <MudButton Variant="Variant.Outlined" OnClick="NextPageAsync"
+                               Disabled="_loadingData || _pageNumber >= _totalPages">Next</MudButton>
+                </MudStack>
+            }
+            else
+            {
+                <MudAlert Severity="@Severity.Info">No products found. Create one to get started.</MudAlert>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private const string Category = "Products";
+    private bool _busy;
+    private bool _loadingData;
+
+    // Create Form
+    private ProductForm _create = new();
+
+    // Search & Pagination
+    private string _searchKeyword = string.Empty;
+    private string _searchStatus = string.Empty;
+    private int _pageNumber = 1;
+    private const int PageSize = 10;
+    private int _totalPages = 1;
+    private PagedResponse<IExpendableProductsClient.ProductDto>? _products;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await SearchAsync();
+    }
+
+    private async Task CreateAsync() => await RunAsync("Create product", async () =>
+    {
+        await ProductsClient.CreateAsync(new CreateProductCommand
+        {
+            Sku = _create.Sku,
+            Name = _create.Name,
+            Description = _create.Description,
+            UnitPrice = _create.UnitPrice,
+            UnitOfMeasure = _create.UnitOfMeasure,
+            MinimumStockLevel = _create.MinimumStockLevel,
+            ReorderQuantity = _create.ReorderQuantity,
+            SupplierId = _create.SupplierId
+        });
+        Reset();
+        _pageNumber = 1;
+        await SearchAsync();
+    });
+
+    private async Task SearchAsync()
+    {
+        _loadingData = true;
+        try
+        {
+            _products = await ProductsClient.SearchAsync(_searchKeyword, _searchStatus, _pageNumber, PageSize);
+            _totalPages = (int)Math.Ceiling((double)(_products?.TotalCount ?? 0) / PageSize);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Search failed: {ex.Message}", Severity.Error);
+            ActivityFeed.AddFailure(Category, "Search", ex.Message);
+        }
+        finally { _loadingData = false; }
+    }
+
+    private async Task NextPageAsync() { if (_pageNumber < _totalPages) { _pageNumber++; await SearchAsync(); } }
+    private async Task PrevPageAsync() { if (_pageNumber > 1) { _pageNumber--; await SearchAsync(); } }
+
+    private async Task ActivateAsync(Guid id) => await RunAsync("Activate", async () =>
+    {
+        await
+ProductsClient.ActivateAsync(id); await SearchAsync();
+    });
+    private async Task DeactivateAsync(Guid id) => await RunAsync("Deactivate", async () =>
+    {
+        await
+ProductsClient.DeactivateAsync(id); await SearchAsync();
+    });
+
+    private async Task DeleteAsync(Guid id) => await RunAsync("Delete", async () =>
+    {
+        await ProductsClient.DeleteAsync(id);
+        await SearchAsync();
+    });
+
+    private async Task RunAsync(string action, Func<Task> op)
+    {
+        if (_busy) return;
+        _busy = true;
+        try
+        {
+            await op();
+            ActivityFeed.AddSuccess(Category, action);
+            Snackbar.Add($"{action} succeeded", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            ActivityFeed.AddFailure(Category, action, ex.Message);
+            Snackbar.Add($"{action} failed: {ex.Message}", Severity.Error);
+        }
+        finally { _busy = false; }
+    }
+
+    private void Reset() => _create = new ProductForm();
+
+    private static Color GetStatusColor(string status) => status switch
+    {
+        "Active" => Color.Success,
+        "Inactive" => Color.Warning,
+        "Discontinued" => Color.Error,
+        "OutOfStock" => Color.Secondary,
+        _ => Color.Default
+    };
+
+    private sealed class ProductForm
+    {
+        public string Sku { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public double UnitPrice { get; set; } = 1;
+        public string UnitOfMeasure { get; set; } = "PCS";
+        public int MinimumStockLevel { get; set; } = 1;
+        public int ReorderQuantity { get; set; } = 1;
+        public string SupplierId { get; set; } = string.Empty;
+    }
+}

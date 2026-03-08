@@ -16,6 +16,7 @@ internal static class CartMapper
                 x.ProductId,
                 x.Quantity,
                 x.UnitPrice,
-                x.GetLineTotal())).ToList(),
+                x.LineTotal)).ToList(),
             cart.CreatedOnUtc);
 }
+
