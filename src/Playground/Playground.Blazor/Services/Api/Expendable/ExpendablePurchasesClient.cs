@@ -38,20 +38,14 @@ internal sealed class ExpendablePurchasesClient : IExpendablePurchasesClient
         int? pageSize = null,
         CancellationToken cancellationToken = default)
     {
-        var queryParams = new List<string>();
-        if (poNumber != null)
-            queryParams.Add($"poNumber={Uri.EscapeDataString(poNumber)}");
-        if (status != null)
-            queryParams.Add($"status={Uri.EscapeDataString(status)}");
-        if (pageNumber != null)
-            queryParams.Add($"pageNumber={pageNumber}");
-        if (pageSize != null)
-            queryParams.Add($"pageSize={pageSize}");
+        var url = QueryStringBuilder.Build(
+            "/api/v1/expendable/purchases/search",
+            ("poNumber", poNumber),
+            ("status", status),
+            ("pageNumber", pageNumber),
+            ("pageSize", pageSize));
 
-        var url = "/api/v1/expendable/purchases/search" +
-                  (queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "");
-
-        var response = await _httpClient.PostAsync(new Uri(url, UriKind.Relative), null, cancellationToken);
+        var response = await _httpClient.PostAsync(url, null, cancellationToken);
         response.EnsureSuccessStatusCode();
 
         var jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -66,12 +60,10 @@ internal sealed class ExpendablePurchasesClient : IExpendablePurchasesClient
 
     public async Task<IExpendablePurchasesClient.PurchaseDto> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.GetAsync(new Uri($"/api/v1/expendable/purchases/{id}", UriKind.Relative), cancellationToken);
-        response.EnsureSuccessStatusCode();
+        var result = await _httpClient.GetFromJsonAsync<IExpendablePurchasesClient.PurchaseDto>(
+            $"/api/v1/expendable/purchases/{id}", JsonOptions, cancellationToken);
 
-        var jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        return JsonSerializer.Deserialize<IExpendablePurchasesClient.PurchaseDto>(jsonContent, JsonOptions)
-            ?? throw new InvalidOperationException($"Invalid response data received");
+        return result ?? throw new InvalidOperationException($"Invalid response data received");
     }
 
     public Task SubmitAsync(Guid id, CancellationToken cancellationToken = default) =>

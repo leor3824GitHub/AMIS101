@@ -34,12 +34,10 @@ internal sealed class ExpendableWarehouseClient : IExpendableWarehouseClient
 
     public async Task<IExpendableWarehouseClient.InventoryDto> GetInventoryAsync(Guid productId, Guid warehouseLocationId, CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.GetAsync(new Uri($"/api/v1/warehouse/inventory/{productId}/{warehouseLocationId}", UriKind.Relative), cancellationToken);
-        response.EnsureSuccessStatusCode();
+        var result = await _httpClient.GetFromJsonAsync<IExpendableWarehouseClient.InventoryDto>(
+            $"/api/v1/warehouse/inventory/{productId}/{warehouseLocationId}", JsonOptions, cancellationToken);
 
-        var jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        return JsonSerializer.Deserialize<IExpendableWarehouseClient.InventoryDto>(jsonContent, JsonOptions)
-            ?? throw new InvalidOperationException($"Invalid response data received");
+        return result ?? throw new InvalidOperationException($"Invalid response data received");
     }
 
     public async Task<PagedResponse<IExpendableWarehouseClient.InventoryDto>> SearchInventoryAsync(
@@ -51,28 +49,17 @@ internal sealed class ExpendableWarehouseClient : IExpendableWarehouseClient
         string? sort = null,
         CancellationToken cancellationToken = default)
     {
-        var queryParams = new List<string>();
-        if (warehouseLocationId != null)
-            queryParams.Add($"warehouseLocationId={warehouseLocationId}");
-        if (productCode != null)
-            queryParams.Add($"productCode={Uri.EscapeDataString(productCode)}");
-        if (productName != null)
-            queryParams.Add($"productName={Uri.EscapeDataString(productName)}");
-        if (pageNumber != null)
-            queryParams.Add($"pageNumber={pageNumber}");
-        if (pageSize != null)
-            queryParams.Add($"pageSize={pageSize}");
-        if (sort != null)
-            queryParams.Add($"sort={Uri.EscapeDataString(sort)}");
+        var url = QueryStringBuilder.Build(
+            "/api/v1/warehouse/inventory",
+            ("warehouseLocationId", warehouseLocationId),
+            ("productCode", productCode),
+            ("productName", productName),
+            ("pageNumber", pageNumber),
+            ("pageSize", pageSize),
+            ("sort", sort));
 
-        var url = "/api/v1/warehouse/inventory" +
-                  (queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "");
-
-        var response = await _httpClient.GetAsync(new Uri(url, UriKind.Relative), cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        var result = JsonSerializer.Deserialize<PagedResponse<IExpendableWarehouseClient.InventoryDto>>(jsonContent, JsonOptions);
+        var result = await _httpClient.GetFromJsonAsync<PagedResponse<IExpendableWarehouseClient.InventoryDto>>(
+            url, JsonOptions, cancellationToken);
 
         return result ?? new PagedResponse<IExpendableWarehouseClient.InventoryDto>
         {
@@ -88,22 +75,15 @@ internal sealed class ExpendableWarehouseClient : IExpendableWarehouseClient
         string? sort = null,
         CancellationToken cancellationToken = default)
     {
-        var queryParams = new List<string>();
-        queryParams.Add($"warehouseLocationId={warehouseLocationId}");
-        if (pageNumber != null)
-            queryParams.Add($"pageNumber={pageNumber}");
-        if (pageSize != null)
-            queryParams.Add($"pageSize={pageSize}");
-        if (sort != null)
-            queryParams.Add($"sort={Uri.EscapeDataString(sort)}");
+        var url = QueryStringBuilder.Build(
+            "/api/v1/warehouse/stock-levels",
+            ("warehouseLocationId", warehouseLocationId),
+            ("pageNumber", pageNumber),
+            ("pageSize", pageSize),
+            ("sort", sort));
 
-        var url = "/api/v1/warehouse/stock-levels?" + string.Join("&", queryParams);
-
-        var response = await _httpClient.GetAsync(new Uri(url, UriKind.Relative), cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        var result = JsonSerializer.Deserialize<PagedResponse<IExpendableWarehouseClient.StockLevelDto>>(jsonContent, JsonOptions);
+        var result = await _httpClient.GetFromJsonAsync<PagedResponse<IExpendableWarehouseClient.StockLevelDto>>(
+            url, JsonOptions, cancellationToken);
 
         return result ?? new PagedResponse<IExpendableWarehouseClient.StockLevelDto>
         {
@@ -120,26 +100,16 @@ internal sealed class ExpendableWarehouseClient : IExpendableWarehouseClient
         string? sort = null,
         CancellationToken cancellationToken = default)
     {
-        var queryParams = new List<string>();
-        if (warehouseLocationId != null)
-            queryParams.Add($"warehouseLocationId={warehouseLocationId}");
-        if (status != null)
-            queryParams.Add($"status={Uri.EscapeDataString(status)}");
-        if (pageNumber != null)
-            queryParams.Add($"pageNumber={pageNumber}");
-        if (pageSize != null)
-            queryParams.Add($"pageSize={pageSize}");
-        if (sort != null)
-            queryParams.Add($"sort={Uri.EscapeDataString(sort)}");
+        var url = QueryStringBuilder.Build(
+            "/api/v1/warehouse/rejected",
+            ("warehouseLocationId", warehouseLocationId),
+            ("status", status),
+            ("pageNumber", pageNumber),
+            ("pageSize", pageSize),
+            ("sort", sort));
 
-        var url = "/api/v1/warehouse/rejected" +
-                  (queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "");
-
-        var response = await _httpClient.GetAsync(new Uri(url, UriKind.Relative), cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        var result = JsonSerializer.Deserialize<PagedResponse<IExpendableWarehouseClient.RejectedInventoryDto>>(jsonContent, JsonOptions);
+        var result = await _httpClient.GetFromJsonAsync<PagedResponse<IExpendableWarehouseClient.RejectedInventoryDto>>(
+            url, JsonOptions, cancellationToken);
 
         return result ?? new PagedResponse<IExpendableWarehouseClient.RejectedInventoryDto>
         {
@@ -155,24 +125,15 @@ internal sealed class ExpendableWarehouseClient : IExpendableWarehouseClient
         string? sort = null,
         CancellationToken cancellationToken = default)
     {
-        var queryParams = new List<string>();
-        if (warehouseLocationId != null)
-            queryParams.Add($"warehouseLocationId={warehouseLocationId}");
-        if (pageNumber != null)
-            queryParams.Add($"pageNumber={pageNumber}");
-        if (pageSize != null)
-            queryParams.Add($"pageSize={pageSize}");
-        if (sort != null)
-            queryParams.Add($"sort={Uri.EscapeDataString(sort)}");
+        var url = QueryStringBuilder.Build(
+            "/api/v1/warehouse/pending-inspections",
+            ("warehouseLocationId", warehouseLocationId),
+            ("pageNumber", pageNumber),
+            ("pageSize", pageSize),
+            ("sort", sort));
 
-        var url = "/api/v1/warehouse/pending-inspections" +
-                  (queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "");
-
-        var response = await _httpClient.GetAsync(new Uri(url, UriKind.Relative), cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        var result = JsonSerializer.Deserialize<PagedResponse<IExpendableWarehouseClient.PendingInspectionDto>>(jsonContent, JsonOptions);
+        var result = await _httpClient.GetFromJsonAsync<PagedResponse<IExpendableWarehouseClient.PendingInspectionDto>>(
+            url, JsonOptions, cancellationToken);
 
         return result ?? new PagedResponse<IExpendableWarehouseClient.PendingInspectionDto>
         {

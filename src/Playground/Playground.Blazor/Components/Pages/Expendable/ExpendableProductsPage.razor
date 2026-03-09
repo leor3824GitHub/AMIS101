@@ -41,7 +41,9 @@
             <!-- Search Filters -->
             <MudGrid Class="mb-4">
                 <MudItem xs="12" sm="6">
-                    <MudTextField @bind-Value="_searchKeyword" Label="Search (Name/SKU)" Disabled="_loadingData" />
+                    <MudTextField @bind-Value="_searchKeyword" Label="Search (Name/SKU)" Disabled="_loadingData"
+                                  Immediate="true" DebounceInterval="500"
+                                  OnDebounceIntervalElapsed="@((string _) => HandleSearchChanged())" />
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudSelect @bind-Value="_searchStatus" Label="Status" Disabled="_loadingData"
@@ -60,9 +62,50 @@
             </MudGrid>
 
             <!-- Data Table -->
-            @if (_loadingData)
+            @if (_loadingData && _products == null)
             {
-                <MudProgressCircular Color="Color.Primary" Style="display:flex; margin:auto;" />
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="400px" Class="my-4" />
+            }
+            else if (_loadingData && _products?.Items?.Any() == true)
+            {
+                <!-- Keep showing table while refreshing -->
+                <MudTable Items="@_products.Items" Hover="true" Dense="false" Style="opacity: 0.6;">
+                    <HeaderContent>
+                        <MudTh>SKU</MudTh>
+                        <MudTh>Name</MudTh>
+                        <MudTh>Price</MudTh>
+                        <MudTh>Status</MudTh>
+                        <MudTh>Min Stock</MudTh>
+                        <MudTh>Actions</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.SKU</MudTd>
+                        <MudTd>@context.Name</MudTd>
+                        <MudTd>@context.UnitPrice.ToString("C")</MudTd>
+                        <MudTd>
+                            <MudChip Value="@context.Status" Color="GetStatusColor(context.Status)" Text="true"
+                                     Size="Size.Small">@context.Status</MudChip>
+                        </MudTd>
+                        <MudTd>@context.MinimumStockLevel</MudTd>
+                        <MudTd>
+                            <MudStack Row="true" Spacing="0">
+                                @if (context.Status == "Active")
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Outlined.Block" Size="Size.Small" Color="Color.Warning"
+                                                   OnClick="@(() => DeactivateAsync(context.Id))" Title="Deactivate" Disabled="true" />
+                                }
+                                else
+                                {
+                                    <MudIconButton Icon="@Icons.Material.Outlined.CheckCircle" Size="Size.Small"
+                                                   Color="Color.Success" OnClick="@(() => ActivateAsync(context.Id))" Title="Activate"
+                                                   Disabled="true" />
+                                }
+                                <MudIconButton Icon="@Icons.Material.Outlined.Delete" Size="Size.Small" Color="Color.Error"
+                                               OnClick="@(() => DeleteAsync(context.Id))" Title="Delete" Disabled="true" />
+                            </MudStack>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
             }
             else if (_products?.Items?.Any() == true)
             {
@@ -141,8 +184,20 @@
         await SearchAsync();
     }
 
+    private void HandleSearchChanged()
+    {
+        _pageNumber = 1;
+        _ = SearchAsync(); // Fire and forget, don't block UI
+    }
+
     private async Task CreateAsync() => await RunAsync("Create product", async () =>
     {
+        if (!_create.Validate())
+        {
+            Snackbar.Add("Please fill in required fields", Severity.Warning);
+            return;
+        }
+
         await ProductsClient.CreateAsync(new CreateProductCommand
         {
             Sku = _create.Sku,
@@ -152,7 +207,7 @@
             UnitOfMeasure = _create.UnitOfMeasure,
             MinimumStockLevel = _create.MinimumStockLevel,
             ReorderQuantity = _create.ReorderQuantity,
-            SupplierId = _create.SupplierId
+            SupplierId = string.IsNullOrEmpty(_create.SupplierId) ? null : _create.SupplierId
         });
         Reset();
         _pageNumber = 1;
@@ -165,7 +220,33 @@
         try
         {
             _products = await ProductsClient.SearchAsync(_searchKeyword, _searchStatus, _pageNumber, PageSize);
-            _totalPages = (int)Math.Ceiling((double)(_products?.TotalCount ?? 0) / PageSize);
+
+            // Defensive pagination: validate API response
+            if (_products == null || _products.PageNumber < 1 || _products.PageSize <= 0)
+            {
+                Snackbar.Add("Invalid pagination response from server", Severity.Error);
+                _products = new() { Items = new List<IExpendableProductsClient.ProductDto>(), TotalCount = 0 };
+                _pageNumber = 1;
+                _totalPages = 1;
+                return;
+            }
+
+            _totalPages = _products.TotalPages > 0 ? _products.TotalPages : (int)Math.Ceiling((double)_products.TotalCount /
+PageSize);
+
+            // Ensure current page is in bounds
+            if (_pageNumber > _totalPages && _totalPages > 0)
+                _pageNumber = _totalPages;
+        }
+        catch (ApiException ex) when (ex.StatusCode == 400)
+        {
+            Snackbar.Add("Invalid search parameters", Severity.Error);
+            ActivityFeed.AddFailure(Category, "Search", "Invalid parameters");
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Network error. Check your connection.", Severity.Error);
+            ActivityFeed.AddFailure(Category, "Search", "Network error");
         }
         catch (Exception ex)
         {
@@ -180,13 +261,14 @@
 
     private async Task ActivateAsync(Guid id) => await RunAsync("Activate", async () =>
     {
-        await
-ProductsClient.ActivateAsync(id); await SearchAsync();
+        await ProductsClient.ActivateAsync(id);
+        await SearchAsync();
     });
+
     private async Task DeactivateAsync(Guid id) => await RunAsync("Deactivate", async () =>
     {
-        await
-ProductsClient.DeactivateAsync(id); await SearchAsync();
+        await ProductsClient.DeactivateAsync(id);
+        await SearchAsync();
     });
 
     private async Task DeleteAsync(Guid id) => await RunAsync("Delete", async () =>
@@ -204,6 +286,21 @@ ProductsClient.DeactivateAsync(id); await SearchAsync();
             await op();
             ActivityFeed.AddSuccess(Category, action);
             Snackbar.Add($"{action} succeeded", Severity.Success);
+        }
+        catch (ApiException ex) when (ex.StatusCode == 403)
+        {
+            Snackbar.Add("You don't have permission for this action", Severity.Error);
+            ActivityFeed.AddFailure(Category, action, "Permission denied");
+        }
+        catch (ApiException ex) when (ex.StatusCode >= 500)
+        {
+            Snackbar.Add("Server error. Please contact support.", Severity.Error);
+            ActivityFeed.AddFailure(Category, action, $"Server error {ex.StatusCode}");
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Network error. Check your connection.", Severity.Error);
+            ActivityFeed.AddFailure(Category, action, "Network error");
         }
         catch (Exception ex)
         {
@@ -234,5 +331,10 @@ ProductsClient.DeactivateAsync(id); await SearchAsync();
         public int MinimumStockLevel { get; set; } = 1;
         public int ReorderQuantity { get; set; } = 1;
         public string SupplierId { get; set; } = string.Empty;
+
+        public bool Validate() =>
+            !string.IsNullOrWhiteSpace(Sku) &&
+            !string.IsNullOrWhiteSpace(Name) &&
+            UnitPrice > 0;
     }
 }

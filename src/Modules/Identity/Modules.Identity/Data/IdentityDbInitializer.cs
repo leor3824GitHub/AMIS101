@@ -38,13 +38,15 @@ internal sealed class IdentityDbInitializer(
 
     private async Task SeedRolesAsync(CancellationToken cancellationToken = default)
     {
+        var tenantId = multiTenantContextAccessor.MultiTenantContext?.TenantInfo?.Id ?? "Unknown";
+        
         foreach (string roleName in RoleConstants.DefaultRoles)
         {
             if (await roleManager.Roles.SingleOrDefaultAsync(r => r.Name == roleName, cancellationToken)
                 is not FshRole role)
             {
                 // create role
-                role = new FshRole(roleName, $"{roleName} Role for {multiTenantContextAccessor.MultiTenantContext.TenantInfo?.Id} Tenant");
+                role = new FshRole(roleName, $"{roleName} Role for {tenantId} Tenant");
                 await roleManager.CreateAsync(role);
             }
 
@@ -57,7 +59,7 @@ internal sealed class IdentityDbInitializer(
             {
                 await AssignPermissionsToRoleAsync(context, PermissionConstants.Admin, role, cancellationToken);
 
-                if (multiTenantContextAccessor.MultiTenantContext.TenantInfo?.Id == MultitenancyConstants.Root.Id)
+                if (tenantId == MultitenancyConstants.Root.Id)
                 {
                     await AssignPermissionsToRoleAsync(context, PermissionConstants.Root, role, cancellationToken);
                 }

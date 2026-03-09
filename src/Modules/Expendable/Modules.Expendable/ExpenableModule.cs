@@ -117,6 +117,9 @@ public class ExpendableModule : IModule
         // Register database initializer for multi-tenant migrations and seeding
         services.AddScoped<IDbInitializer, ExpendableDbInitializer>();
 
+        // Register hosted service to initialize core database schema on app startup
+        services.AddHostedService<FSH.Modules.Expendable.Provisioning.ExpendableDbInitializerHostedService>();
+
         // Fluent Validation will be auto-discovered
     }
 

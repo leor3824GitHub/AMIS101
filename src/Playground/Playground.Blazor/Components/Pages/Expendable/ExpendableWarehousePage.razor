@@ -73,7 +73,12 @@
 
                     @if (_loadingStock)
                     {
-                        <MudProgressCircular Color="Color.Primary" Style="display:flex; margin:auto;" />
+                        <MudStack Spacing="2">
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" />
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" />
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" />
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" />
+                        </MudStack>
                     }
                     else if (_stockLevels?.Items?.Any() == true)
                     {
@@ -125,7 +130,12 @@
 
                     @if (_loadingRejected)
                     {
-                        <MudProgressCircular Color="Color.Primary" Style="display:flex; margin:auto;" />
+                        <MudStack Spacing="2">
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" />
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" />
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" />
+                            <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" />
+                        </MudStack>
                     }
                     else if (_rejectedItems?.Items?.Any() == true)
                     {
@@ -168,7 +178,12 @@
 
                         @if (_loadingInspections)
                         {
-                            <MudProgressCircular Color="Color.Primary" Style="display:flex; margin:auto;" />
+                            <MudStack Spacing="2">
+                                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" />
+                                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" />
+                                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" />
+                                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="40px" />
+                            </MudStack>
                         }
                         else if (_pendingInspections?.Items?.Any() == true)
                         {
@@ -381,6 +396,31 @@
             await op(CancellationToken.None);
             ActivityFeed.AddSuccess(Category, action);
             Snackbar.Add($"{action} succeeded", Severity.Success);
+        }
+        catch (ApiException ex) when (ex.StatusCode == 403)
+        {
+            Snackbar.Add("You don't have permission for this action", Severity.Error);
+            ActivityFeed.AddFailure(Category, action, "Permission denied");
+        }
+        catch (ApiException ex) when (ex.StatusCode == 404)
+        {
+            Snackbar.Add("Resource not found", Severity.Error);
+            ActivityFeed.AddFailure(Category, action, "Not found");
+        }
+        catch (ApiException ex) when (ex.StatusCode >= 500)
+        {
+            Snackbar.Add("Server error. Please contact support.", Severity.Error);
+            ActivityFeed.AddFailure(Category, action, $"Server error {ex.StatusCode}");
+        }
+        catch (ApiException ex) when (ex.StatusCode >= 400)
+        {
+            Snackbar.Add($"Request error: {ex.Message}", Severity.Error);
+            ActivityFeed.AddFailure(Category, action, ex.Message);
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Network error. Check your connection.", Severity.Error);
+            ActivityFeed.AddFailure(Category, action, "Network error");
         }
         catch (Exception ex)
         {

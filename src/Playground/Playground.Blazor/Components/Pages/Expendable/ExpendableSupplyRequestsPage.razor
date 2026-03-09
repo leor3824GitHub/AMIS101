@@ -149,7 +149,30 @@
                 departmentId: _searchDepartmentId == string.Empty ? null : _searchDepartmentId,
                 pageNumber: _pageNumber,
                 pageSize: PageSize);
-            _totalPages = (int)Math.Ceiling((double)(_supplyRequests?.TotalCount ?? 0) / PageSize);
+
+            // Defensive pagination
+            if (_supplyRequests == null || _supplyRequests.PageNumber < 1)
+            {
+                Snackbar.Add("Invalid pagination response", Severity.Error);
+                _supplyRequests = new() { Items = new List<IExpendableSupplyRequestsClient.SupplyRequestDto>(), TotalCount = 0 };
+                _pageNumber = 1;
+                _totalPages = 1;
+                return;
+            }
+
+            _totalPages = _supplyRequests.TotalPages > 0 ? _supplyRequests.TotalPages : (int)Math.Ceiling((double)_supplyRequests.TotalCount / PageSize);
+            if (_pageNumber > _totalPages && _totalPages > 0)
+                _pageNumber = _totalPages;
+        }
+        catch (ApiException ex) when (ex.StatusCode == 400)
+        {
+            Snackbar.Add("Invalid search parameters", Severity.Error);
+            ActivityFeed.AddFailure(Category, "Search", "Invalid parameters");
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Network error. Check your connection.", Severity.Error);
+            ActivityFeed.AddFailure(Category, "Search", "Network error");
         }
         catch (Exception ex)
         {
@@ -162,8 +185,24 @@
     private async Task NextPageAsync() { if (_pageNumber < _totalPages) { _pageNumber++; await SearchAsync(); } }
     private async Task PrevPageAsync() { if (_pageNumber > 1) { _pageNumber--; await SearchAsync(); } }
 
-    private async Task SubmitAsync(Guid id) => await RunAsync("Submit", async () => { await SupplyRequestsClient.SubmitAsync(id); await SearchAsync(); });
-    private async Task ApproveAsync(Guid id) => await RunAsync("Approve", async () => { await SupplyRequestsClient.ApproveAsync(id, new ApproveSupplyRequestCommand(id, new Dictionary<Guid, int>())); await SearchAsync(); });
+    private async Task SubmitAsync(Guid id) => await RunAsync("Submit", async () => 
+    { 
+        await SupplyRequestsClient.SubmitAsync(id); 
+        await SearchAsync(); 
+    });
+
+    private async Task ApproveAsync(Guid id) => await RunAsync("Approve", async () => 
+    { 
+        // TODO: Collect actual allocations from UI form before approval
+        // For now, create empty allocations - this should be dynamic
+        var command = new ApproveSupplyRequestCommand 
+        { 
+            Id = id, 
+            ApprovedQuantities = new Dictionary<string, int>() 
+        };
+        await SupplyRequestsClient.ApproveAsync(id, command); 
+        await SearchAsync(); 
+    });
 
     private async Task RunAsync(string action, Func<Task> op)
     {
@@ -174,6 +213,21 @@
             await op();
             ActivityFeed.AddSuccess(Category, action);
             Snackbar.Add($"{action} succeeded", Severity.Success);
+        }
+        catch (ApiException ex) when (ex.StatusCode == 403)
+        {
+            Snackbar.Add("You don't have permission for this action", Severity.Error);
+            ActivityFeed.AddFailure(Category, action, "Permission denied");
+        }
+        catch (ApiException ex) when (ex.StatusCode >= 500)
+        {
+            Snackbar.Add("Server error. Please contact support.", Severity.Error);
+            ActivityFeed.AddFailure(Category, action, $"Server error {ex.StatusCode}");
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Network error. Check your connection.", Severity.Error);
+            ActivityFeed.AddFailure(Category, action, "Network error");
         }
         catch (Exception ex)
         {

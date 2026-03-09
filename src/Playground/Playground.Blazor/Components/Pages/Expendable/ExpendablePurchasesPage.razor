@@ -155,7 +155,30 @@
         try
         {
             _purchases = await PurchasesClient.SearchAsync(_searchPoNumber, _searchStatus, _pageNumber, PageSize);
-            _totalPages = (int)Math.Ceiling((double)(_purchases?.TotalCount ?? 0) / PageSize);
+            
+            // Defensive pagination
+            if (_purchases == null || _purchases.PageNumber < 1)
+            {
+                Snackbar.Add("Invalid pagination response", Severity.Error);
+                _purchases = new() { Items = new List<IExpendablePurchasesClient.PurchaseDto>(), TotalCount = 0 };
+                _pageNumber = 1;
+                _totalPages = 1;
+                return;
+            }
+
+            _totalPages = _purchases.TotalPages > 0 ? _purchases.TotalPages : (int)Math.Ceiling((double)_purchases.TotalCount / PageSize);
+            if (_pageNumber > _totalPages && _totalPages > 0)
+                _pageNumber = _totalPages;
+        }
+        catch (ApiException ex) when (ex.StatusCode == 400)
+        {
+            Snackbar.Add("Invalid search parameters", Severity.Error);
+            ActivityFeed.AddFailure(Category, "Search", "Invalid parameters");
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Network error. Check your connection.", Severity.Error);
+            ActivityFeed.AddFailure(Category, "Search", "Network error");
         }
         catch (Exception ex)
         {
@@ -180,6 +203,21 @@
             await op();
             ActivityFeed.AddSuccess(Category, action);
             Snackbar.Add($"{action} succeeded", Severity.Success);
+        }
+        catch (ApiException ex) when (ex.StatusCode == 403)
+        {
+            Snackbar.Add("You don't have permission for this action", Severity.Error);
+            ActivityFeed.AddFailure(Category, action, "Permission denied");
+        }
+        catch (ApiException ex) when (ex.StatusCode >= 500)
+        {
+            Snackbar.Add("Server error. Please contact support.", Severity.Error);
+            ActivityFeed.AddFailure(Category, action, $"Server error {ex.StatusCode}");
+        }
+        catch (HttpRequestException)
+        {
+            Snackbar.Add("Network error. Check your connection.", Severity.Error);
+            ActivityFeed.AddFailure(Category, action, "Network error");
         }
         catch (Exception ex)
         {

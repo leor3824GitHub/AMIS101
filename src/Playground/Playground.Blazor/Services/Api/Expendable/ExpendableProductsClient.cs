@@ -33,24 +33,15 @@ internal sealed class ExpendableProductsClient : IExpendableProductsClient
         int? pageSize = null,
         CancellationToken cancellationToken = default)
     {
-        var queryParams = new List<string>();
-        if (keyword != null)
-            queryParams.Add($"keyword={Uri.EscapeDataString(keyword)}");
-        if (status != null)
-            queryParams.Add($"status={Uri.EscapeDataString(status)}");
-        if (pageNumber != null)
-            queryParams.Add($"pageNumber={pageNumber}");
-        if (pageSize != null)
-            queryParams.Add($"pageSize={pageSize}");
+        var url = QueryStringBuilder.Build(
+            "/api/v1/expendable/products",
+            ("keyword", keyword),
+            ("status", status),
+            ("pageNumber", pageNumber),
+            ("pageSize", pageSize));
 
-        var url = "/api/v1/expendable/products" +
-                  (queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "");
-
-        var response = await _httpClient.GetAsync(new Uri(url, UriKind.Relative), cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        var result = JsonSerializer.Deserialize<PagedResponse<IExpendableProductsClient.ProductDto>>(jsonContent, JsonOptions);
+        var result = await _httpClient.GetFromJsonAsync<PagedResponse<IExpendableProductsClient.ProductDto>>(
+            url, JsonOptions, cancellationToken);
 
         return result ?? new PagedResponse<IExpendableProductsClient.ProductDto>
         {
@@ -61,12 +52,10 @@ internal sealed class ExpendableProductsClient : IExpendableProductsClient
 
     public async Task<IExpendableProductsClient.ProductDto> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.GetAsync(new Uri($"/api/v1/expendable/products/{id}", UriKind.Relative), cancellationToken);
-        response.EnsureSuccessStatusCode();
+        var result = await _httpClient.GetFromJsonAsync<IExpendableProductsClient.ProductDto>(
+            $"/api/v1/expendable/products/{id}", JsonOptions, cancellationToken);
 
-        var jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        return JsonSerializer.Deserialize<IExpendableProductsClient.ProductDto>(jsonContent, JsonOptions)
-            ?? throw new InvalidOperationException($"Invalid response data received");
+        return result ?? throw new InvalidOperationException($"Invalid response data received");
     }
 
     public Task UpdateAsync(Guid id, UpdateProductCommand command, CancellationToken cancellationToken = default) =>
@@ -87,22 +76,14 @@ internal sealed class ExpendableProductsClient : IExpendableProductsClient
         string? sort = null,
         CancellationToken cancellationToken = default)
     {
-        var queryParams = new List<string>();
-        if (pageNumber != null)
-            queryParams.Add($"pageNumber={pageNumber}");
-        if (pageSize != null)
-            queryParams.Add($"pageSize={pageSize}");
-        if (sort != null)
-            queryParams.Add($"sort={Uri.EscapeDataString(sort)}");
+        var url = QueryStringBuilder.Build(
+            "/api/v1/expendable/products/active",
+            ("pageNumber", pageNumber),
+            ("pageSize", pageSize),
+            ("sort", sort));
 
-        var url = "/api/v1/expendable/products/active" +
-                  (queryParams.Count > 0 ? "?" + string.Join("&", queryParams) : "");
-
-        var response = await _httpClient.GetAsync(new Uri(url, UriKind.Relative), cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        var jsonContent = await response.Content.ReadAsStringAsync(cancellationToken);
-        var result = JsonSerializer.Deserialize<PagedResponse<IExpendableProductsClient.ProductDto>>(jsonContent, JsonOptions);
+        var result = await _httpClient.GetFromJsonAsync<PagedResponse<IExpendableProductsClient.ProductDto>>(
+            url, JsonOptions, cancellationToken);
 
         return result ?? new PagedResponse<IExpendableProductsClient.ProductDto>
         {
