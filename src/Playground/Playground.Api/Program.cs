@@ -1,6 +1,8 @@
 ﻿using FSH.Framework.Web;
 using FSH.Framework.Web.Modules;
 using FSH.Modules.Auditing;
+using FSH.Modules.MasterData;
+using FSH.Modules.MasterData.Contracts.v1.References;
 using FSH.Modules.Expendable;
 using FSH.Modules.Expendable.Contracts.v1.Products;
 using FSH.Modules.Identity;
@@ -40,6 +42,8 @@ builder.Services.AddMediator(o =>
         typeof(FSH.Modules.Auditing.Contracts.AuditEnvelope),
         typeof(FSH.Modules.Auditing.Persistence.AuditDbContext),
         typeof(CreateProductCommand),
+        typeof(SearchEmployeeReferencesQuery),
+        typeof(MasterDataModule),
         typeof(ExpendableModule)];
 });
 
@@ -48,6 +52,7 @@ var moduleAssemblies = new Assembly[]
     typeof(IdentityModule).Assembly,
     typeof(MultitenancyModule).Assembly,
     typeof(AuditingModule).Assembly,
+    typeof(MasterDataModule).Assembly,
     typeof(ExpendableModule).Assembly
 };
 
@@ -72,3 +77,4 @@ app.MapGet("/", () => Results.Ok(new { message = "hello world!" }))
    .WithTags("PlayGround")
    .AllowAnonymous();
 await app.RunAsync();
+

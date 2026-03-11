@@ -1,4 +1,4 @@
-<Solution>
+﻿<Solution>
   <Folder Name="/BuildingBlocks/">
     <Project Path="BuildingBlocks/Blazor.UI/Blazor.UI.csproj" Id="b8ed01df-1c7f-4be1-afa4-f41d3ac7208e" />
     <Project Path="BuildingBlocks/Caching/Caching.csproj" />
@@ -16,6 +16,10 @@
   <Folder Name="/Modules/Auditing/">
     <Project Path="Modules/Auditing/Modules.Auditing.Contracts/Modules.Auditing.Contracts.csproj" />
     <Project Path="Modules/Auditing/Modules.Auditing/Modules.Auditing.csproj" Id="2764205b-8725-43a7-b499-67b98959ad50" />
+  </Folder>
+  <Folder Name="/Modules/MasterData/">
+    <Project Path="Modules/MasterData/Modules.MasterData.Contracts/Modules.MasterData.Contracts.csproj" />
+    <Project Path="Modules/MasterData/Modules.MasterData/Modules.MasterData.csproj" />
   </Folder>
   <Folder Name="/Modules/Expendable/">
     <Project Path="Modules/Expendable/Modules.Expendable.Contracts/Modules.Expendable.Contracts.csproj" />
@@ -56,3 +60,4 @@
     <File Path="Directory.Packages.props" />
   </Folder>
 </Solution>
+

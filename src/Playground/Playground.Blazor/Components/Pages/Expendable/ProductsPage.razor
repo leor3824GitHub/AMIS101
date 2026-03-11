@@ -207,10 +207,28 @@
         {
             _isLoading = true;
             var response = await ProductsClient.SearchAsync(keyword: _searchKeyword, pageSize: 100);
-            _products = response?.Items?.ToList() ?? new();
-            if (_products.Count == 0)
+            var allProducts = response?.Items?.ToList() ?? new();
+            
+            // Client-side partial text filtering for better matching
+            if (string.IsNullOrWhiteSpace(_searchKeyword))
             {
-                Snackbar.Add("No products found", Severity.Info);
+                _products = allProducts;
+            }
+            else
+            {
+                var searchTerm = _searchKeyword.ToLower();
+                _products = allProducts
+                    .Where(p => 
+                        p.Name.ToLower().Contains(searchTerm) ||
+                        p.SKU.ToLower().Contains(searchTerm) ||
+                        p.Description.ToLower().Contains(searchTerm) ||
+                        p.UnitOfMeasure.ToLower().Contains(searchTerm))
+                    .ToList();
+            }
+            
+            if (_products.Count == 0 && !string.IsNullOrWhiteSpace(_searchKeyword))
+            {
+                Snackbar.Add("No products found matching your search", Severity.Info);
             }
             StateHasChanged();
         }

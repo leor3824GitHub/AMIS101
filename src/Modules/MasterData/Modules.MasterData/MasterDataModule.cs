@@ -1,0 +1,122 @@
+﻿using Asp.Versioning;
+using FSH.Framework.Persistence;
+using FSH.Framework.Shared.Constants;
+using FSH.Framework.Web.Modules;
+using FSH.Modules.MasterData.Data;
+using FSH.Modules.MasterData.Features.v1.Departments.CreateDepartment;
+using FSH.Modules.MasterData.Features.v1.Departments.DeleteDepartment;
+using FSH.Modules.MasterData.Features.v1.Departments.UpdateDepartment;
+using FSH.Modules.MasterData.Features.v1.Employees.CreateEmployee;
+using FSH.Modules.MasterData.Features.v1.Employees.DeleteEmployee;
+using FSH.Modules.MasterData.Features.v1.Employees.UpdateEmployee;
+using FSH.Modules.MasterData.Features.v1.Lookups;
+using FSH.Modules.MasterData.Features.v1.Offices.CreateOffice;
+using FSH.Modules.MasterData.Features.v1.Offices.DeleteOffice;
+using FSH.Modules.MasterData.Features.v1.Offices.GetOfficeById;
+using FSH.Modules.MasterData.Features.v1.Offices.UpdateOffice;
+using FSH.Modules.MasterData.Features.v1.Positions.CreatePosition;
+using FSH.Modules.MasterData.Features.v1.Positions.DeletePosition;
+using FSH.Modules.MasterData.Features.v1.Positions.GetPositionById;
+using FSH.Modules.MasterData.Features.v1.Positions.UpdatePosition;
+using FSH.Modules.MasterData.Features.v1.UnitOfMeasures.CreateUnitOfMeasure;
+using FSH.Modules.MasterData.Features.v1.UnitOfMeasures.DeleteUnitOfMeasure;
+using FSH.Modules.MasterData.Features.v1.UnitOfMeasures.GetUnitOfMeasureById;
+using FSH.Modules.MasterData.Features.v1.UnitOfMeasures.UpdateUnitOfMeasure;
+using FSH.Modules.MasterData.Features.v1.Departments.GetDepartmentById;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+namespace FSH.Modules.MasterData;
+
+public class MasterDataModule : IModule
+{
+    private static readonly IReadOnlyList<FshPermission> RegisteredPermissions =
+    [
+        new("View Employee Lookup", "View", "MasterData.Lookup", IsBasic: true),
+
+        new("View Employees", "View", "MasterData.Employees"),
+        new("Create Employees", "Create", "MasterData.Employees"),
+        new("Update Employees", "Update", "MasterData.Employees"),
+        new("Delete Employees", "Delete", "MasterData.Employees"),
+
+        new("View Offices", "View", "MasterData.Offices"),
+        new("Create Offices", "Create", "MasterData.Offices"),
+        new("Update Offices", "Update", "MasterData.Offices"),
+        new("Delete Offices", "Delete", "MasterData.Offices"),
+
+        new("View Departments", "View", "MasterData.Departments"),
+        new("Create Departments", "Create", "MasterData.Departments"),
+        new("Update Departments", "Update", "MasterData.Departments"),
+        new("Delete Departments", "Delete", "MasterData.Departments"),
+
+        new("View Positions", "View", "MasterData.Positions"),
+        new("Create Positions", "Create", "MasterData.Positions"),
+        new("Update Positions", "Update", "MasterData.Positions"),
+        new("Delete Positions", "Delete", "MasterData.Positions"),
+
+        new("View Unit Of Measures", "View", "MasterData.UnitOfMeasures"),
+        new("Create Unit Of Measures", "Create", "MasterData.UnitOfMeasures"),
+        new("Update Unit Of Measures", "Update", "MasterData.UnitOfMeasures"),
+        new("Delete Unit Of Measures", "Delete", "MasterData.UnitOfMeasures")
+    ];
+
+    public void ConfigureServices(IHostApplicationBuilder builder)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        var services = builder.Services;
+
+        PermissionConstants.Register(RegisteredPermissions);
+
+        services.AddHeroDbContext<MasterDataDbContext>();
+        services.AddScoped<IDbInitializer, MasterDataDbInitializer>();
+    }
+
+    public void MapEndpoints(IEndpointRouteBuilder endpoints)
+    {
+        ArgumentNullException.ThrowIfNull(endpoints);
+
+        var apiVersionSet = endpoints.NewApiVersionSet()
+            .HasApiVersion(new ApiVersion(1))
+            .ReportApiVersions()
+            .Build();
+
+        var moduleGroup = endpoints
+            .MapGroup("api/v{version:apiVersion}/master-data")
+            .WithTags("MasterData")
+            .WithApiVersionSet(apiVersionSet);
+
+        var lookupGroup = moduleGroup.MapGroup("/lookup");
+        var employeesGroup = moduleGroup.MapGroup("/employees");
+        var officesGroup = moduleGroup.MapGroup("/offices");
+        var departmentsGroup = moduleGroup.MapGroup("/departments");
+        var positionsGroup = moduleGroup.MapGroup("/positions");
+        var unitOfMeasuresGroup = moduleGroup.MapGroup("/unit-of-measures");
+
+        MasterDataLookupEndpoint.Map(lookupGroup);
+        CreateEmployeeEndpoint.Map(employeesGroup);
+        UpdateEmployeeEndpoint.Map(employeesGroup);
+        DeleteEmployeeEndpoint.Map(employeesGroup);
+        CreateOfficeEndpoint.Map(officesGroup);
+        GetOfficeByIdEndpoint.Map(officesGroup);
+        UpdateOfficeEndpoint.Map(officesGroup);
+        DeleteOfficeEndpoint.Map(officesGroup);
+        CreateDepartmentEndpoint.Map(departmentsGroup);
+        GetDepartmentByIdEndpoint.Map(departmentsGroup);
+        UpdateDepartmentEndpoint.Map(departmentsGroup);
+        DeleteDepartmentEndpoint.Map(departmentsGroup);
+        CreatePositionEndpoint.Map(positionsGroup);
+        GetPositionByIdEndpoint.Map(positionsGroup);
+        UpdatePositionEndpoint.Map(positionsGroup);
+        DeletePositionEndpoint.Map(positionsGroup);
+        CreateUnitOfMeasureEndpoint.Map(unitOfMeasuresGroup);
+        GetUnitOfMeasureByIdEndpoint.Map(unitOfMeasuresGroup);
+        UpdateUnitOfMeasureEndpoint.Map(unitOfMeasuresGroup);
+        DeleteUnitOfMeasureEndpoint.Map(unitOfMeasuresGroup);
+    }
+}
+
+
+

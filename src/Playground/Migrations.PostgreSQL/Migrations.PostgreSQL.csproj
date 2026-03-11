@@ -7,15 +7,24 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+		<PrivateAssets>all</PrivateAssets>
+		<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+	  </PackageReference>
+	</ItemGroup>
+
+	<ItemGroup>
 	  <ProjectReference Include="..\..\BuildingBlocks\Persistence\Persistence.csproj" />
 	  <ProjectReference Include="..\..\Modules\Auditing\Modules.Auditing\Modules.Auditing.csproj" />
 	  <ProjectReference Include="..\..\Modules\Expendable\Modules.Expendable\Modules.Expendable.csproj" />
 	  <ProjectReference Include="..\..\Modules\Identity\Modules.Identity\Modules.Identity.csproj" />
+	  <ProjectReference Include="..\..\Modules\MasterData\Modules.MasterData\Modules.MasterData.csproj" />
 	  <ProjectReference Include="..\..\Modules\Multitenancy\Modules.Multitenancy\Modules.Multitenancy.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>
 	  <Folder Include="Audit\" />
+	  <Folder Include="MasterData\" />
 	  <Folder Include="MultiTenancy\" />
 	</ItemGroup>
 
