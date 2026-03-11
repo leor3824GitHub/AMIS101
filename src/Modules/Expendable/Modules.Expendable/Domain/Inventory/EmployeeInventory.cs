@@ -50,7 +50,7 @@ public class EmployeeInventory : AggregateRoot<Guid>, IHasTenant, IAuditableEnti
     public int TotalQuantityConsumed { get; set; }
     public int QuantityOnHand => TotalQuantityReceived - TotalQuantityConsumed;
     public DateTimeOffset LastInventoryDate { get; set; }
-    public byte[] Version { get; set; } = default!;
+    public byte[] Version { get; set; } = [];
 
     private readonly List<InventoryBatch> _batches = [];
     public IReadOnlyCollection<InventoryBatch> Batches => _batches.AsReadOnly();

@@ -75,7 +75,7 @@ public class RejectedInventoryConfiguration : IEntityTypeConfiguration<RejectedI
             .HasMaxLength(1000);
 
         builder.Property(p => p.Version)
-            .IsRowVersion();
+            .IsConcurrencyToken();
 
         // Indexes
         // Foreign key lookups

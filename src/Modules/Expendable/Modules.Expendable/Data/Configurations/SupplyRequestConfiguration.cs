@@ -45,7 +45,7 @@ public class SupplyRequestConfiguration : IEntityTypeConfiguration<SupplyRequest
             .HasMaxLength(50);
 
         builder.Property(p => p.Version)
-            .IsRowVersion();
+            .IsConcurrencyToken();
 
         // Items (Owned Type)
         builder.OwnsMany(p => p.Items, ob =>

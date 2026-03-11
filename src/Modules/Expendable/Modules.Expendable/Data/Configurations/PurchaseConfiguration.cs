@@ -38,7 +38,7 @@ public class PurchaseConfiguration : IEntityTypeConfiguration<Purchase>
             .HasMaxLength(1000);
 
         builder.Property(p => p.Version)
-            .IsRowVersion();
+            .IsConcurrencyToken();
 
         // Line Items (Owned Type)
         builder.OwnsMany(p => p.LineItems, ob =>

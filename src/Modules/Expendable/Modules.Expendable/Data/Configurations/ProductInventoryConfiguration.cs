@@ -61,7 +61,7 @@ public class ProductInventoryConfiguration : IEntityTypeConfiguration<ProductInv
             .IsRequired();
 
         builder.Property(p => p.Version)
-            .IsRowVersion();
+            .IsConcurrencyToken();
 
         // Batches (Owned Collection stored as JSON)
         builder.OwnsMany(p => p.Batches, ob =>

@@ -46,7 +46,7 @@ public class SupplyRequest : AggregateRoot<Guid>, IHasTenant, IAuditableEntity
     public string? RejectionReason { get; set; }
     public string? ApprovedBy { get; set; }
     public DateTimeOffset? ApprovedOnUtc { get; set; }
-    public byte[] Version { get; set; } = default!;
+    public byte[] Version { get; set; } = [];
 
     private readonly List<SupplyRequestItem> _items = [];
     public IReadOnlyCollection<SupplyRequestItem> Items => _items.AsReadOnly();

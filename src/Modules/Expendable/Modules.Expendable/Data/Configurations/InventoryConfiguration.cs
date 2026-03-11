@@ -25,7 +25,7 @@ public class EmployeeInventoryConfiguration : IEntityTypeConfiguration<EmployeeI
             .IsRequired();
 
         builder.Property(p => p.Version)
-            .IsRowVersion();
+            .IsConcurrencyToken();
 
         // Batches (Owned Type)
         builder.OwnsMany(p => p.Batches, ob =>

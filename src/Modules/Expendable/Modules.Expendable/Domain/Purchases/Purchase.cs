@@ -57,7 +57,7 @@ public class Purchase : AggregateRoot<Guid>, IHasTenant, IAuditableEntity
     public PurchaseStatus Status { get; set; } = PurchaseStatus.Draft;
     public decimal TotalAmount { get; set; }
     public string? ReceivingNotes { get; set; }
-    public byte[] Version { get; set; } = default!;
+    public byte[] Version { get; set; } = [];
 
     private readonly List<PurchaseLineItem> _lineItems = [];
     public IReadOnlyCollection<PurchaseLineItem> LineItems => _lineItems.AsReadOnly();

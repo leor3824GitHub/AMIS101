@@ -28,7 +28,7 @@ public class EmployeeShoppingCartConfiguration : IEntityTypeConfiguration<Employ
             .HasConversion<int>();
 
         builder.Property(p => p.Version)
-            .IsRowVersion();
+            .IsConcurrencyToken();
 
         // Items (Owned Type)
         builder.OwnsMany(p => p.Items, ob =>
