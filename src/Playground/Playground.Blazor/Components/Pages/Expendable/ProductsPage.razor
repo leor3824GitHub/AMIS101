@@ -8,10 +8,14 @@
 
 <FshPageHeader Title="Products" Description="Manage product catalog">
     <ActionContent>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
-                   OnClick="@(() => ShowCreateModal = true)">
-            New Product
-        </MudButton>
+        <MudStack Row="true" Spacing="2" Style="width: 100%; max-width: 400px;">
+            <MudTextField @bind-Value="_searchKeyword" Label="Search" Placeholder="Search products..."
+                          DebounceInterval="300" OnDebounceIntervalElapsed="@(async () => await SearchProducts())"
+                          Variant="Variant.Outlined" Size="Size.Small" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SearchProducts">
+                Search
+            </MudButton>
+        </MudStack>
     </ActionContent>
 </FshPageHeader>
 
@@ -113,6 +117,7 @@
     private List<IExpendableProductsClient.ProductDto> _products = new();
     private bool _initialized = false;
     private bool _isLoading = false;
+    private string _searchKeyword = string.Empty;
 
     public class ProductForm
     {
@@ -192,6 +197,31 @@
                 Snackbar.Add($"Failed to load products: {ex.Message}", Severity.Error);
             }
             _products = new();
+            StateHasChanged();
+        }
+    }
+
+    private async Task SearchProducts()
+    {
+        try
+        {
+            _isLoading = true;
+            var response = await ProductsClient.SearchAsync(keyword: _searchKeyword, pageSize: 100);
+            _products = response?.Items?.ToList() ?? new();
+            if (_products.Count == 0)
+            {
+                Snackbar.Add("No products found", Severity.Info);
+            }
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Search failed: {ex.Message}", Severity.Error);
+            _products = new();
+        }
+        finally
+        {
+            _isLoading = false;
             StateHasChanged();
         }
     }
