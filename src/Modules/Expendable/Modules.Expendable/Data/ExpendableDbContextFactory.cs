@@ -26,7 +26,7 @@ public sealed class ExpendableDbContextFactory : IDesignTimeDbContextFactory<Exp
         var connectionString = configuration["DatabaseOptions:ConnectionString"]
             ?? "Host=localhost;Database=fsh-playground;Username=postgres;Password=postgres";
         var migrationsAssembly = configuration["DatabaseOptions:MigrationsAssembly"]
-            ?? "FSH.Modules.Expendable";
+            ?? "FSH.Playground.Migrations.PostgreSQL";
 
         var optionsBuilder = new DbContextOptionsBuilder<ExpendableDbContext>();
 

@@ -8,6 +8,7 @@
 @using FSH.Playground.Blazor.Components.Pages
 @using Microsoft.AspNetCore.WebUtilities
 @using FSH.Playground.Blazor.Services
+@using FSH.Playground.Blazor.Services.Api
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
 @inject IHttpContextAccessor HttpContextAccessor
@@ -66,6 +67,10 @@ else
             <MudContainer Class="fsh-section page-shell" MaxWidth="MaxWidth.False">
                 @Body
             </MudContainer>
+            <footer style="margin-top: 40px; padding: 16px; border-top: 1px solid var(--mud-palette-lines-default); display: flex; justify-content: flex-end; align-items: center; gap: 8px; font-size: 12px; color: var(--mud-palette-text-secondary);">
+                <span>API Status:</span>
+                <ApiStatusIndicator />
+            </footer>
         </MudMainContent>
     </MudLayout>
 }

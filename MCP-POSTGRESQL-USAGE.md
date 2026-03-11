@@ -5,10 +5,10 @@
 This project uses the **Model Context Protocol (MCP) PostgreSQL Server** to provide structured access to the Docker PostgreSQL database. The MCP server acts as a bridge between Claude AI and the PostgreSQL database, enabling natural language queries and database inspections.
 
 **Connection Details:**
-- **URL:** `postgresql://postgres:password@localhost:5432/amis102`
+- **URL:** `postgresql://postgres:password@localhost:5432/amis104`
 - **Host:** localhost  
 - **Port:** 5432
-- **Database:** amis102
+- **Database:** amis104
 - **Username:** postgres
 - **Password:** password
 
@@ -27,7 +27,7 @@ The MCP PostgreSQL server is configured in `.vscode/settings.json`:
       "command": "npx",
       "args": ["@modelcontextprotocol/server-postgres"],
       "env": {
-        "DATABASE_URL": "postgresql://postgres:password@localhost:5432/amis102"
+        "DATABASE_URL": "postgresql://postgres:password@localhost:5432/amis104"
       }
     }
   }

@@ -17,4 +17,10 @@ public sealed class MultitenancyOptions
     /// Useful to ensure the root tenant is provisioned automatically on first run when startup migrations are disabled.
     /// </summary>
     public bool AutoProvisionOnStartup { get; set; } = true;
+
+    /// <summary>
+    /// When true, enables Finbuckle distributed cache store for tenant resolution metadata.
+    /// Disable in local development if Redis is unstable and tenant resolution should rely on EF store only.
+    /// </summary>
+    public bool UseDistributedCacheStore { get; set; } = true;
 }

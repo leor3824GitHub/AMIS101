@@ -8,7 +8,7 @@ namespace FSH.Modules.Expendable.Domain.Warehouse;
 /// Multi-warehouse support: Each location has its own ProductInventory record per product.
 /// </summary>
 public class ProductInventory : AggregateRoot<Guid>
-    , IHasTenant, IAuditableEntity, ISoftDeletable
+    , IHasTenant, IAuditableEntity
 {
     public string TenantId { get; private set; } = default!;
 

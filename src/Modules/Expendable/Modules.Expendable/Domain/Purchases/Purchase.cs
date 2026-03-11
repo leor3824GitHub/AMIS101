@@ -42,7 +42,7 @@ public class PurchaseLineItem
     public decimal LineTotal => Quantity * UnitPrice;
 }
 
-public class Purchase : AggregateRoot<Guid>, IHasTenant, IAuditableEntity, ISoftDeletable
+public class Purchase : AggregateRoot<Guid>, IHasTenant, IAuditableEntity
 {
     public string TenantId { get; private set; } = default!;
     public string PurchaseOrderNumber { get; private set; } = default!;

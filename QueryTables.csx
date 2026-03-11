@@ -3,7 +3,7 @@
 
 using Npgsql;
 
-var connString = "Server=127.0.0.1;Port=13121;User Id=postgres;Password=(eFEW-ZX+bhaUagmD2qTgt;Database=amis102";
+var connString = "Server=127.0.0.1;Port=13121;User Id=postgres;Password=(eFEW-ZX+bhaUagmD2qTgt;Database=amis104";
 
 try
 {
@@ -18,7 +18,7 @@ try
         conn);
 
     using var reader = cmd.ExecuteReader();
-    Console.WriteLine("=== PostgreSQL Tables in [amis102] ===\n");
+    Console.WriteLine("=== PostgreSQL Tables in [amis104] ===\n");
 
     while (reader.Read())
     {

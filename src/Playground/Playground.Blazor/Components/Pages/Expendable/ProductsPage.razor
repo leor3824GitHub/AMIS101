@@ -1,0 +1,302 @@
+@page "/expendable/products"
+@using FSH.Framework.Blazor.UI.Components.Cards
+@using FSH.Playground.Blazor.Services.Api.Expendable
+@using FSH.Playground.Blazor.ApiClient
+@inherits ComponentBase
+@inject ISnackbar Snackbar
+@inject IExpendableProductsClient ProductsClient
+
+<FshPageHeader Title="Products" Description="Manage product catalog">
+    <ActionContent>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="@(() => ShowCreateModal = true)">
+            New Product
+        </MudButton>
+    </ActionContent>
+</FshPageHeader>
+
+<div class="mt-4">
+    <MudGrid Spacing="2">
+        <!-- Create/Edit Form -->
+        <MudItem xs="12" md="4">
+            <MudCard Class="fsh-card">
+                <MudCardContent>
+                    <MudText Typo="Typo.h6" Class="mb-3">@(EditingProduct != null ? "Edit Product" : "Create Product")
+                    </MudText>
+                    <MudStack Spacing="3">
+                        <MudTextField @bind-Value="_form.Name" Label="Product Name" Placeholder="Enter product name"
+                                      Required="true" />
+                        <MudTextField @bind-Value="_form.SKU" Label="SKU" Placeholder="Enter SKU code"
+                                      Required="true" />
+                        <MudTextField @bind-Value="_form.Description" Label="Description"
+                                      Placeholder="Product description" Lines="2" />
+                        <MudNumericField @bind-Value="_form.UnitPrice" Label="Unit Price" Min="0" Step="0.01m" />
+                        <MudTextField @bind-Value="_form.UnitOfMeasure" Label="Unit of Measure"
+                                      Placeholder="PCS, BOX, etc." />
+                        <MudNumericField @bind-Value="_form.MinimumStockLevel" Label="Minimum Stock Level" Min="0" />
+                        <MudNumericField @bind-Value="_form.ReorderQuantity" Label="Reorder Quantity" Min="0" />
+                        <MudTextField @bind-Value="_form.CategoryId" Label="Category ID" Placeholder="(Optional)" />
+                        <MudTextField @bind-Value="_form.SupplierId" Label="Supplier ID" Placeholder="(Optional)" />
+
+                        <MudStack Row="true" Spacing="2" Class="mt-4">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                                       OnClick="SaveProduct" Disabled="_isLoading">
+                                @(EditingProduct != null ? "Update" : "Create")
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Default" FullWidth="true"
+                                       OnClick="ResetForm">
+                                Clear
+                            </MudButton>
+                        </MudStack>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Products List -->
+        <MudItem xs="12" md="8">
+            <MudCard Class="fsh-card">
+                <MudCardContent>
+                    <MudText Typo="Typo.h6" Class="mb-3">Products List</MudText>
+
+                    @if (_products.Any())
+                    {
+                        <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>SKU</th>
+                                    <th>Price</th>
+                                     <th>UoM</th>
+                                    <th>Min Stock</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var product in _products)
+                                {
+                                    <tr>
+                                        <td>@product.Name</td>
+                                        <td>@product.SKU</td>
+                                        <td>@product.UnitPrice.ToString("C")</td>
+                                        <td>@product.UnitOfMeasure</td>
+                                        <td>@product.MinimumStockLevel</td>
+                                        <td><MudChip T="string" Size="Size.Small">@product.Status</MudChip></td>
+                                        <td>
+                                            <MudStack Row="true" Spacing="1">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                                               Color="Color.Primary" OnClick="@(() => EditProduct(product))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                                               Color="Color.Error" OnClick="@(() => DeleteProduct(product.Id))" />
+                                            </MudStack>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info">No products yet. Create one to get started.</MudAlert>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</div>
+
+@code {
+    private bool ShowCreateModal { get; set; }
+    private ProductForm _form = new();
+    private IExpendableProductsClient.ProductDto? EditingProduct { get; set; }
+    private List<IExpendableProductsClient.ProductDto> _products = new();
+    private bool _initialized = false;
+    private bool _isLoading = false;
+
+    public class ProductForm
+    {
+        public string Name { get; set; } = string.Empty;
+        public string SKU { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public decimal UnitPrice { get; set; } = 10.00m; // Default 10.00 instead of 0
+        public string UnitOfMeasure { get; set; } = "PCS";
+        public int MinimumStockLevel { get; set; } = 1;
+        public int ReorderQuantity { get; set; } = 10;
+        public string? CategoryId { get; set; }
+        public string? SupplierId { get; set; }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (_initialized) return;
+        _initialized = true;
+
+        await LoadProducts();
+    }
+
+    private async Task LoadProducts()
+    {
+        try
+        {
+            _isLoading = true;
+            var response = await ProductsClient.SearchAsync(pageSize: 100);
+            _products = response?.Items?.ToList() ?? new();
+            StateHasChanged();
+        }
+        catch (HttpRequestException ex) when (
+            ex.Message.Contains("StatusCode=401", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("401 (Unauthorized)", StringComparison.OrdinalIgnoreCase) ||
+            (ex.InnerException?.Message?.Contains("401", StringComparison.OrdinalIgnoreCase) ?? false))
+        {
+            // On page refresh after login, claims might not be hydrated yet - retry with backoff
+            Snackbar.Add("Authenticating...", Severity.Info);
+            await Task.Delay(500);
+            await LoadProductsInternal(retryCount: 1);
+            return;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load products: {ex.Message}", Severity.Error);
+            _products = new();
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadProductsInternal(int retryCount = 0, int maxRetries = 3)
+    {
+        try
+        {
+            var response = await ProductsClient.SearchAsync(pageSize: 100);
+            _products = response?.Items?.ToList() ?? new();
+            StateHasChanged();
+        }
+        catch (HttpRequestException ex) when (
+            (ex.Message.Contains("StatusCode=401", StringComparison.OrdinalIgnoreCase) ||
+             ex.Message.Contains("401 (Unauthorized)", StringComparison.OrdinalIgnoreCase) ||
+             (ex.InnerException?.Message?.Contains("401", StringComparison.OrdinalIgnoreCase) ?? false)) &&
+            retryCount < maxRetries)
+        {
+            // Retry on 401 with exponential backoff
+            await Task.Delay(300 * (retryCount + 1));
+            await LoadProductsInternal(retryCount + 1, maxRetries);
+        }
+        catch (Exception ex)
+        {
+            if (retryCount == 0)
+            {
+                Snackbar.Add($"Failed to load products: {ex.Message}", Severity.Error);
+            }
+            _products = new();
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveProduct()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Name) || string.IsNullOrWhiteSpace(_form.SKU))
+        {
+            Snackbar.Add("Name and SKU are required", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_form.Description))
+        {
+            Snackbar.Add("Description is required", Severity.Warning);
+            return;
+        }
+
+        if (_form.UnitPrice <= 0)
+        {
+            Snackbar.Add("Unit price must be greater than zero", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            if (EditingProduct != null)
+            {
+                var updateCmd = new UpdateProductCommand
+                {
+                    Name = _form.Name,
+                    Description = _form.Description,
+                    UnitPrice = (double)_form.UnitPrice,
+                    MinimumStockLevel = _form.MinimumStockLevel,
+                    ReorderQuantity = _form.ReorderQuantity,
+                    CategoryId = _form.CategoryId,
+                    SupplierId = _form.SupplierId
+                };
+
+                await ProductsClient.UpdateAsync(EditingProduct.Id, updateCmd);
+                Snackbar.Add("Product updated successfully", Severity.Success);
+            }
+            else
+            {
+                var createCmd = new CreateProductCommand
+                {
+                    Sku = _form.SKU,
+                    Name = _form.Name,
+                    Description = _form.Description,
+                    UnitPrice = (double)_form.UnitPrice,
+                    UnitOfMeasure = _form.UnitOfMeasure,
+                    MinimumStockLevel = _form.MinimumStockLevel,
+                    ReorderQuantity = _form.ReorderQuantity,
+                    CategoryId = _form.CategoryId,
+                    SupplierId = _form.SupplierId
+                };
+
+                await ProductsClient.CreateAsync(createCmd);
+                Snackbar.Add("Product created successfully", Severity.Success);
+            }
+
+            await LoadProducts();
+            ResetForm();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save product: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void EditProduct(IExpendableProductsClient.ProductDto product)
+    {
+        EditingProduct = product;
+        _form = new ProductForm
+        {
+            Name = product.Name,
+            SKU = product.SKU,
+            Description = product.Description,
+            UnitPrice = product.UnitPrice,
+            UnitOfMeasure = product.UnitOfMeasure,
+            MinimumStockLevel = product.MinimumStockLevel,
+            ReorderQuantity = product.ReorderQuantity,
+            CategoryId = null,
+            SupplierId = product.SupplierId
+        };
+    }
+
+    private void ResetForm()
+    {
+        _form = new();
+        EditingProduct = null;
+        ShowCreateModal = false;
+    }
+
+    private async Task DeleteProduct(Guid id)
+    {
+        try
+        {
+            await ProductsClient.DeleteAsync(id);
+            await LoadProducts();
+            Snackbar.Add("Product deleted", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to delete product: {ex.Message}", Severity.Error);
+        }
+    }
+}

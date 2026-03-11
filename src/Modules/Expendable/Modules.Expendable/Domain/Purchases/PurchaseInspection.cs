@@ -8,7 +8,7 @@ namespace FSH.Modules.Expendable.Domain.Purchases;
 /// Separate from Purchase to allow independent inspection workflow.
 /// </summary>
 public class PurchaseInspection : AggregateRoot<Guid>
-    , IHasTenant, IAuditableEntity, ISoftDeletable
+    , IHasTenant, IAuditableEntity
 {
     public string TenantId { get; private set; } = default!;
 

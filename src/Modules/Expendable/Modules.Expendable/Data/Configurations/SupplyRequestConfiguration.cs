@@ -66,6 +66,8 @@ public class SupplyRequestConfiguration : IEntityTypeConfiguration<SupplyRequest
         // Soft Delete
         builder.Property(p => p.IsDeleted)
             .HasDefaultValue(false);
+
+        builder.HasQueryFilter("SoftDelete", p => !p.IsDeleted);
     }
 }
 

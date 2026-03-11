@@ -26,6 +26,7 @@ public sealed class IssueFromProductInventoryCommandHandler : ICommandHandler<Is
         var issuedDetails = inventory.IssueFromBatches(command.QuantityToIssue);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _cache.RemoveItemAsync($"inventory:{inventory.ProductId}:{inventory.WarehouseLocationId}", cancellationToken);
         await _cache.RemoveItemAsync($"inventory:{command.ProductInventoryId}", cancellationToken);
 
         var response = new IssueFromProductInventoryResponse(

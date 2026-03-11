@@ -33,7 +33,7 @@ public class SupplyRequestItem
     }
 }
 
-public class SupplyRequest : AggregateRoot<Guid>, IHasTenant, IAuditableEntity, ISoftDeletable
+public class SupplyRequest : AggregateRoot<Guid>, IHasTenant, IAuditableEntity
 {
     public string TenantId { get; private set; } = default!;
     public string RequestNumber { get; private set; } = default!;

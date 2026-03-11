@@ -43,7 +43,7 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
             .HasConversion<int>();
 
         builder.Property(p => p.Version)
-            .IsRowVersion();
+            .IsConcurrencyToken();
 
         // Indexes
         builder.HasIndex(p => new { p.TenantId, p.SKU })
@@ -54,6 +54,8 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         // Soft Delete
         builder.Property(p => p.IsDeleted)
             .HasDefaultValue(false);
+
+        builder.HasQueryFilter("SoftDelete", p => !p.IsDeleted);
     }
 }
 

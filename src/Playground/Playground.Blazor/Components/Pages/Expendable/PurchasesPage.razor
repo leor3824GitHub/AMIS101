@@ -1,0 +1,20 @@
+@page "/expendable/purchases"
+@using FSH.Framework.Blazor.UI.Components.Cards
+@inherits ComponentBase
+@inject ISnackbar Snackbar
+
+<FshPageHeader Title="Purchase Orders" Description="Manage purchase orders">
+    <ActionContent>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">
+            New Purchase Order
+        </MudButton>
+    </ActionContent>
+</FshPageHeader>
+
+<div class="mt-4">
+    <MudCard>
+        <MudCardContent>
+            <MudText Typo="Typo.body1">Purchase Orders module - API integration coming soon</MudText>
+        </MudCardContent>
+    </MudCard>
+</div>

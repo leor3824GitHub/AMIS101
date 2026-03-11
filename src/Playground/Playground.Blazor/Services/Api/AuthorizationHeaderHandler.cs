@@ -29,6 +29,10 @@ internal sealed class AuthorizationHeaderHandler : DelegatingHandler
     /// </summary>
     private bool _signOutInitiated;
 
+    private static readonly TimeSpan SessionExpiredCooldown = TimeSpan.FromSeconds(45);
+    private static readonly object SessionExpiredLock = new();
+    private static DateTime _lastSessionExpiredAtUtc = DateTime.MinValue;
+
     public AuthorizationHeaderHandler(
         IHttpContextAccessor httpContextAccessor,
         IServiceProvider serviceProvider,
@@ -45,6 +49,11 @@ internal sealed class AuthorizationHeaderHandler : DelegatingHandler
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
+        if (IsSessionExpiredCoolingDown())
+        {
+            return CreateSyntheticUnauthorizedResponse(request);
+        }
+
         // Get current access token from circuit cache or claims
         var accessToken = await GetAccessTokenAsync();
 
@@ -96,6 +105,7 @@ internal sealed class AuthorizationHeaderHandler : DelegatingHandler
 
                 // Mark sign-out as initiated to prevent multiple sign-out attempts
                 _signOutInitiated = true;
+                MarkSessionExpired();
 
                 // Sign out the user since refresh token is also invalid/expired
                 await SignOutUserAsync();
@@ -148,6 +158,31 @@ internal sealed class AuthorizationHeaderHandler : DelegatingHandler
         {
             _logger.LogError(ex, "Failed to handle session expiration");
         }
+    }
+
+    private static bool IsSessionExpiredCoolingDown()
+    {
+        lock (SessionExpiredLock)
+        {
+            return DateTime.UtcNow - _lastSessionExpiredAtUtc < SessionExpiredCooldown;
+        }
+    }
+
+    private static void MarkSessionExpired()
+    {
+        lock (SessionExpiredLock)
+        {
+            _lastSessionExpiredAtUtc = DateTime.UtcNow;
+        }
+    }
+
+    private static HttpResponseMessage CreateSyntheticUnauthorizedResponse(HttpRequestMessage request)
+    {
+        return new HttpResponseMessage(HttpStatusCode.Unauthorized)
+        {
+            RequestMessage = request,
+            ReasonPhrase = "Session expired"
+        };
     }
 
     private Task<string?> GetAccessTokenAsync()

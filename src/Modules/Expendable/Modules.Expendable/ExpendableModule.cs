@@ -16,6 +16,7 @@ using FSH.Modules.Expendable.Features.v1.Products.ActivateProduct;
 using FSH.Modules.Expendable.Features.v1.Products.DeactivateProduct;
 using FSH.Modules.Expendable.Features.v1.Products.DeleteProduct;
 using FSH.Modules.Expendable.Features.v1.Products.GetProduct;
+using FSH.Modules.Expendable.Features.v1.Products.ListActiveProducts;
 using FSH.Modules.Expendable.Features.v1.Products.SearchProducts;
 using FSH.Modules.Expendable.Features.v1.Purchases.CreatePurchaseOrder;
 using FSH.Modules.Expendable.Features.v1.Purchases.AddPurchaseLineItem;
@@ -127,57 +128,74 @@ public class ExpendableModule : IModule
     {
         ArgumentNullException.ThrowIfNull(endpoints);
 
+        var apiVersionSet = endpoints.NewApiVersionSet()
+            .HasApiVersion(new ApiVersion(1))
+            .ReportApiVersions()
+            .Build();
+
+        var moduleGroup = endpoints
+            .MapGroup("api/v{version:apiVersion}/expendable")
+            .WithTags("Expendable")
+            .WithApiVersionSet(apiVersionSet);
+
+        var productsGroup = moduleGroup.MapGroup("/products");
+        var purchasesGroup = moduleGroup.MapGroup("/purchases");
+        var supplyRequestsGroup = moduleGroup.MapGroup("/supply-requests");
+        var cartGroup = moduleGroup.MapGroup("/cart");
+        var warehouseGroup = moduleGroup.MapGroup("/warehouse");
+
         // Product Endpoints - Vertical Slices
-        CreateProductEndpoint.Map(endpoints);
-        UpdateProductEndpoint.Map(endpoints);
-        ActivateProductEndpoint.Map(endpoints);
-        DeactivateProductEndpoint.Map(endpoints);
-        DeleteProductEndpoint.Map(endpoints);
-        GetProductEndpoint.Map(endpoints);
-        SearchProductsEndpoint.Map(endpoints);
+        CreateProductEndpoint.Map(productsGroup);
+        UpdateProductEndpoint.Map(productsGroup);
+        ActivateProductEndpoint.Map(productsGroup);
+        DeactivateProductEndpoint.Map(productsGroup);
+        DeleteProductEndpoint.Map(productsGroup);
+        GetProductEndpoint.Map(productsGroup);
+        ListActiveProductsEndpoint.Map(productsGroup);
+        SearchProductsEndpoint.Map(productsGroup);
 
         // Purchase Order Endpoints - Vertical Slices
-        CreatePurchaseOrderEndpoint.Map(endpoints);
-        AddPurchaseLineItemEndpoint.Map(endpoints);
-        RemovePurchaseLineItemEndpoint.Map(endpoints);
-        SubmitPurchaseOrderEndpoint.Map(endpoints);
-        ApprovePurchaseOrderEndpoint.Map(endpoints);
-        RecordPurchaseReceiptEndpoint.Map(endpoints);
-        CancelPurchaseOrderEndpoint.Map(endpoints);
-        GetPurchaseEndpoint.Map(endpoints);
-        SearchPurchasesEndpoint.Map(endpoints);
-        GetPurchasesBySupplierEndpoint.Map(endpoints);
+        CreatePurchaseOrderEndpoint.Map(purchasesGroup);
+        AddPurchaseLineItemEndpoint.Map(purchasesGroup);
+        RemovePurchaseLineItemEndpoint.Map(purchasesGroup);
+        SubmitPurchaseOrderEndpoint.Map(purchasesGroup);
+        ApprovePurchaseOrderEndpoint.Map(purchasesGroup);
+        RecordPurchaseReceiptEndpoint.Map(purchasesGroup);
+        CancelPurchaseOrderEndpoint.Map(purchasesGroup);
+        GetPurchaseEndpoint.Map(purchasesGroup);
+        SearchPurchasesEndpoint.Map(purchasesGroup);
+        GetPurchasesBySupplierEndpoint.Map(purchasesGroup);
 
         // Supply Request Endpoints - Vertical Slices
-        CreateSupplyRequestEndpoint.Map(endpoints);
-        AddSupplyRequestItemEndpoint.Map(endpoints);
-        RemoveSupplyRequestItemEndpoint.Map(endpoints);
-        SubmitSupplyRequestEndpoint.Map(endpoints);
-        ApproveSupplyRequestEndpoint.Map(endpoints);
-        RejectSupplyRequestEndpoint.Map(endpoints);
-        GetSupplyRequestEndpoint.Map(endpoints);
-        GetEmployeeSupplyRequestsEndpoint.Map(endpoints);
-        SearchSupplyRequestsEndpoint.Map(endpoints);
+        CreateSupplyRequestEndpoint.Map(supplyRequestsGroup);
+        AddSupplyRequestItemEndpoint.Map(supplyRequestsGroup);
+        RemoveSupplyRequestItemEndpoint.Map(supplyRequestsGroup);
+        SubmitSupplyRequestEndpoint.Map(supplyRequestsGroup);
+        ApproveSupplyRequestEndpoint.Map(supplyRequestsGroup);
+        RejectSupplyRequestEndpoint.Map(supplyRequestsGroup);
+        GetSupplyRequestEndpoint.Map(supplyRequestsGroup);
+        GetEmployeeSupplyRequestsEndpoint.Map(supplyRequestsGroup);
+        SearchSupplyRequestsEndpoint.Map(supplyRequestsGroup);
 
         // Shopping Cart Endpoints - Vertical Slices
-        GetOrCreateCartEndpoint.Map(endpoints);
-        AddToCartEndpoint.Map(endpoints);
-        GetCartEndpoint.Map(endpoints);
-        RemoveFromCartEndpoint.Map(endpoints);
-        ClearCartEndpoint.Map(endpoints);
-        ConvertCartToSupplyRequestEndpoint.Map(endpoints);
+        GetOrCreateCartEndpoint.Map(cartGroup);
+        AddToCartEndpoint.Map(cartGroup);
+        GetCartEndpoint.Map(cartGroup);
+        RemoveFromCartEndpoint.Map(cartGroup);
+        ClearCartEndpoint.Map(cartGroup);
+        ConvertCartToSupplyRequestEndpoint.Map(cartGroup);
 
         // Warehouse Endpoints - Vertical Slices
-        RecordInspectionEndpoint.Map(endpoints);
-        ReserveProductInventoryEndpoint.Map(endpoints);
-        CancelProductInventoryReservationEndpoint.Map(endpoints);
-        IssueFromProductInventoryEndpoint.Map(endpoints);
-        MarkRejectedInventoryReturnedEndpoint.Map(endpoints);
-        MarkRejectedInventoryDisposedEndpoint.Map(endpoints);
-        GetProductInventoryEndpoint.Map(endpoints);
-        SearchProductInventoryEndpoint.Map(endpoints);
-        GetWarehouseStockLevelsEndpoint.Map(endpoints);
-        GetRejectedInventoryEndpoint.Map(endpoints);
-        GetPendingInspectionsEndpoint.Map(endpoints);
+        RecordInspectionEndpoint.Map(warehouseGroup);
+        ReserveProductInventoryEndpoint.Map(warehouseGroup);
+        CancelProductInventoryReservationEndpoint.Map(warehouseGroup);
+        IssueFromProductInventoryEndpoint.Map(warehouseGroup);
+        MarkRejectedInventoryReturnedEndpoint.Map(warehouseGroup);
+        MarkRejectedInventoryDisposedEndpoint.Map(warehouseGroup);
+        GetProductInventoryEndpoint.Map(warehouseGroup);
+        SearchProductInventoryEndpoint.Map(warehouseGroup);
+        GetWarehouseStockLevelsEndpoint.Map(warehouseGroup);
+        GetRejectedInventoryEndpoint.Map(warehouseGroup);
+        GetPendingInspectionsEndpoint.Map(warehouseGroup);
     }
 }

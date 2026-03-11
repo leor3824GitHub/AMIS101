@@ -39,7 +39,7 @@ public class CartItem
     }
 }
 
-public class EmployeeShoppingCart : AggregateRoot<Guid>, IHasTenant, IAuditableEntity, ISoftDeletable
+public class EmployeeShoppingCart : AggregateRoot<Guid>, IHasTenant, IAuditableEntity
 {
     public string TenantId { get; private set; } = default!;
     public string EmployeeId { get; private set; } = default!;

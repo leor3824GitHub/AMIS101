@@ -55,9 +55,8 @@ public class RejectedInventoryConfiguration : IEntityTypeConfiguration<RejectedI
             .HasPrecision(18, 2)
             .IsRequired();
 
-        builder.Property(p => p.TotalValue)
-            .HasPrecision(18, 2)
-            .IsRequired();
+        // Computed in domain from QuantityRejected * UnitPrice; not persisted directly.
+        builder.Ignore(p => p.TotalValue);
 
         builder.Property(p => p.RejectionReason)
             .HasMaxLength(500)
@@ -91,6 +90,8 @@ public class RejectedInventoryConfiguration : IEntityTypeConfiguration<RejectedI
 
         builder.Property(p => p.IsDeleted)
             .HasDefaultValue(false);
+
+        builder.HasQueryFilter("SoftDelete", p => !p.IsDeleted);
     }
 }
 

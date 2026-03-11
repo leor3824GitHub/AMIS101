@@ -25,9 +25,11 @@ using FSH.Modules.Multitenancy.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace FSH.Modules.Multitenancy;
 
@@ -36,6 +38,10 @@ public sealed class MultitenancyModule : IModule
     public void ConfigureServices(IHostApplicationBuilder builder)
     {
         ArgumentNullException.ThrowIfNull(builder);
+
+        var multitenancyOptions = builder.Configuration
+            .GetSection(nameof(MultitenancyOptions))
+            .Get<MultitenancyOptions>() ?? new MultitenancyOptions();
 
         builder.Services.AddOptions<MultitenancyOptions>()
             .Bind(builder.Configuration.GetSection(nameof(MultitenancyOptions)));
@@ -50,7 +56,7 @@ public sealed class MultitenancyModule : IModule
 
         builder.Services.AddHeroDbContext<TenantDbContext>();
 
-        builder.Services
+        var multiTenantBuilder = builder.Services
             .AddMultiTenant<AppTenantInfo>(options =>
             {
                 options.Events.OnTenantResolveCompleted = async context =>
@@ -63,9 +69,21 @@ public sealed class MultitenancyModule : IModule
                             .GetRequiredService<IEnumerable<IMultiTenantStore<AppTenantInfo>>>()
                             .FirstOrDefault(s => s.GetType() == typeof(DistributedCacheStore<AppTenantInfo>));
 
-                        await distributedStore!.AddAsync(context.MultiTenantContext.TenantInfo!);
+                        var tenantInfo = context.MultiTenantContext.TenantInfo;
+                        if (distributedStore is not null && tenantInfo is not null)
+                        {
+                            try
+                            {
+                                await distributedStore.AddAsync(tenantInfo);
+                            }
+                            catch (Exception ex)
+                            {
+                                // Cache warm-up is best effort; tenant resolution can still proceed from EF store.
+                                var logger = sp.GetService<ILogger<MultitenancyModule>>();
+                                logger?.LogWarning(ex, "Failed to cache tenant '{TenantIdentifier}' in distributed tenant store.", tenantInfo.Identifier);
+                            }
+                        }
                     }
-                    await Task.CompletedTask;
                 };
             })
             .WithClaimStrategy(ClaimConstants.Tenant)
@@ -80,8 +98,12 @@ public sealed class MultitenancyModule : IModule
 
                 return await Task.FromResult(tenantIdentifier.ToString());
             })
-            .WithDistributedCacheStore(TimeSpan.FromMinutes(60))
             .WithStore<EFCoreStore<TenantDbContext, AppTenantInfo>>(ServiceLifetime.Scoped);
+
+        if (multitenancyOptions.UseDistributedCacheStore)
+        {
+            multiTenantBuilder.WithDistributedCacheStore(TimeSpan.FromMinutes(60));
+        }
 
         builder.Services.AddHealthChecks()
             .AddDbContextCheck<TenantDbContext>(

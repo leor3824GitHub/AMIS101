@@ -12,7 +12,7 @@ public enum ProductStatus
     OutOfStock = 4
 }
 
-public class Product : AggregateRoot<Guid>, IHasTenant, IAuditableEntity, ISoftDeletable
+public class Product : AggregateRoot<Guid>, IHasTenant, IAuditableEntity
 {
     public string TenantId { get; private set; } = default!;
     public string SKU { get; private set; } = default!;
@@ -25,7 +25,7 @@ public class Product : AggregateRoot<Guid>, IHasTenant, IAuditableEntity, ISoftD
     public ProductStatus Status { get; set; } = ProductStatus.Active;
     public string? CategoryId { get; set; }
     public string? SupplierId { get; set; }
-    public byte[] Version { get; set; } = default!;
+    public byte[] Version { get; set; } = [];
 
     // IAuditableEntity
     public DateTimeOffset CreatedOnUtc { get; set; } = DateTimeOffset.UtcNow;

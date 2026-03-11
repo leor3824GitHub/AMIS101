@@ -48,10 +48,9 @@ public sealed class TenantAutoProvisioningHostedService : IHostedService
     private async Task ProvisionTenantsAsync(CancellationToken cancellationToken)
     {
         using var scope = _serviceProvider.CreateScope();
-        var tenantStore = scope.ServiceProvider.GetRequiredService<IMultiTenantStore<AppTenantInfo>>();
         var provisioning = scope.ServiceProvider.GetRequiredService<ITenantProvisioningService>();
 
-        var tenants = await tenantStore.GetAllAsync().ConfigureAwait(false);
+        var tenants = await GetAllTenantsSafeAsync(scope.ServiceProvider).ConfigureAwait(false);
 
         foreach (var tenant in tenants)
         {
@@ -62,6 +61,26 @@ public sealed class TenantAutoProvisioningHostedService : IHostedService
 
             await TryProvisionTenantAsync(provisioning, tenant, cancellationToken);
         }
+    }
+
+    private async Task<IReadOnlyCollection<AppTenantInfo>> GetAllTenantsSafeAsync(IServiceProvider serviceProvider)
+    {
+        var stores = serviceProvider.GetServices<IMultiTenantStore<AppTenantInfo>>().ToList();
+        foreach (var store in stores)
+        {
+            try
+            {
+                var tenants = await store.GetAllAsync().ConfigureAwait(false);
+                return tenants as IReadOnlyCollection<AppTenantInfo> ?? tenants.ToList();
+            }
+            catch (NotImplementedException)
+            {
+                _logger.LogDebug("Skipping tenant store {StoreType} because GetAllAsync is not implemented.", store.GetType().Name);
+            }
+        }
+
+        _logger.LogWarning("No tenant store with GetAllAsync implementation was available during auto-provisioning startup.");
+        return Array.Empty<AppTenantInfo>();
     }
 
     private async Task TryProvisionTenantAsync(ITenantProvisioningService provisioning, AppTenantInfo tenant, CancellationToken cancellationToken)

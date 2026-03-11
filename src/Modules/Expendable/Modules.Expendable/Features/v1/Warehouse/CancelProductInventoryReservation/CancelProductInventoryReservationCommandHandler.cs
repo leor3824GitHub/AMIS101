@@ -26,6 +26,7 @@ public sealed class CancelProductInventoryReservationCommandHandler : ICommandHa
         inventory.CancelReservation(command.QuantityToRelease);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _cache.RemoveItemAsync($"inventory:{inventory.ProductId}:{inventory.WarehouseLocationId}", cancellationToken);
         await _cache.RemoveItemAsync($"inventory:{command.ProductInventoryId}", cancellationToken);
 
         return new CancelProductInventoryReservationResponse(

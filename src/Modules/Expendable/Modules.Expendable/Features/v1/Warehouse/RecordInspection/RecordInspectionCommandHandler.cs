@@ -126,7 +126,7 @@ public sealed class RecordInspectionCommandHandler : ICommandHandler<RecordInspe
 
         await _dbContext.SaveChangesAsync(cancellationToken);
         await _cache.RemoveItemAsync($"purchase:{command.PurchaseId}", cancellationToken);
-        await _cache.RemoveItemAsync($"inventory:warehouse:{purchase.WarehouseLocationId}", cancellationToken);
+        await _cache.RemoveItemAsync($"inventory:{command.ProductId}:{purchase.WarehouseLocationId}", cancellationToken);
 
         return new RecordInspectionResponse(
             inspection.Id,

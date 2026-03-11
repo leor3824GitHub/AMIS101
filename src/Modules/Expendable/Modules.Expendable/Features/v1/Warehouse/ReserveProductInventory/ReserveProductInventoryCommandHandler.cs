@@ -26,6 +26,7 @@ public sealed class ReserveProductInventoryCommandHandler : ICommandHandler<Rese
         inventory.ReserveForAllocation(command.QuantityToReserve);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+        await _cache.RemoveItemAsync($"inventory:{inventory.ProductId}:{inventory.WarehouseLocationId}", cancellationToken);
         await _cache.RemoveItemAsync($"inventory:{command.ProductInventoryId}", cancellationToken);
 
         return new ReserveProductInventoryResponse(

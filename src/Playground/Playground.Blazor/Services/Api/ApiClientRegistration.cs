@@ -109,7 +109,7 @@ internal static class ApiClientRegistration
 
         services.AddTransient<IExpendableWarehouseClient, ExpendableWarehouseClient>();
 
-        services.AddTransient<IHealthClient>(sp =>
+        services.AddScoped<IHealthClient>(sp =>
             new HealthClient(ResolveClient(sp)));
 
         return services;

@@ -17,7 +17,7 @@ namespace FSH.Playground.Migrations.PostgreSQL.Audit
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.0")
+                .HasAnnotation("ProductVersion", "10.0.2")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -61,8 +61,7 @@ namespace FSH.Playground.Migrations.PostgreSQL.Audit
 
                     b.Property<string>("TenantId")
                         .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)");
+                        .HasColumnType("text");
 
                     b.Property<string>("TraceId")
                         .HasColumnType("text");

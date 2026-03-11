@@ -92,6 +92,8 @@ public class ProductInventoryConfiguration : IEntityTypeConfiguration<ProductInv
 
         builder.Property(p => p.IsDeleted)
             .HasDefaultValue(false);
+
+        builder.HasQueryFilter("SoftDelete", p => !p.IsDeleted);
     }
 }
 

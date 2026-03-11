@@ -7,7 +7,7 @@ namespace FSH.Modules.Expendable.Domain.Inventory;
 /// Separate aggregate for rejected stock management.
 /// </summary>
 public class RejectedInventory : AggregateRoot<Guid>
-    , IHasTenant, IAuditableEntity, ISoftDeletable
+    , IHasTenant, IAuditableEntity
 {
     public string TenantId { get; private set; } = default!;
 

@@ -40,5 +40,10 @@ internal interface IExpendableProductsClient
         int MinimumStockLevel,
         int ReorderQuantity,
         string Status,
-        Guid? SupplierId);
+        string? CategoryId,
+        string? SupplierId,
+        DateTimeOffset CreatedOnUtc,
+        string? CreatedBy,
+        DateTimeOffset? LastModifiedOnUtc,
+        string? LastModifiedBy);
 }

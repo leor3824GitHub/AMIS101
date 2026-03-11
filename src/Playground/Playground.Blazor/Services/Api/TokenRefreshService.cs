@@ -22,13 +22,14 @@ internal sealed class TokenRefreshService : ITokenRefreshService, IDisposable
 
     private static readonly SemaphoreSlim RefreshLock = new(1, 1);
     private static readonly TimeSpan RefreshCacheDuration = TimeSpan.FromSeconds(30);
-    private static readonly TimeSpan FailedTokenCacheDuration = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan FailedTokenCacheDuration = TimeSpan.FromHours(24);  // Session-long cache to prevent retry spam
 
     private static string? _lastRefreshedToken;
     private static string? _cachedForRefreshToken;
     private static DateTime _lastRefreshTime = DateTime.MinValue;
     private static string? _failedRefreshToken;
     private static DateTime _failedRefreshTime = DateTime.MinValue;
+    private static bool _permanentFailureFlag;  // Fast-fail once a token is permanently invalid
 
     public TokenRefreshService(
         IHttpContextAccessor httpContextAccessor,
@@ -60,7 +61,13 @@ internal sealed class TokenRefreshService : ITokenRefreshService, IDisposable
 
         if (IsTokenRecentlyFailed(currentRefreshToken))
         {
-            _logger.LogDebug("Skipping refresh - token already failed recently");
+            _logger.LogDebug("Skipping refresh - refresh token is permanently invalid for this session");
+            return null;
+        }
+
+        if (_permanentFailureFlag)
+        {
+            _logger.LogDebug("Skipping refresh - session already marked as requiring re-authentication");
             return null;
         }
 
@@ -286,9 +293,10 @@ internal sealed class TokenRefreshService : ITokenRefreshService, IDisposable
         _lastRefreshTime = DateTime.MinValue;
         _failedRefreshToken = currentRefreshToken;
         _failedRefreshTime = DateTime.UtcNow;
+        _permanentFailureFlag = true;  // Mark session as permanently failed to fast-fail all subsequent attempts
 #pragma warning restore S2696
 
-        _logger.LogWarning(ex, "Refresh token is invalid or expired, user needs to re-authenticate");
+        _logger.LogDebug(ex, "Refresh token is invalid or expired (expected after re-auth), user will be signed out");
     }
 
     public void Dispose()

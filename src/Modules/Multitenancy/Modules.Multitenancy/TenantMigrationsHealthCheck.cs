@@ -21,8 +21,13 @@ public sealed class TenantMigrationsHealthCheck : IHealthCheck
     {
         using IServiceScope scope = _scopeFactory.CreateScope();
 
-        var tenantStore = scope.ServiceProvider.GetRequiredService<IMultiTenantStore<AppTenantInfo>>();
-        var tenants = await tenantStore.GetAllAsync().ConfigureAwait(false);
+        // Read tenants directly from the tenant database instead of IMultiTenantStore.GetAllAsync(),
+        // since distributed cache stores may not implement enumeration.
+        var tenantDbContext = scope.ServiceProvider.GetRequiredService<TenantDbContext>();
+        var tenants = await tenantDbContext.Set<AppTenantInfo>()
+            .AsNoTracking()
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
         var details = new Dictionary<string, object>();
 

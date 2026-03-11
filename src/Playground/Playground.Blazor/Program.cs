@@ -1,10 +1,12 @@
 using FSH.Framework.Blazor.UI;
 using FSH.Framework.Blazor.UI.Theme;
 using FSH.Playground.Blazor;
+using FSH.Playground.Blazor.ApiClient;
 using FSH.Playground.Blazor.Components;
 using FSH.Playground.Blazor.Services;
 using FSH.Playground.Blazor.Services.Api;
 using FSH.Playground.Blazor.Services.Api.Expendable;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
 
@@ -71,6 +73,14 @@ builder.Services.AddScoped<AuthorizationHeaderHandler>();
 
 // Token refresh service for handling expired access tokens
 builder.Services.AddScoped<ITokenRefreshService, TokenRefreshService>();
+
+// API health monitor for status indicator (component handles thread marshaling)
+builder.Services.AddScoped<IApiHealthMonitor>(sp =>
+{
+    var healthClient = sp.GetRequiredService<IHealthClient>();
+    var logger = sp.GetRequiredService<ILogger<ApiHealthMonitor>>();
+    return new ApiHealthMonitor(healthClient, logger);
+});
 
 // Shared activity timeline across Expendable feature pages
 builder.Services.AddScoped<IExpendableActivityFeed, ExpendableActivityFeed>();

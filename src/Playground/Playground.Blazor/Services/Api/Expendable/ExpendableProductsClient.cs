@@ -1,5 +1,6 @@
 using FSH.Framework.Shared.Persistence;
 using FSH.Playground.Blazor.ApiClient;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -33,22 +34,50 @@ internal sealed class ExpendableProductsClient : IExpendableProductsClient
         int? pageSize = null,
         CancellationToken cancellationToken = default)
     {
-        var url = QueryStringBuilder.Build(
+        var getUrl = QueryStringBuilder.Build(
             "/api/v1/expendable/products",
             ("keyword", keyword),
             ("status", status),
             ("pageNumber", pageNumber),
             ("pageSize", pageSize));
 
-        var result = await _httpClient.GetFromJsonAsync<PagedResponse<IExpendableProductsClient.ProductDto>>(
-            url, JsonOptions, cancellationToken);
+        using var getResponse = await _httpClient.GetAsync(getUrl, cancellationToken);
+        if (getResponse.IsSuccessStatusCode)
+        {
+            var getResult = await getResponse.Content.ReadFromJsonAsync<PagedResponse<IExpendableProductsClient.ProductDto>>(JsonOptions, cancellationToken);
+            return getResult ?? EmptySearchResult();
+        }
 
-        return result ?? new PagedResponse<IExpendableProductsClient.ProductDto>
+        // Backward-compatible fallback for APIs still exposing POST /search.
+        if (getResponse.StatusCode == HttpStatusCode.NotFound)
+        {
+            var searchBody = new { keyword, status, pageNumber, pageSize };
+            using var postResponse = await _httpClient.PostAsJsonAsync(
+                "/api/v1/expendable/products/search",
+                searchBody,
+                JsonOptions,
+                cancellationToken);
+
+            if (postResponse.IsSuccessStatusCode)
+            {
+                var postResult = await postResponse.Content.ReadFromJsonAsync<PagedResponse<IExpendableProductsClient.ProductDto>>(JsonOptions, cancellationToken);
+                return postResult ?? EmptySearchResult();
+            }
+
+            postResponse.EnsureSuccessStatusCode();
+        }
+
+        throw new HttpRequestException(
+            $"Failed to load products from '{getUrl}'. " +
+            $"BaseAddress='{_httpClient.BaseAddress}', StatusCode={(int)getResponse.StatusCode} ({getResponse.StatusCode}).");
+    }
+
+    private static PagedResponse<IExpendableProductsClient.ProductDto> EmptySearchResult() =>
+        new()
         {
             Items = new List<IExpendableProductsClient.ProductDto>(),
             TotalCount = 0
         };
-    }
 
     public async Task<IExpendableProductsClient.ProductDto> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
@@ -85,10 +114,6 @@ internal sealed class ExpendableProductsClient : IExpendableProductsClient
         var result = await _httpClient.GetFromJsonAsync<PagedResponse<IExpendableProductsClient.ProductDto>>(
             url, JsonOptions, cancellationToken);
 
-        return result ?? new PagedResponse<IExpendableProductsClient.ProductDto>
-        {
-            Items = new List<IExpendableProductsClient.ProductDto>(),
-            TotalCount = 0
-        };
+        return result ?? EmptySearchResult();
     }
 }

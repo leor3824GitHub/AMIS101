@@ -156,15 +156,22 @@ public class IdentityModule : IModule
         group.MapGenerateTokenEndpoint().AllowAnonymous().RequireRateLimiting("auth");
         group.MapRefreshTokenEndpoint().AllowAnonymous().RequireRateLimiting("auth");
 
-        // example Hangfire setup for Identity outbox dispatcher
+        // Optional Hangfire-based dispatcher. Disabled by default to avoid startup races
+        // where recurring jobs can execute before module migrations complete.
         var jobManager = endpoints.ServiceProvider.GetService<IRecurringJobManager>();
-        if (jobManager is not null)
+        var configuration = endpoints.ServiceProvider.GetService<IConfiguration>();
+        var enableIdentityOutboxJob = configuration?.GetValue<bool>("EventingOptions:EnableIdentityHangfireDispatcher") ?? false;
+        if (jobManager is not null && enableIdentityOutboxJob)
         {
             jobManager.AddOrUpdate(
                 "identity-outbox-dispatcher",
                 Job.FromExpression<OutboxDispatcher>(d => d.DispatchAsync(CancellationToken.None)),
                 Cron.Minutely(),
                 new RecurringJobOptions());
+        }
+        else if (jobManager is not null)
+        {
+            jobManager.RemoveIfExists("identity-outbox-dispatcher");
         }
 
         // roles
