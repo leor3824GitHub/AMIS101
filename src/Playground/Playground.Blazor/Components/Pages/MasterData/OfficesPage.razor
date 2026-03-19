@@ -1,0 +1,291 @@
+@page "/master-data/offices"
+@using FSH.Framework.Blazor.UI.Components.Cards
+@using FSH.Playground.Blazor.ApiClient
+@inherits ComponentBase
+@inject ISnackbar Snackbar
+@inject IMaster_dataClient MasterDataClient
+@inject ILookupClient LookupClient
+
+<FshPageHeader Title="Offices" Description="Manage offices">
+    <ActionContent>
+        <MudStack Row="true" Spacing="2" Style="width: 100%; max-width: 400px;">
+            <MudTextField @bind-Value="_searchKeyword" Label="Search" Placeholder="Search offices..."
+                          DebounceInterval="300" OnDebounceIntervalElapsed="@(async () => await SearchOffices())"
+                          Variant="Variant.Outlined" Size="Size.Small" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SearchOffices">
+                Search
+            </MudButton>
+        </MudStack>
+    </ActionContent>
+</FshPageHeader>
+
+<div class="mt-4">
+    <MudGrid Spacing="2">
+        <!-- Create/Edit Form -->
+        <MudItem xs="12" md="4">
+            <MudCard Class="fsh-card">
+                <MudCardContent>
+                    <MudText Typo="Typo.h6" Class="mb-3">@(EditingOffice != null ? "Edit Office" : "Create Office")</MudText>
+                    <MudStack Spacing="3">
+                        <MudTextField @bind-Value="_form.Code" Label="Code" Placeholder="Office code"
+                                      Required="true" />
+                        <MudTextField @bind-Value="_form.Name" Label="Name" Placeholder="Office name"
+                                      Required="true" />
+                        <MudTextField @bind-Value="_form.Description" Label="Description"
+                                      Placeholder="Office description" Lines="2" />
+                        <MudCheckBox T="bool" @bind-Checked="_form.IsActive" Label="Active" />
+
+                        <MudStack Row="true" Spacing="2" Class="mt-4">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                                       OnClick="SaveOffice" Disabled="_isLoading">
+                                @(EditingOffice != null ? "Update" : "Create")
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Default" FullWidth="true"
+                                       OnClick="ResetForm">
+                                Clear
+                            </MudButton>
+                        </MudStack>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Offices List -->
+        <MudItem xs="12" md="8">
+            <MudCard Class="fsh-card">
+                <MudCardContent>
+                    <MudText Typo="Typo.h6" Class="mb-3">Offices List</MudText>
+
+                    @if (_offices.Any())
+                    {
+                        <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Name</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var office in _offices)
+                                {
+                                    <tr>
+                                        <td>@office.Code</td>
+                                        <td>@office.Name</td>
+                                        <td><MudChip T="string" Size="Size.Small" Color="@(office.IsActive ? Color.Success : Color.Default)">@(office.IsActive ? "Active" : "Inactive")</MudChip></td>
+                                        <td>
+                                            <MudStack Row="true" Spacing="1">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                                               Color="Color.Primary" OnClick="@(() => EditOffice(office))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                                               Color="Color.Error" OnClick="@(() => DeleteOffice(office.Id))" />
+                                            </MudStack>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info">No offices yet. Create one to get started.</MudAlert>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</div>
+
+@code {
+    private OfficeForm _form = new();
+    private OfficeReferenceDto? EditingOffice { get; set; }
+    private List<OfficeReferenceDto> _offices = new();
+    private bool _initialized = false;
+    private bool _isLoading = false;
+    private string _searchKeyword = string.Empty;
+
+    public class OfficeForm
+    {
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (_initialized) return;
+        _initialized = true;
+        await LoadOffices();
+    }
+
+    private async Task LoadOffices()
+    {
+        try
+        {
+            _isLoading = true;
+            var response = await LookupClient.OfficesAsync(pageSize: 100);
+            _offices = response?.Items?.ToList() ?? new();
+            StateHasChanged();
+        }
+        catch (HttpRequestException ex) when (
+            ex.Message.Contains("StatusCode=401", StringComparison.OrdinalIgnoreCase) ||
+            ex.Message.Contains("401 (Unauthorized)", StringComparison.OrdinalIgnoreCase) ||
+            (ex.InnerException?.Message?.Contains("401", StringComparison.OrdinalIgnoreCase) ?? false))
+        {
+            Snackbar.Add("Authenticating...", Severity.Info);
+            await Task.Delay(500);
+            await LoadOfficesInternal(retryCount: 1);
+            return;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load offices: {ex.Message}", Severity.Error);
+            _offices = new();
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadOfficesInternal(int retryCount = 0, int maxRetries = 3)
+    {
+        try
+        {
+            var response = await LookupClient.OfficesAsync(pageSize: 100);
+            _offices = response?.Items?.ToList() ?? new();
+            StateHasChanged();
+        }
+        catch (HttpRequestException ex) when (
+            (ex.Message.Contains("StatusCode=401", StringComparison.OrdinalIgnoreCase) ||
+             ex.Message.Contains("401 (Unauthorized)", StringComparison.OrdinalIgnoreCase) ||
+             (ex.InnerException?.Message?.Contains("401", StringComparison.OrdinalIgnoreCase) ?? false)) &&
+            retryCount < maxRetries)
+        {
+            await Task.Delay(300 * (retryCount + 1));
+            await LoadOfficesInternal(retryCount + 1, maxRetries);
+        }
+        catch (Exception ex)
+        {
+            if (retryCount == 0)
+            {
+                Snackbar.Add($"Failed to load offices: {ex.Message}", Severity.Error);
+            }
+            _offices = new();
+            StateHasChanged();
+        }
+    }
+
+    private async Task SearchOffices()
+    {
+        try
+        {
+            _isLoading = true;
+            var response = await LookupClient.OfficesAsync(keyword: _searchKeyword, pageSize: 100);
+            var allOffices = response?.Items?.ToList() ?? new();
+            
+            if (string.IsNullOrWhiteSpace(_searchKeyword))
+            {
+                _offices = allOffices;
+            }
+            else
+            {
+                var searchTerm = _searchKeyword.ToLower();
+                _offices = allOffices
+                    .Where(o => 
+                        o.Code.ToLower().Contains(searchTerm) ||
+                        o.Name.ToLower().Contains(searchTerm))
+                    .ToList();
+            }
+            
+            if (_offices.Count == 0 && !string.IsNullOrWhiteSpace(_searchKeyword))
+            {
+                Snackbar.Add("No offices found matching your search", Severity.Info);
+            }
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Search failed: {ex.Message}", Severity.Error);
+            _offices = new();
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveOffice()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Code) || string.IsNullOrWhiteSpace(_form.Name))
+        {
+            Snackbar.Add("Code and Name are required", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            if (EditingOffice != null)
+            {
+                var updateCmd = new UpdateOfficeCommand
+                {
+                    Id = EditingOffice.Id,
+                    Code = _form.Code,
+                    Name = _form.Name,
+                    Description = _form.Description
+                };
+
+                await MasterDataClient.OfficesPutAsync(EditingOffice.Id, updateCmd);
+                Snackbar.Add("Office updated successfully", Severity.Success);
+            }
+            else
+            {
+                var createCmd = new CreateOfficeCommand { Code = _form.Code, Name = _form.Name, Description = _form.Description };
+                await MasterDataClient.OfficesPostAsync(createCmd);
+                Snackbar.Add("Office created successfully", Severity.Success);
+            }
+
+            await LoadOffices();
+            ResetForm();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save office: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void EditOffice(OfficeReferenceDto office)
+    {
+        EditingOffice = office;
+        _form = new OfficeForm
+        {
+            Code = office.Code,
+            Name = office.Name,
+            IsActive = office.IsActive
+        };
+    }
+
+    private void ResetForm()
+    {
+        _form = new();
+        EditingOffice = null;
+    }
+
+    private async Task DeleteOffice(Guid id)
+    {
+        try
+        {
+            await MasterDataClient.OfficesDeleteAsync(id);
+            await LoadOffices();
+            Snackbar.Add("Office deleted", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to delete office: {ex.Message}", Severity.Error);
+        }
+    }
+}
