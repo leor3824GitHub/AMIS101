@@ -1,5 +1,6 @@
 @using FSH.Framework.Shared.Constants
 @using FSH.Framework.Shared.Multitenancy
+@using FSH.Modules.Expendable.Contracts
 @using Microsoft.AspNetCore.Components.Authorization
 @inject NavigationManager Navigation
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -41,14 +42,24 @@
         <MudNavLink Href="/expendable" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Inventory2">
             Expendable
         </MudNavLink>
-        <MudNavLink Href="/expendable/products" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Label"
+        <MudNavLink Href="/expendable/shop" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Storefront"
                     Class="ml-4">
-            Products
+            Employee Shop
         </MudNavLink>
-        <MudNavLink Href="/expendable/purchases" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.ReceiptLong"
-                    Class="ml-4">
-            Purchases
-        </MudNavLink>
+        @if (_canAccessExpendableProducts)
+        {
+            <MudNavLink Href="/expendable/products" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Label"
+                        Class="ml-4">
+                Products (Admin)
+            </MudNavLink>
+        }
+        @if (_canAccessExpendablePurchases)
+        {
+            <MudNavLink Href="/expendable/purchases" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.ReceiptLong"
+                        Class="ml-4">
+                Purchases
+            </MudNavLink>
+        }
         <MudNavLink Href="/expendable/requests" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Description"
                     Class="ml-4">
             Supply Requests
@@ -57,10 +68,13 @@
                     Class="ml-4">
             Cart
         </MudNavLink>
-        <MudNavLink Href="/expendable/warehouse" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Warehouse"
-                    Class="ml-4">
-            Warehouse
-        </MudNavLink>
+        @if (_canAccessExpendableWarehouse)
+        {
+            <MudNavLink Href="/expendable/warehouse" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Warehouse"
+                        Class="ml-4">
+                Warehouse
+            </MudNavLink>
+        }
 
         <!-- Communication Section -->
         <div class="fsh-nav-section-title">Communication</div>
@@ -108,6 +122,9 @@
 
 @code {
     private bool _isRootTenantAdmin;
+    private bool _canAccessExpendableProducts;
+    private bool _canAccessExpendablePurchases;
+    private bool _canAccessExpendableWarehouse;
 
     protected override async Task OnInitializedAsync()
     {
@@ -124,6 +141,9 @@
             if (user.Identity?.IsAuthenticated != true)
             {
                 _isRootTenantAdmin = false;
+                _canAccessExpendableProducts = false;
+                _canAccessExpendablePurchases = false;
+                _canAccessExpendableWarehouse = false;
                 return;
             }
 
@@ -133,11 +153,36 @@
             var roles = user.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
             var isAdmin = roles.Any(r => string.Equals(r, RoleConstants.Admin, StringComparison.OrdinalIgnoreCase));
 
+            var permissions = user.FindAll(CustomClaims.Permission)
+                .Select(c => c.Value)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            _canAccessExpendableProducts = isAdmin
+            || permissions.Contains(ExpendablePermissionConstants.Products.Create)
+            || permissions.Contains(ExpendablePermissionConstants.Products.Update)
+            || permissions.Contains(ExpendablePermissionConstants.Products.Delete);
+
+            _canAccessExpendablePurchases = isAdmin
+            || permissions.Contains(ExpendablePermissionConstants.Purchases.View)
+            || permissions.Contains(ExpendablePermissionConstants.Purchases.Create)
+            || permissions.Contains(ExpendablePermissionConstants.Purchases.Update)
+            || permissions.Contains(ExpendablePermissionConstants.Purchases.Delete)
+            || permissions.Contains(ExpendablePermissionConstants.Purchases.Approve)
+            || permissions.Contains(ExpendablePermissionConstants.Purchases.Receive);
+
+            _canAccessExpendableWarehouse = isAdmin
+            || permissions.Contains(ExpendablePermissionConstants.Inventory.View)
+            || permissions.Contains(ExpendablePermissionConstants.Inventory.Receive)
+            || permissions.Contains(ExpendablePermissionConstants.Inventory.Consume)
+            || permissions.Contains(ExpendablePermissionConstants.Inventory.ViewReports);
+
             _isRootTenantAdmin = isRootTenant && isAdmin;
         }
         catch
         {
             _isRootTenantAdmin = false;
+            _canAccessExpendableProducts = false;
+            _canAccessExpendablePurchases = false;
+            _canAccessExpendableWarehouse = false;
         }
     }
 }

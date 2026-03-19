@@ -41,7 +41,8 @@ public sealed class CreateProductCommandHandler : ICommandHandler<CreateProductC
             command.UnitPrice,
             command.UnitOfMeasure,
             command.MinimumStockLevel,
-            command.ReorderQuantity);
+            command.ReorderQuantity,
+            command.ImageUrls);
 
         product.CategoryId = command.CategoryId;
         product.SupplierId = command.SupplierId;

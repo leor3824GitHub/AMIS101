@@ -31,22 +31,6 @@ if (builder.Environment.IsProduction())
     Require(config, "JwtOptions:SigningKey");
 }
 
-builder.Services.AddMediator(o =>
-{
-    o.ServiceLifetime = ServiceLifetime.Scoped;
-    o.Assemblies = [
-        typeof(GenerateTokenCommand),
-        typeof(GenerateTokenCommandHandler),
-        typeof(GetTenantStatusQuery),
-        typeof(GetTenantStatusQueryHandler),
-        typeof(FSH.Modules.Auditing.Contracts.AuditEnvelope),
-        typeof(FSH.Modules.Auditing.Persistence.AuditDbContext),
-        typeof(CreateProductCommand),
-        typeof(SearchEmployeeReferencesQuery),
-        typeof(MasterDataModule),
-        typeof(ExpendableModule)];
-});
-
 var moduleAssemblies = new Assembly[]
 {
     typeof(IdentityModule).Assembly,
@@ -64,6 +48,23 @@ builder.AddHeroPlatform(o =>
 });
 
 builder.AddModules(moduleAssemblies);
+
+builder.Services.AddMediator(o =>
+{
+    o.ServiceLifetime = ServiceLifetime.Scoped;
+    o.Assemblies = [
+        typeof(GenerateTokenCommand),
+        typeof(GenerateTokenCommandHandler),
+        typeof(GetTenantStatusQuery),
+        typeof(GetTenantStatusQueryHandler),
+        typeof(FSH.Modules.Auditing.Contracts.AuditEnvelope),
+        typeof(FSH.Modules.Auditing.Persistence.AuditDbContext),
+        typeof(CreateProductCommand),
+        typeof(SearchEmployeeReferencesQuery),
+        typeof(MasterDataModule),
+        typeof(ExpendableModule)];
+});
+
 var app = builder.Build();
 
 app.UseHeroMultiTenantDatabases();

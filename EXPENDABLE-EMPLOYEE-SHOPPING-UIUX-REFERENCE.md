@@ -117,3 +117,115 @@ Deliverables:
 ## Notes
 - Backend already has significant domain and CQRS coverage for cart/request workflows.
 - Remaining work is mostly UI integration, API client alignment, and end-to-end polish.
+
+## Feature Blueprint (Shopping-Like UX)
+
+### Employee Experience (Primary)
+1. Browse Catalog
+  - Product cards with name, SKU, UoM, stock badge, and price.
+  - Search and quick filters (category, in-stock, active only).
+2. Build Cart
+  - Add to cart from catalog.
+  - Update quantity, remove line, clear cart.
+  - Running subtotal and total item count.
+3. Submit Request
+  - Convert cart to supply request.
+  - Provide needed-by date and business justification.
+  - Confirmation with request number and deep-link to details.
+4. Track My Requests
+  - List of own requests and statuses.
+  - Request detail timeline (Submitted, Approved, Rejected, Fulfilled).
+
+### Supply Officer Experience
+1. Incoming Queue
+  - Search/filter submitted requests by date, employee, status.
+2. Decisioning
+  - Approve or reject with reason.
+3. Fulfillment Visibility
+  - Mark fulfilled and expose fulfillment details for employee tracking.
+
+## API-to-UX Mapping (Reference)
+
+### Catalog
+- `GET /api/v1/expendable/products/search` (browse/search products)
+
+### Cart
+- `POST /api/v1/expendable/cart/employee/{employeeId}/cart` (get/create cart)
+- `POST /api/v1/expendable/cart/{cartId}/items` (add item)
+- `GET /api/v1/expendable/cart/{cartId}` (view cart)
+- `DELETE /api/v1/expendable/cart/{cartId}/items/{productId}` (remove item)
+- `DELETE /api/v1/expendable/cart/{cartId}/clear` (clear cart)
+- `POST /api/v1/expendable/cart/{cartId}/convert-to-request` (submit request from cart)
+
+### Supply Requests
+- `GET /api/v1/expendable/supply-requests/{id}` (request detail)
+- `GET /api/v1/expendable/supply-requests/employee/{employeeId}` (employee request history)
+- `GET /api/v1/expendable/supply-requests/search` (officer queue/reporting)
+- `POST /api/v1/expendable/supply-requests/{id}/submit` (submit)
+- `POST /api/v1/expendable/supply-requests/{id}/approve` (approve)
+- `POST /api/v1/expendable/supply-requests/{id}/reject` (reject)
+
+## UI Implementation Checklist (Blazor)
+
+Use this checklist as an execution tracker for the employee shopping UX in Playground.Blazor.
+
+### Legend
+- Size: S (0.5-1 day), M (1-2 days), L (3-5 days)
+- Status: [ ] Not started, [~] In progress, [x] Done
+
+### Phase A - Catalog (Employee Browse/Search)
+- [ ] Create employee-first catalog layout in products page or separate page (Size: M)
+- [ ] Product card component with name, SKU, UoM, stock, price, quantity input (Size: M)
+- [ ] Search input with debounce and server-backed keyword query (Size: S)
+- [ ] Filter chips: category, in-stock, active only (Size: M)
+- [ ] Sort options: relevance, name, price (Size: S)
+- [ ] Add-to-cart CTA from each product card with inline feedback (Size: S)
+
+Estimated effort: 5-7 days
+
+### Phase B - Cart
+- [ ] Replace cart placeholder with full cart page integration (Size: M)
+- [ ] Load cart by employee and show empty-state UX (Size: S)
+- [ ] Quantity update, remove line, clear cart actions (Size: M)
+- [ ] Cart summary panel: subtotal, total items, validation hints (Size: S)
+- [ ] Error states for unavailable/stale products and retry actions (Size: S)
+
+Estimated effort: 4-6 days
+
+### Phase C - Convert Cart to Supply Request
+- [ ] Request submission form modal/section (needed-by + justification) (Size: M)
+- [ ] Convert cart to request API integration and success handling (Size: S)
+- [ ] Confirmation state with request id and quick links (Size: S)
+
+Estimated effort: 2-3 days
+
+### Phase D - My Requests (Employee)
+- [ ] Replace requests placeholder with employee request list (Size: M)
+- [ ] Request detail drawer/page with item lines and history (Size: M)
+- [ ] Status chips and timeline presentation (Submitted/Approved/Rejected/Fulfilled) (Size: S)
+- [ ] Pagination and filters (status/date) (Size: S)
+
+Estimated effort: 4-6 days
+
+### Phase E - Supply Officer Review UX
+- [ ] Queue page for incoming requests (search + filters) (Size: M)
+- [ ] Approve/reject actions with reason capture (Size: M)
+- [ ] Fulfillment marking and result visibility to employee (Size: S)
+
+Estimated effort: 3-5 days
+
+### Cross-Cutting Tasks
+- [ ] Regenerate and verify API client routes match current endpoints (Size: S)
+- [ ] Consistent loading/empty/error components across pages (Size: S)
+- [ ] Authorization-aware UI states (hide/disable by permission) (Size: S)
+- [ ] Basic telemetry: search term, add-to-cart, convert-to-request (Size: M)
+- [ ] Smoke tests for end-to-end employee flow (Size: M)
+
+Estimated effort: 3-4 days
+
+### Suggested Delivery Sprints
+- Sprint 1: Phase A + Phase B core (catalog and cart)
+- Sprint 2: Phase C + Phase D (submit and track requests)
+- Sprint 3: Phase E + cross-cutting hardening
+
+Total rough effort: 21-31 working days (single developer), can be reduced with parallel frontend/backend/test streams.

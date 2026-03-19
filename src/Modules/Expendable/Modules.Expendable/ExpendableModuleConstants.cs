@@ -15,49 +15,49 @@ public static class ExpendableModuleConstants
 
         public static class Products
         {
-            public const string View = "Permissions.Expendable.Products.View";
-            public const string Create = "Permissions.Expendable.Products.Create";
-            public const string Update = "Permissions.Expendable.Products.Update";
-            public const string Delete = "Permissions.Expendable.Products.Delete";
-            public const string Activate = "Permissions.Expendable.Products.Activate";
-            public const string Deactivate = "Permissions.Expendable.Products.Deactivate";
+            public const string View = Contracts.ExpendablePermissionConstants.Products.View;
+            public const string Create = Contracts.ExpendablePermissionConstants.Products.Create;
+            public const string Update = Contracts.ExpendablePermissionConstants.Products.Update;
+            public const string Delete = Contracts.ExpendablePermissionConstants.Products.Delete;
+            public const string Activate = Contracts.ExpendablePermissionConstants.Products.Activate;
+            public const string Deactivate = Contracts.ExpendablePermissionConstants.Products.Deactivate;
         }
 
         public static class Purchases
         {
-            public const string View = "Permissions.Expendable.Purchases.View";
-            public const string Create = "Permissions.Expendable.Purchases.Create";
-            public const string Update = "Permissions.Expendable.Purchases.Update";
-            public const string Delete = "Permissions.Expendable.Purchases.Delete";
-            public const string Approve = "Permissions.Expendable.Purchases.Approve";
-            public const string Receive = "Permissions.Expendable.Purchases.Receive";
+            public const string View = Contracts.ExpendablePermissionConstants.Purchases.View;
+            public const string Create = Contracts.ExpendablePermissionConstants.Purchases.Create;
+            public const string Update = Contracts.ExpendablePermissionConstants.Purchases.Update;
+            public const string Delete = Contracts.ExpendablePermissionConstants.Purchases.Delete;
+            public const string Approve = Contracts.ExpendablePermissionConstants.Purchases.Approve;
+            public const string Receive = Contracts.ExpendablePermissionConstants.Purchases.Receive;
         }
 
         public static class SupplyRequests
         {
-            public const string View = "Permissions.Expendable.SupplyRequests.View";
-            public const string Create = "Permissions.Expendable.SupplyRequests.Create";
-            public const string Update = "Permissions.Expendable.SupplyRequests.Update";
-            public const string Delete = "Permissions.Expendable.SupplyRequests.Delete";
-            public const string Approve = "Permissions.Expendable.SupplyRequests.Approve";
-            public const string Reject = "Permissions.Expendable.SupplyRequests.Reject";
+            public const string View = Contracts.ExpendablePermissionConstants.SupplyRequests.View;
+            public const string Create = Contracts.ExpendablePermissionConstants.SupplyRequests.Create;
+            public const string Update = Contracts.ExpendablePermissionConstants.SupplyRequests.Update;
+            public const string Delete = Contracts.ExpendablePermissionConstants.SupplyRequests.Delete;
+            public const string Approve = Contracts.ExpendablePermissionConstants.SupplyRequests.Approve;
+            public const string Reject = Contracts.ExpendablePermissionConstants.SupplyRequests.Reject;
         }
 
         public static class ShoppingCarts
         {
-            public const string View = "Permissions.Expendable.ShoppingCarts.View";
-            public const string Create = "Permissions.Expendable.ShoppingCarts.Create";
-            public const string Edit = "Permissions.Expendable.ShoppingCarts.Edit";
-            public const string Clear = "Permissions.Expendable.ShoppingCarts.Clear";
-            public const string Convert = "Permissions.Expendable.ShoppingCarts.Convert";
+            public const string View = Contracts.ExpendablePermissionConstants.ShoppingCarts.View;
+            public const string Create = Contracts.ExpendablePermissionConstants.ShoppingCarts.Create;
+            public const string Edit = Contracts.ExpendablePermissionConstants.ShoppingCarts.Edit;
+            public const string Clear = Contracts.ExpendablePermissionConstants.ShoppingCarts.Clear;
+            public const string Convert = Contracts.ExpendablePermissionConstants.ShoppingCarts.Convert;
         }
 
         public static class Inventory
         {
-            public const string View = "Permissions.Expendable.Inventory.View";
-            public const string Receive = "Permissions.Expendable.Inventory.Receive";
-            public const string Consume = "Permissions.Expendable.Inventory.Consume";
-            public const string ViewReports = "Permissions.Expendable.Inventory.ViewReports";
+            public const string View = Contracts.ExpendablePermissionConstants.Inventory.View;
+            public const string Receive = Contracts.ExpendablePermissionConstants.Inventory.Receive;
+            public const string Consume = Contracts.ExpendablePermissionConstants.Inventory.Consume;
+            public const string ViewReports = Contracts.ExpendablePermissionConstants.Inventory.ViewReports;
         }
     }
 

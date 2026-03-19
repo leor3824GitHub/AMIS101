@@ -31,5 +31,25 @@ public sealed class CreateProductCommandValidator : AbstractValidator<CreateProd
 
         RuleFor(x => x.ReorderQuantity)
             .GreaterThan(0).WithMessage("Reorder quantity must be greater than zero");
+
+        RuleFor(x => x.ImageUrls)
+            .Must(x => x is null || x.Count <= 3)
+            .WithMessage("A product can have up to 3 images.");
+
+        RuleForEach(x => x.ImageUrls)
+            .Must(BeAbsoluteHttpUrl)
+            .When(x => x.ImageUrls is not null)
+            .WithMessage("Each image must be a valid absolute http/https URL.");
+    }
+
+    private static bool BeAbsoluteHttpUrl(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
+            && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
     }
 }

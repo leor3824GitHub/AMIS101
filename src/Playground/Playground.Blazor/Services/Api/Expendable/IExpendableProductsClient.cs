@@ -5,7 +5,7 @@ namespace FSH.Playground.Blazor.Services.Api.Expendable;
 
 internal interface IExpendableProductsClient
 {
-    Task CreateAsync(CreateProductCommand command, CancellationToken cancellationToken = default);
+    Task CreateAsync(CreateProductCommand command, IReadOnlyList<string>? imageUrls = null, CancellationToken cancellationToken = default);
 
     Task<PagedResponse<ProductDto>> SearchAsync(
         string? keyword = null,
@@ -16,7 +16,7 @@ internal interface IExpendableProductsClient
 
     Task<ProductDto> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
 
-    Task UpdateAsync(Guid id, UpdateProductCommand command, CancellationToken cancellationToken = default);
+    Task UpdateAsync(Guid id, UpdateProductCommand command, IReadOnlyList<string>? imageUrls = null, CancellationToken cancellationToken = default);
 
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 
@@ -42,6 +42,7 @@ internal interface IExpendableProductsClient
         string Status,
         string? CategoryId,
         string? SupplierId,
+        List<string> ImageUrls,
         DateTimeOffset CreatedOnUtc,
         string? CreatedBy,
         DateTimeOffset? LastModifiedOnUtc,

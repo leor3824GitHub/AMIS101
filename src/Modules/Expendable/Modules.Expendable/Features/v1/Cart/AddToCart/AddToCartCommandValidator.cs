@@ -15,8 +15,5 @@ public sealed class AddToCartCommandValidator : AbstractValidator<AddToCartComma
 
         RuleFor(x => x.Quantity)
             .GreaterThan(0).WithMessage("Quantity must be greater than zero");
-
-        RuleFor(x => x.UnitPrice)
-            .GreaterThan(0).WithMessage("Unit price must be greater than zero");
     }
 }

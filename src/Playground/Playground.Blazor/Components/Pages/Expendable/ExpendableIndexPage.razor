@@ -1,7 +1,11 @@
 @page "/expendable"
 @using FSH.Framework.Blazor.UI.Components.Cards
+@using FSH.Framework.Shared.Constants
+@using FSH.Modules.Expendable.Contracts
+@using Microsoft.AspNetCore.Components.Authorization
 @inherits ComponentBase
 @inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <FshPageHeader Title="Expendable Module" Description="Employee shopping and supply request system">
 </FshPageHeader>
@@ -12,33 +16,55 @@
             <MudCard Class="h-full">
                 <MudCardContent>
                     <MudStack Spacing="3" AlignItems="AlignItems.Center">
-                        <MudIcon Icon="@Icons.Material.Filled.Label" Size="Size.Large" Color="Color.Primary" />
-                        <MudText Typo="Typo.h6">Products</MudText>
-                        <MudText Typo="Typo.body2" Align="Align.Center">Manage product catalog</MudText>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
-                                   OnClick="@(() => Navigation.NavigateTo("/expendable/products"))">
-                            Manage
+                        <MudIcon Icon="@Icons.Material.Filled.Storefront" Size="Size.Large" Color="Color.Success" />
+                        <MudText Typo="Typo.h6">Employee Shop</MudText>
+                        <MudText Typo="Typo.body2" Align="Align.Center">Browse and add products to cart</MudText>
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true"
+                                   OnClick="@(() => Navigation.NavigateTo("/expendable/shop"))">
+                            Open Shop
                         </MudButton>
                     </MudStack>
                 </MudCardContent>
             </MudCard>
         </MudItem>
 
-        <MudItem xs="12" sm="6" md="3">
-            <MudCard Class="h-full">
-                <MudCardContent>
-                    <MudStack Spacing="3" AlignItems="AlignItems.Center">
-                        <MudIcon Icon="@Icons.Material.Filled.ReceiptLong" Size="Size.Large" Color="Color.Warning" />
-                        <MudText Typo="Typo.h6">Purchase Orders</MudText>
-                        <MudText Typo="Typo.body2" Align="Align.Center">Manage purchase orders</MudText>
-                        <MudButton Variant="Variant.Filled" Color="Color.Warning" FullWidth="true"
-                                   OnClick="@(() => Navigation.NavigateTo("/expendable/purchases"))">
-                            Manage
-                        </MudButton>
-                    </MudStack>
-                </MudCardContent>
-            </MudCard>
-        </MudItem>
+        @if (_canAccessExpendableProducts)
+        {
+            <MudItem xs="12" sm="6" md="3">
+                <MudCard Class="h-full">
+                    <MudCardContent>
+                        <MudStack Spacing="3" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.Label" Size="Size.Large" Color="Color.Primary" />
+                            <MudText Typo="Typo.h6">Products</MudText>
+                            <MudText Typo="Typo.body2" Align="Align.Center">Manage product catalog</MudText>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                                       OnClick="@(() => Navigation.NavigateTo("/expendable/products"))">
+                                Manage Catalog
+                            </MudButton>
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+
+        @if (_canAccessExpendablePurchases)
+        {
+            <MudItem xs="12" sm="6" md="3">
+                <MudCard Class="h-full">
+                    <MudCardContent>
+                        <MudStack Spacing="3" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.ReceiptLong" Size="Size.Large" Color="Color.Warning" />
+                            <MudText Typo="Typo.h6">Purchase Orders</MudText>
+                            <MudText Typo="Typo.body2" Align="Align.Center">Manage purchase orders</MudText>
+                            <MudButton Variant="Variant.Filled" Color="Color.Warning" FullWidth="true"
+                                       OnClick="@(() => Navigation.NavigateTo("/expendable/purchases"))">
+                                Manage
+                            </MudButton>
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
 
         <MudItem xs="12" sm="6" md="3">
             <MudCard Class="h-full">
@@ -72,20 +98,68 @@
             </MudCard>
         </MudItem>
 
-        <MudItem xs="12" sm="6" md="3">
-            <MudCard Class="h-full">
-                <MudCardContent>
-                    <MudStack Spacing="3" AlignItems="AlignItems.Center">
-                        <MudIcon Icon="@Icons.Material.Filled.Warehouse" Size="Size.Large" Color="Color.Secondary" />
-                        <MudText Typo="Typo.h6">Warehouse</MudText>
-                        <MudText Typo="Typo.body2" Align="Align.Center">Inventory operations</MudText>
-                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true"
-                                   OnClick="@(() => Navigation.NavigateTo("/expendable/warehouse"))">
-                            Manage
-                        </MudButton>
-                    </MudStack>
-                </MudCardContent>
-            </MudCard>
-        </MudItem>
+        @if (_canAccessExpendableWarehouse)
+        {
+            <MudItem xs="12" sm="6" md="3">
+                <MudCard Class="h-full">
+                    <MudCardContent>
+                        <MudStack Spacing="3" AlignItems="AlignItems.Center">
+                            <MudIcon Icon="@Icons.Material.Filled.Warehouse" Size="Size.Large" Color="Color.Secondary" />
+                            <MudText Typo="Typo.h6">Warehouse</MudText>
+                            <MudText Typo="Typo.body2" Align="Align.Center">Inventory operations</MudText>
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true"
+                                       OnClick="@(() => Navigation.NavigateTo("/expendable/warehouse"))">
+                                Manage
+                            </MudButton>
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
     </MudGrid>
 </div>
+
+@code {
+    private bool _canAccessExpendableProducts;
+    private bool _canAccessExpendablePurchases;
+    private bool _canAccessExpendableWarehouse;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            _canAccessExpendableProducts = false;
+            _canAccessExpendablePurchases = false;
+            _canAccessExpendableWarehouse = false;
+            return;
+        }
+
+        var roles = user.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value);
+        var isAdmin = roles.Any(r => string.Equals(r, RoleConstants.Admin, StringComparison.OrdinalIgnoreCase));
+        var permissions = user.FindAll(CustomClaims.Permission)
+            .Select(c => c.Value)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        _canAccessExpendableProducts = isAdmin
+            || permissions.Contains(ExpendablePermissionConstants.Products.Create)
+            || permissions.Contains(ExpendablePermissionConstants.Products.Update)
+            || permissions.Contains(ExpendablePermissionConstants.Products.Delete);
+
+        _canAccessExpendablePurchases = isAdmin
+            || permissions.Contains(ExpendablePermissionConstants.Purchases.View)
+            || permissions.Contains(ExpendablePermissionConstants.Purchases.Create)
+            || permissions.Contains(ExpendablePermissionConstants.Purchases.Update)
+            || permissions.Contains(ExpendablePermissionConstants.Purchases.Delete)
+            || permissions.Contains(ExpendablePermissionConstants.Purchases.Approve)
+            || permissions.Contains(ExpendablePermissionConstants.Purchases.Receive);
+
+        _canAccessExpendableWarehouse = isAdmin
+            || permissions.Contains(ExpendablePermissionConstants.Inventory.View)
+            || permissions.Contains(ExpendablePermissionConstants.Inventory.Receive)
+            || permissions.Contains(ExpendablePermissionConstants.Inventory.Consume)
+            || permissions.Contains(ExpendablePermissionConstants.Inventory.ViewReports);
+    }
+}

@@ -24,6 +24,8 @@ public sealed class UpdateCartItemQuantityCommandHandler : ICommandHandler<Updat
             .ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Cart {command.CartId} not found.");
 
+        CartAccessGuard.EnsureCanAccessCart(_currentUser, cart);
+
         cart.UpdateItemQuantity(command.ProductId, command.NewQuantity);
         cart.LastModifiedBy = _currentUser.GetUserId().ToString();
 

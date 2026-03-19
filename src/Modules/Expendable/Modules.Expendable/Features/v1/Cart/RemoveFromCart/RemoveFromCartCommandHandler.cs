@@ -24,6 +24,8 @@ public sealed class RemoveFromCartCommandHandler : ICommandHandler<RemoveFromCar
             .ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Cart {command.CartId} not found.");
 
+        CartAccessGuard.EnsureCanAccessCart(_currentUser, cart);
+
         cart.RemoveItem(command.ProductId);
         cart.LastModifiedBy = _currentUser.GetUserId().ToString();
 

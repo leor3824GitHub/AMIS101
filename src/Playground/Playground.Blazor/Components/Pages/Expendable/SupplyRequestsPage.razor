@@ -1,20 +1,178 @@
 @page "/expendable/requests"
 @using FSH.Framework.Blazor.UI.Components.Cards
+@using FSH.Playground.Blazor.Services.Api.Expendable
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 @inherits ComponentBase
 @inject ISnackbar Snackbar
+@inject IExpendableSupplyRequestsClient SupplyRequestsClient
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
-<FshPageHeader Title="Supply Requests" Description="Manage employee supply requests">
-    <ActionContent>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">
-            New Request
-        </MudButton>
-    </ActionContent>
+<FshPageHeader Title="Supply Requests" Description="Track your submitted requests">
 </FshPageHeader>
 
 <div class="mt-4">
-    <MudCard>
-        <MudCardContent>
-            <MudText Typo="Typo.body1">Supply Requests module - API integration coming soon</MudText>
-        </MudCardContent>
-    </MudCard>
+    @if (_isLoading)
+    {
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    }
+    else if (!_requests.Any())
+    {
+        <MudAlert Severity="Severity.Info">No supply requests found for your account.</MudAlert>
+    }
+    else
+    {
+        <MudGrid Spacing="2">
+            <MudItem xs="12" md="7">
+                <MudCard>
+                    <MudCardContent>
+                        <MudText Typo="Typo.h6" Class="mb-2">Request History</MudText>
+                        <MudSimpleTable Dense="true" Hover="true">
+                            <thead>
+                                <tr>
+                                    <th>Request #</th>
+                                    <th>Status</th>
+                                    <th>Department</th>
+                                    <th>Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in _requests)
+                                {
+                                    <tr>
+                                        <td>@item.RequestNumber</td>
+                                        <td><MudChip T="string" Size="Size.Small">@item.Status</MudChip></td>
+                                        <td>@item.DepartmentId</td>
+                                        <td>@item.RequestDate.ToLocalTime().ToString("yyyy-MM-dd")</td>
+                                        <td>
+                                            <MudButton Variant="Variant.Text" Color="Color.Primary" Size="Size.Small"
+                                                       OnClick="@(() => LoadDetails(item.Id))">
+                                                View
+                                            </MudButton>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="5">
+                <MudCard>
+                    <MudCardContent>
+                        <MudText Typo="Typo.h6" Class="mb-2">Request Details</MudText>
+                        @if (_selectedRequest is null)
+                        {
+                            <MudText Typo="Typo.body2">Select a request to view details.</MudText>
+                        }
+                        else
+                        {
+                            <MudStack Spacing="1">
+                                <MudText Typo="Typo.body2"><b>Request:</b> @_selectedRequest.RequestNumber</MudText>
+                                <MudText Typo="Typo.body2"><b>Status:</b> @_selectedRequest.Status</MudText>
+                                <MudText Typo="Typo.body2"><b>Needed By:</b> @(_selectedRequest.NeededByDate?.ToLocalTime().ToString("yyyy-MM-dd") ?? "-")</MudText>
+                                <MudText Typo="Typo.body2"><b>Justification:</b> @(_selectedRequest.BusinessJustification ?? "-")</MudText>
+                                <MudText Typo="Typo.body2"><b>Items:</b> @_selectedRequest.Items.Count</MudText>
+                            </MudStack>
+
+                            @if (_selectedRequest.Items.Any())
+                            {
+                                <MudDivider Class="my-2" />
+                                <MudSimpleTable Dense="true">
+                                    <thead>
+                                        <tr>
+                                            <th>Product Id</th>
+                                            <th>Requested</th>
+                                            <th>Approved</th>
+                                            <th>Fulfilled</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var detail in _selectedRequest.Items)
+                                        {
+                                            <tr>
+                                                <td>@detail.ProductId</td>
+                                                <td>@detail.RequestedQuantity</td>
+                                                <td>@detail.ApprovedQuantity</td>
+                                                <td>@detail.FulfilledQuantity</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </MudSimpleTable>
+                            }
+                        }
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+    }
 </div>
+
+@code {
+    private readonly List<IExpendableSupplyRequestsClient.SupplyRequestDto> _requests = new();
+    private IExpendableSupplyRequestsClient.SupplyRequestDto? _selectedRequest;
+    private bool _isLoading;
+    private string? _employeeId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _employeeId = await ResolveEmployeeIdAsync();
+        if (string.IsNullOrWhiteSpace(_employeeId))
+        {
+            Snackbar.Add("Employee identity not found. Please sign in again.", Severity.Warning);
+            return;
+        }
+
+        await LoadRequestsAsync();
+    }
+
+    private async Task LoadRequestsAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            _requests.Clear();
+            var result = await SupplyRequestsClient.GetEmployeeRequestsAsync(_employeeId!, pageSize: 100);
+            _requests.AddRange(result.Items.OrderByDescending(x => x.RequestDate));
+            _selectedRequest = _requests.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load requests: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadDetails(Guid requestId)
+    {
+        try
+        {
+            _selectedRequest = await SupplyRequestsClient.GetByIdAsync(requestId);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load request details: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task<string?> ResolveEmployeeIdAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            return null;
+        }
+
+        return user.FindFirstValue("employee_id")
+            ?? user.FindFirstValue("employeeId")
+            ?? user.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? user.FindFirstValue("sub");
+    }
+}

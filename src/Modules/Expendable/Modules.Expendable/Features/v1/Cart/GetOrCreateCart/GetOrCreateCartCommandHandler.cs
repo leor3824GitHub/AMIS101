@@ -20,6 +20,8 @@ public sealed class GetOrCreateCartCommandHandler : ICommandHandler<GetOrCreateC
 
     public async ValueTask<EmployeeShoppingCartDto> Handle(GetOrCreateCartCommand command, CancellationToken cancellationToken)
     {
+        CartAccessGuard.EnsureCanAccessEmployee(_currentUser, command.EmployeeId);
+
         var query = _dbContext.ShoppingCarts.Where(c => c.EmployeeId == command.EmployeeId && c.Status == CartStatus.Active);
         var cart = await query.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
 

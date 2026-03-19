@@ -24,8 +24,28 @@ internal sealed class ExpendableProductsClient : IExpendableProductsClient
         _httpClient = httpClient;
     }
 
-    public Task CreateAsync(CreateProductCommand command, CancellationToken cancellationToken = default) =>
-        _expendableClient.ProductsPostAsync(command, cancellationToken);
+    public async Task CreateAsync(
+        CreateProductCommand command,
+        IReadOnlyList<string>? imageUrls = null,
+        CancellationToken cancellationToken = default)
+    {
+        var payload = new
+        {
+            sku = command.Sku,
+            name = command.Name,
+            description = command.Description,
+            unitPrice = command.UnitPrice,
+            unitOfMeasure = command.UnitOfMeasure,
+            minimumStockLevel = command.MinimumStockLevel,
+            reorderQuantity = command.ReorderQuantity,
+            categoryId = command.CategoryId,
+            supplierId = command.SupplierId,
+            imageUrls = imageUrls
+        };
+
+        using var response = await _httpClient.PostAsJsonAsync("/api/v1/expendable/products", payload, JsonOptions, cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
 
     public async Task<PagedResponse<IExpendableProductsClient.ProductDto>> SearchAsync(
         string? keyword = null,
@@ -87,8 +107,28 @@ internal sealed class ExpendableProductsClient : IExpendableProductsClient
         return result ?? throw new InvalidOperationException($"Invalid response data received");
     }
 
-    public Task UpdateAsync(Guid id, UpdateProductCommand command, CancellationToken cancellationToken = default) =>
-        _expendableClient.ProductsPutAsync(id, command, cancellationToken);
+    public async Task UpdateAsync(
+        Guid id,
+        UpdateProductCommand command,
+        IReadOnlyList<string>? imageUrls = null,
+        CancellationToken cancellationToken = default)
+    {
+        var payload = new
+        {
+            id,
+            name = command.Name,
+            description = command.Description,
+            unitPrice = command.UnitPrice,
+            minimumStockLevel = command.MinimumStockLevel,
+            reorderQuantity = command.ReorderQuantity,
+            categoryId = command.CategoryId,
+            supplierId = command.SupplierId,
+            imageUrls = imageUrls
+        };
+
+        using var response = await _httpClient.PutAsJsonAsync($"/api/v1/expendable/products/{id}", payload, JsonOptions, cancellationToken);
+        response.EnsureSuccessStatusCode();
+    }
 
     public Task DeleteAsync(Guid id, CancellationToken cancellationToken = default) =>
         _expendableClient.ProductsDeleteAsync(id, cancellationToken);

@@ -32,6 +32,8 @@ public sealed class ConvertCartToSupplyRequestCommandHandler : ICommandHandler<C
             .ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Cart {command.CartId} not found.");
 
+        CartAccessGuard.EnsureCanAccessCart(_currentUser, cart);
+
         // Create supply request
         var requestNumber = $"REQ-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString()[..8]}";
         var request = SupplyRequest.Create(

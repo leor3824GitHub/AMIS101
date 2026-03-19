@@ -1,20 +1,364 @@
 @page "/expendable/cart"
 @using FSH.Framework.Blazor.UI.Components.Cards
+@using FSH.Playground.Blazor.Services.Api.Expendable
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 @inherits ComponentBase
 @inject ISnackbar Snackbar
+@inject IExpendableCartClient CartClient
+@inject IExpendableProductsClient ProductsClient
+@inject IExpendableSupplyRequestsClient SupplyRequestsClient
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
 
-<FshPageHeader Title="Shopping Cart" Description="Manage employee shopping cart">
+<FshPageHeader Title="Shopping Cart" Description="Review items and submit as a supply request">
     <ActionContent>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">
-            Add Item
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="OpenProducts">
+            Continue Shopping
         </MudButton>
     </ActionContent>
 </FshPageHeader>
 
 <div class="mt-4">
-    <MudCard>
-        <MudCardContent>
-            <MudText Typo="Typo.body1">Shopping Cart - API integration coming soon</MudText>
-        </MudCardContent>
-    </MudCard>
+    @if (_isLoading)
+    {
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    }
+    else if (_cart is null)
+    {
+        <MudAlert Severity="Severity.Info">No cart found for your account.</MudAlert>
+    }
+    else
+    {
+        <MudGrid Spacing="2">
+            <MudItem xs="12" md="8">
+                <MudCard>
+                    <MudCardContent>
+                        <MudText Typo="Typo.h6" Class="mb-2">Items (@_cart.ItemCount)</MudText>
+
+                        @if (!_cart.Items.Any())
+                        {
+                            <MudAlert Severity="Severity.Info">Your cart is empty.</MudAlert>
+                        }
+                        else
+                        {
+                            <MudSimpleTable Dense="true" Hover="true">
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Unit Price</th>
+                                        <th>Quantity</th>
+                                        <th>Line Total</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in _cart.Items)
+                                    {
+                                        <tr>
+                                            <td>@GetProductName(item.ProductId)</td>
+                                            <td>@item.UnitPrice.ToString("C")</td>
+                                            <td style="max-width: 110px;">
+                                                <MudNumericField T="int" Value="GetDraftQuantity(item)"
+                                                                 ValueChanged="@(value => SetDraftQuantity(item.ProductId, value))" Min="1"
+                                                                 Max="500" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                                            </td>
+                                            <td>@item.LineTotal.ToString("C")</td>
+                                            <td>
+                                                <MudStack Row="true" Spacing="1">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Check" Color="Color.Primary"
+                                                                   Size="Size.Small" OnClick="@(() => UpdateItemQuantity(item))" />
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                                                   Size="Size.Small" OnClick="@(() => RemoveItem(item.ProductId))" />
+                                                </MudStack>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </MudSimpleTable>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+
+            <MudItem xs="12" md="4">
+                <MudCard>
+                    <MudCardContent>
+                        <MudText Typo="Typo.h6" Class="mb-2">Checkout</MudText>
+                        <MudText Typo="Typo.body1" Class="mb-3">Cart Total: @_cart.CartTotal.ToString("C")</MudText>
+
+                        <MudSelect T="string" Label="Department" Value="_departmentId" ValueChanged="OnDepartmentChanged"
+                                   Required="true" Disabled="@(!_departmentOptions.Any())">
+                            @foreach (var option in _departmentOptions)
+                            {
+                                <MudSelectItem Value="@option">@option</MudSelectItem>
+                            }
+                        </MudSelect>
+
+                        @if (!_departmentOptions.Any())
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Warning">
+                                No department was found in your profile or request history.
+                            </MudText>
+                        }
+
+                        <MudDatePicker @bind-Date="_neededByDate" Label="Needed By" />
+
+                        <MudTextField @bind-Value="_businessJustification" Label="Business Justification" Lines="3"
+                                      Placeholder="Why is this request needed?" Class="mt-2" />
+
+                        <MudStack Row="true" Spacing="2" Class="mt-4">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!_cart.Items.Any())"
+                                       OnClick="ConvertToRequestAsync">
+                                Submit Request
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Error" Disabled="@(!_cart.Items.Any())"
+                                       OnClick="ClearCartAsync">
+                                Clear Cart
+                            </MudButton>
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+    }
 </div>
+
+@code {
+    private IExpendableCartClient.EmployeeShoppingCartDto? _cart;
+    private readonly Dictionary<Guid, string> _productNames = new();
+    private readonly Dictionary<Guid, int> _draftQuantities = new();
+    private bool _isLoading;
+    private string? _employeeId;
+    private string _departmentId = string.Empty;
+    private readonly List<string> _departmentOptions = new();
+    private string? _businessJustification;
+    private DateTime? _neededByDate;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _employeeId = await ResolveEmployeeIdAsync();
+        if (string.IsNullOrWhiteSpace(_employeeId))
+        {
+            Snackbar.Add("Employee identity not found. Please sign in again.", Severity.Warning);
+            return;
+        }
+
+        await LoadDepartmentOptionsAsync();
+        await LoadCartAsync();
+    }
+
+    private async Task LoadDepartmentOptionsAsync()
+    {
+        _departmentOptions.Clear();
+
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        AddDepartmentOption(user.FindFirstValue("department_id"));
+        AddDepartmentOption(user.FindFirstValue("departmentId"));
+        AddDepartmentOption(user.FindFirstValue("department"));
+        AddDepartmentOption(user.FindFirstValue("dept"));
+
+        if (!string.IsNullOrWhiteSpace(_employeeId))
+        {
+            try
+            {
+                var history = await SupplyRequestsClient.GetEmployeeRequestsAsync(_employeeId, pageSize: 25);
+                foreach (var request in history.Items)
+                {
+                    AddDepartmentOption(request.DepartmentId);
+                }
+            }
+            catch
+            {
+                // Best-effort only: cart should still load even if request history is unavailable.
+            }
+        }
+
+        if (_departmentOptions.Count == 1)
+        {
+            _departmentId = _departmentOptions[0];
+        }
+    }
+
+    private void AddDepartmentOption(string? department)
+    {
+        if (string.IsNullOrWhiteSpace(department))
+        {
+            return;
+        }
+
+        if (_departmentOptions.Contains(department, StringComparer.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        _departmentOptions.Add(department);
+    }
+
+    private Task OnDepartmentChanged(string? value)
+    {
+        _departmentId = value ?? string.Empty;
+        return Task.CompletedTask;
+    }
+
+    private async Task LoadCartAsync()
+    {
+        try
+        {
+            _isLoading = true;
+            _cart = await CartClient.GetOrCreateAsync(_employeeId!);
+            foreach (var item in _cart.Items)
+            {
+                _draftQuantities[item.ProductId] = item.Quantity;
+                if (!_productNames.ContainsKey(item.ProductId))
+                {
+                    await TryLoadProductName(item.ProductId);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load cart: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task TryLoadProductName(Guid productId)
+    {
+        try
+        {
+            var product = await ProductsClient.GetByIdAsync(productId);
+            _productNames[productId] = product.Name;
+        }
+        catch
+        {
+            _productNames[productId] = productId.ToString();
+        }
+    }
+
+    private async Task UpdateItemQuantity(IExpendableCartClient.CartItemDto item)
+    {
+        if (_cart is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var newQuantity = GetDraftQuantity(item);
+            await CartClient.UpdateItemQuantityAsync(_cart.Id, item.ProductId, newQuantity);
+            await LoadCartAsync();
+            Snackbar.Add("Cart quantity updated.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to update quantity: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task RemoveItem(Guid productId)
+    {
+        if (_cart is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await CartClient.RemoveItemAsync(_cart.Id, productId);
+            _draftQuantities.Remove(productId);
+            await LoadCartAsync();
+            Snackbar.Add("Item removed from cart.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to remove item: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ClearCartAsync()
+    {
+        if (_cart is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await CartClient.ClearAsync(_cart.Id);
+            _draftQuantities.Clear();
+            await LoadCartAsync();
+            Snackbar.Add("Cart cleared.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to clear cart: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task ConvertToRequestAsync()
+    {
+        if (_cart is null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_departmentId))
+        {
+            Snackbar.Add("Department Id is required to submit request.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var neededBy = _neededByDate.HasValue
+                ? new DateTimeOffset(_neededByDate.Value.Date, TimeSpan.Zero)
+                : (DateTimeOffset?)null;
+
+            var request = await CartClient.ConvertToSupplyRequestAsync(
+                _cart.Id,
+                _departmentId,
+                _businessJustification,
+                neededBy);
+
+            Snackbar.Add($"Request {request.RequestNumber} submitted.", Severity.Success);
+            NavigationManager.NavigateTo("/expendable/requests");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to submit request: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private int GetDraftQuantity(IExpendableCartClient.CartItemDto item)
+        => _draftQuantities.TryGetValue(item.ProductId, out var quantity) ? quantity : item.Quantity;
+
+    private void SetDraftQuantity(Guid productId, int value)
+        => _draftQuantities[productId] = Math.Max(1, value);
+
+    private string GetProductName(Guid productId)
+        => _productNames.TryGetValue(productId, out var name) ? name : productId.ToString();
+
+    private async Task<string?> ResolveEmployeeIdAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            return null;
+        }
+
+        return user.FindFirstValue("employee_id")
+            ?? user.FindFirstValue("employeeId")
+            ?? user.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? user.FindFirstValue("sub");
+    }
+
+    private void OpenProducts() => NavigationManager.NavigateTo("/expendable/shop");
+}

@@ -41,6 +41,7 @@ using FSH.Modules.Expendable.Features.v1.Cart.GetCart;
 using FSH.Modules.Expendable.Features.v1.Cart.ConvertCartToRequest;
 using FSH.Modules.Expendable.Features.v1.Cart.RemoveFromCart;
 using FSH.Modules.Expendable.Features.v1.Cart.ClearCart;
+using FSH.Modules.Expendable.Features.v1.Cart.UpdateCartItemQuantity;
 using FSH.Modules.Expendable.Features.v1.Warehouse.RecordInspection;
 using FSH.Modules.Expendable.Features.v1.Warehouse.ReserveProductInventory;
 using FSH.Modules.Expendable.Features.v1.Warehouse.CancelProductInventoryReservation;
@@ -181,6 +182,7 @@ public class ExpendableModule : IModule
         GetOrCreateCartEndpoint.Map(cartGroup);
         AddToCartEndpoint.Map(cartGroup);
         GetCartEndpoint.Map(cartGroup);
+        UpdateCartItemQuantityEndpoint.Map(cartGroup);
         RemoveFromCartEndpoint.Map(cartGroup);
         ClearCartEndpoint.Map(cartGroup);
         ConvertCartToSupplyRequestEndpoint.Map(cartGroup);

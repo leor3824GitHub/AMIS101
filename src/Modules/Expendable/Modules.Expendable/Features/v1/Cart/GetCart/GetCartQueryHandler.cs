@@ -11,10 +11,12 @@ namespace FSH.Modules.Expendable.Features.v1.Cart.GetCart;
 public sealed class GetCartQueryHandler : IQueryHandler<GetCartQuery, EmployeeShoppingCartDto?>
 {
     private readonly ExpendableDbContext _dbContext;
+    private readonly ICurrentUser _currentUser;
 
-    public GetCartQueryHandler(ExpendableDbContext dbContext)
+    public GetCartQueryHandler(ExpendableDbContext dbContext, ICurrentUser currentUser)
     {
         _dbContext = dbContext;
+        _currentUser = currentUser;
     }
 
     public async ValueTask<EmployeeShoppingCartDto?> Handle(GetCartQuery query, CancellationToken cancellationToken)
@@ -22,6 +24,13 @@ public sealed class GetCartQueryHandler : IQueryHandler<GetCartQuery, EmployeeSh
         var cart = await _dbContext.ShoppingCarts
             .FirstOrDefaultAsync(c => c.Id == query.CartId, cancellationToken)
             .ConfigureAwait(false);
-        return cart?.ToEmployeeShoppingCartDto();
+
+        if (cart is null)
+        {
+            return null;
+        }
+
+        CartAccessGuard.EnsureCanAccessCart(_currentUser, cart);
+        return cart.ToEmployeeShoppingCartDto();
     }
 }

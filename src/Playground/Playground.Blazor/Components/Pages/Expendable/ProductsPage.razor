@@ -1,14 +1,18 @@
 @page "/expendable/products"
 @using FSH.Framework.Blazor.UI.Components.Cards
+@using FSH.Framework.Shared.Constants
+@using FSH.Modules.Expendable.Contracts
 @using FSH.Playground.Blazor.Services.Api.Expendable
 @using FSH.Playground.Blazor.ApiClient
+@using Microsoft.AspNetCore.Components.Authorization
 @inherits ComponentBase
 @inject ISnackbar Snackbar
 @inject IExpendableProductsClient ProductsClient
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <FshPageHeader Title="Products" Description="Manage product catalog">
     <ActionContent>
-        <MudStack Row="true" Spacing="2" Style="width: 100%; max-width: 400px;">
+        <MudStack Row="true" Spacing="2" Style="width: 100%; max-width: 320px;">
             <MudTextField @bind-Value="_searchKeyword" Label="Search" Placeholder="Search products..."
                           DebounceInterval="300" OnDebounceIntervalElapsed="@(async () => await SearchProducts())"
                           Variant="Variant.Outlined" Size="Size.Small" />
@@ -20,6 +24,12 @@
 </FshPageHeader>
 
 <div class="mt-4">
+    @if (!_canAccessProducts)
+    {
+        <MudAlert Severity="Severity.Warning">You do not have permission to manage products.</MudAlert>
+    }
+    else
+    {
     <MudGrid Spacing="2">
         <!-- Create/Edit Form -->
         <MudItem xs="12" md="4">
@@ -41,6 +51,11 @@
                         <MudNumericField @bind-Value="_form.ReorderQuantity" Label="Reorder Quantity" Min="0" />
                         <MudTextField @bind-Value="_form.CategoryId" Label="Category ID" Placeholder="(Optional)" />
                         <MudTextField @bind-Value="_form.SupplierId" Label="Supplier ID" Placeholder="(Optional)" />
+                        <MudDivider Class="my-1" />
+                        <MudText Typo="Typo.subtitle2">Product Images (up to 3)</MudText>
+                        <MudTextField @bind-Value="_form.ImageUrl1" Label="Image URL 1" Placeholder="https://..." />
+                        <MudTextField @bind-Value="_form.ImageUrl2" Label="Image URL 2" Placeholder="https://..." />
+                        <MudTextField @bind-Value="_form.ImageUrl3" Label="Image URL 3" Placeholder="https://..." />
 
                         <MudStack Row="true" Spacing="2" Class="mt-4">
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
@@ -70,6 +85,7 @@
                                 <tr>
                                     <th>Name</th>
                                     <th>SKU</th>
+                                    <th>Image</th>
                                     <th>Price</th>
                                      <th>UoM</th>
                                     <th>Min Stock</th>
@@ -83,6 +99,16 @@
                                     <tr>
                                         <td>@product.Name</td>
                                         <td>@product.SKU</td>
+                                        <td>
+                                            @if (!string.IsNullOrWhiteSpace(GetPrimaryImage(product)))
+                                            {
+                                                <MudAvatar Image="@GetPrimaryImage(product)" Size="Size.Medium" Rounded="true" />
+                                            }
+                                            else
+                                            {
+                                                <MudAvatar Icon="@Icons.Material.Filled.ImageNotSupported" Size="Size.Medium" />
+                                            }
+                                        </td>
                                         <td>@product.UnitPrice.ToString("C")</td>
                                         <td>@product.UnitOfMeasure</td>
                                         <td>@product.MinimumStockLevel</td>
@@ -108,6 +134,7 @@
             </MudCard>
         </MudItem>
     </MudGrid>
+    }
 </div>
 
 @code {
@@ -118,6 +145,7 @@
     private bool _initialized = false;
     private bool _isLoading = false;
     private string _searchKeyword = string.Empty;
+    private bool _canAccessProducts;
 
     public class ProductForm
     {
@@ -130,6 +158,19 @@
         public int ReorderQuantity { get; set; } = 10;
         public string? CategoryId { get; set; }
         public string? SupplierId { get; set; }
+        public string? ImageUrl1 { get; set; }
+        public string? ImageUrl2 { get; set; }
+        public string? ImageUrl3 { get; set; }
+
+        public List<string> GetImageUrls()
+        {
+            return new[] { ImageUrl1, ImageUrl2, ImageUrl3 }
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x!.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Take(3)
+                .ToList();
+        }
     }
 
     protected override async Task OnInitializedAsync()
@@ -137,7 +178,34 @@
         if (_initialized) return;
         _initialized = true;
 
+        _canAccessProducts = await CanAccessProductsAsync();
+        if (!_canAccessProducts)
+        {
+            return;
+        }
+
         await LoadProducts();
+    }
+
+    private async Task<bool> CanAccessProductsAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            return false;
+        }
+
+        var roles = user.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value);
+        if (roles.Any(r => string.Equals(r, RoleConstants.Admin, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        var permissions = user.FindAll(CustomClaims.Permission).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return permissions.Contains(ExpendablePermissionConstants.Products.Create)
+            || permissions.Contains(ExpendablePermissionConstants.Products.Update)
+            || permissions.Contains(ExpendablePermissionConstants.Products.Delete);
     }
 
     private async Task LoadProducts()
@@ -264,6 +332,20 @@
             return;
         }
 
+        var imageUrls = _form.GetImageUrls();
+        if (imageUrls.Count > 3)
+        {
+            Snackbar.Add("A product can have up to 3 images", Severity.Warning);
+            return;
+        }
+
+        if (imageUrls.Any(x => !Uri.TryCreate(x, UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)))
+        {
+            Snackbar.Add("Each image must be a valid absolute http/https URL", Severity.Warning);
+            return;
+        }
+
         try
         {
             if (EditingProduct != null)
@@ -279,7 +361,7 @@
                     SupplierId = _form.SupplierId
                 };
 
-                await ProductsClient.UpdateAsync(EditingProduct.Id, updateCmd);
+                await ProductsClient.UpdateAsync(EditingProduct.Id, updateCmd, imageUrls);
                 Snackbar.Add("Product updated successfully", Severity.Success);
             }
             else
@@ -297,7 +379,7 @@
                     SupplierId = _form.SupplierId
                 };
 
-                await ProductsClient.CreateAsync(createCmd);
+                await ProductsClient.CreateAsync(createCmd, imageUrls);
                 Snackbar.Add("Product created successfully", Severity.Success);
             }
 
@@ -323,7 +405,10 @@
             MinimumStockLevel = product.MinimumStockLevel,
             ReorderQuantity = product.ReorderQuantity,
             CategoryId = null,
-            SupplierId = product.SupplierId
+            SupplierId = product.SupplierId,
+            ImageUrl1 = product.ImageUrls.ElementAtOrDefault(0),
+            ImageUrl2 = product.ImageUrls.ElementAtOrDefault(1),
+            ImageUrl3 = product.ImageUrls.ElementAtOrDefault(2)
         };
     }
 
@@ -347,4 +432,7 @@
             Snackbar.Add($"Failed to delete product: {ex.Message}", Severity.Error);
         }
     }
+
+    private static string? GetPrimaryImage(IExpendableProductsClient.ProductDto product)
+        => product.ImageUrls.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
 }

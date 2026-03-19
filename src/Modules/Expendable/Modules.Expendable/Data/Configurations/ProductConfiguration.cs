@@ -45,6 +45,14 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Property(p => p.Version)
             .IsConcurrencyToken();
 
+        builder.OwnsMany(p => p.Images, ob =>
+        {
+            ob.ToJson("Images");
+            ob.Property(x => x.Url)
+                .HasMaxLength(2048)
+                .IsRequired();
+        });
+
         // Indexes
         builder.HasIndex(p => new { p.TenantId, p.SKU })
             .IsUnique();

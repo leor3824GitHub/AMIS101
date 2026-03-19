@@ -1,19 +1,61 @@
 @page "/expendable/warehouse"
 @using FSH.Framework.Blazor.UI.Components.Cards
+@using FSH.Framework.Shared.Constants
+@using FSH.Modules.Expendable.Contracts
+@using Microsoft.AspNetCore.Components.Authorization
 @inherits ComponentBase
 @inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <FshPageHeader Title="Warehouse" Description="Manage inventory and warehouse operations">
     <ActionContent>
-        <MudButton Variant="Variant.Text" Color="Color.Default">Pending Inspections</MudButton>
-        <MudButton Variant="Variant.Text" Color="Color.Default">Stock Levels</MudButton>
+        @if (_canAccessWarehouse)
+        {
+            <MudButton Variant="Variant.Text" Color="Color.Default">Pending Inspections</MudButton>
+            <MudButton Variant="Variant.Text" Color="Color.Default">Stock Levels</MudButton>
+        }
     </ActionContent>
 </FshPageHeader>
 
 <div class="mt-4">
-    <MudCard>
-        <MudCardContent>
-            <MudText Typo="Typo.body1">Warehouse & Inventory - API integration coming soon</MudText>
-        </MudCardContent>
-    </MudCard>
+    @if (!_canAccessWarehouse)
+    {
+        <MudAlert Severity="Severity.Warning">You do not have permission to access warehouse operations.</MudAlert>
+    }
+    else
+    {
+        <MudCard>
+            <MudCardContent>
+                <MudText Typo="Typo.body1">Warehouse & Inventory - API integration coming soon</MudText>
+            </MudCardContent>
+        </MudCard>
+    }
 </div>
+
+@code {
+    private bool _canAccessWarehouse;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            _canAccessWarehouse = false;
+            return;
+        }
+
+        var roles = user.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value);
+        var isAdmin = roles.Any(r => string.Equals(r, RoleConstants.Admin, StringComparison.OrdinalIgnoreCase));
+        var permissions = user.FindAll(CustomClaims.Permission)
+            .Select(c => c.Value)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        _canAccessWarehouse = isAdmin
+            || permissions.Contains(ExpendablePermissionConstants.Inventory.View)
+            || permissions.Contains(ExpendablePermissionConstants.Inventory.Receive)
+            || permissions.Contains(ExpendablePermissionConstants.Inventory.Consume)
+            || permissions.Contains(ExpendablePermissionConstants.Inventory.ViewReports);
+    }
+}

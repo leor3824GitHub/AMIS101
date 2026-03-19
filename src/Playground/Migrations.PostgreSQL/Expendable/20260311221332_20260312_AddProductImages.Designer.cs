@@ -3,17 +3,20 @@ using System;
 using FSH.Modules.Expendable.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace FSH.Modules.Expendable.Data.Migrations
+namespace FSH.Playground.Migrations.PostgreSQL.Expendable
 {
     [DbContext(typeof(ExpendableDbContext))]
-    partial class ExpendableDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260311221332_20260312_AddProductImages")]
+    partial class _20260312_AddProductImages
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

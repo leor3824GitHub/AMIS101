@@ -27,6 +27,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\BuildingBlocks\Blazor.UI\Blazor.UI.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\Shared\Shared.csproj" />
+    <ProjectReference Include="..\..\Modules\Expendable\Modules.Expendable.Contracts\Modules.Expendable.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

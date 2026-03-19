@@ -24,6 +24,8 @@ public sealed class ClearCartCommandHandler : ICommandHandler<ClearCartCommand>
             .ConfigureAwait(false)
             ?? throw new InvalidOperationException($"Cart {command.CartId} not found.");
 
+        CartAccessGuard.EnsureCanAccessCart(_currentUser, cart);
+
         cart.Clear();
         cart.LastModifiedBy = _currentUser.GetUserId().ToString();
 

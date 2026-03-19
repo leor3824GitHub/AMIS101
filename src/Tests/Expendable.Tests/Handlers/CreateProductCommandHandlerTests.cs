@@ -43,6 +43,7 @@ public sealed class CreateProductCommandHandlerTests
             .With(c => c.UnitOfMeasure, "Each")
             .With(c => c.MinimumStockLevel, 10)
             .With(c => c.ReorderQuantity, 50)
+            .With(c => c.ImageUrls, (List<string>?)null)
             .Create();
 
         // Act

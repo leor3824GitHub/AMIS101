@@ -1,0 +1,197 @@
+@page "/expendable/shop"
+@using FSH.Framework.Blazor.UI.Components.Cards
+@using FSH.Playground.Blazor.Services.Api.Expendable
+@using Microsoft.AspNetCore.Authentication
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inherits ComponentBase
+@inject ISnackbar Snackbar
+@inject IExpendableProductsClient ProductsClient
+@inject IExpendableCartClient CartClient
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<FshPageHeader Title="Shop Supplies" Description="Browse available products and add items to your cart">
+    <ActionContent>
+        <MudStack Row="true" Spacing="2" Style="width: 100%; max-width: 420px;">
+            <MudTextField @bind-Value="_searchKeyword" Label="Search" Placeholder="Search by name, sku, or unit..."
+                          DebounceInterval="300" OnDebounceIntervalElapsed="@(async () => await SearchProducts())"
+                          Variant="Variant.Outlined" Size="Size.Small" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SearchProducts">
+                Search
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Secondary" OnClick="OpenCart">
+                View Cart
+            </MudButton>
+        </MudStack>
+    </ActionContent>
+</FshPageHeader>
+
+<div class="mt-4">
+    @if (_isLoading)
+    {
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    }
+    else if (!_products.Any())
+    {
+        <MudAlert Severity="Severity.Info">No products found.</MudAlert>
+    }
+    else
+    {
+        <MudGrid Spacing="2">
+            @foreach (var product in _products)
+            {
+                <MudItem xs="12" sm="6" md="4" lg="3">
+                    <MudCard Class="h-full">
+                        <MudCardContent>
+                            <MudStack Spacing="2">
+                                @if (!string.IsNullOrWhiteSpace(GetPrimaryImage(product)))
+                                {
+                                    <MudImage Src="@GetPrimaryImage(product)" Alt="@product.Name" Height="140"
+                                              Style="object-fit: cover; border-radius: 8px;" />
+                                }
+                                else
+                                {
+                                    <MudPaper Class="d-flex align-center justify-center" Style="height: 140px; border-radius: 8px;">
+                                        <MudIcon Icon="@Icons.Material.Filled.ImageNotSupported" Size="Size.Large"
+                                                 Color="Color.Default" />
+                                    </MudPaper>
+                                }
+
+                                <MudText Typo="Typo.h6">@product.Name</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">SKU: @product.SKU</MudText>
+                                <MudText Typo="Typo.body2">@product.Description</MudText>
+                                <MudChip T="string" Size="Size.Small">@product.UnitOfMeasure</MudChip>
+                                <MudText Typo="Typo.body1" Class="fw-bold">@product.UnitPrice.ToString("C")</MudText>
+
+                                <MudNumericField T="int" Value="GetQuantity(product.Id)"
+                                                 ValueChanged="@(value => SetQuantity(product.Id, value))" Label="Quantity" Min="1" Max="100"
+                                                 Variant="Variant.Outlined" Margin="Margin.Dense" />
+
+                                <MudButton Variant="Variant.Filled" Color="Color.Success"
+                                           StartIcon="@Icons.Material.Filled.AddShoppingCart" OnClick="@(() => AddToCart(product))">
+                                    Add to Cart
+                                </MudButton>
+                            </MudStack>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</div>
+
+@code {
+    private readonly List<IExpendableProductsClient.ProductDto> _products = new();
+    private readonly Dictionary<Guid, int> _cartQuantities = new();
+    private bool _isLoading;
+    private string _searchKeyword = string.Empty;
+    private string? _employeeId;
+    private Guid? _activeCartId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _employeeId = await ResolveEmployeeIdAsync();
+        await LoadProducts();
+    }
+
+    private async Task LoadProducts()
+    {
+        try
+        {
+            _isLoading = true;
+            _products.Clear();
+            var response = await ProductsClient.SearchAsync(pageSize: 100);
+            _products.AddRange(response?.Items?.ToList() ?? []);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load products: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SearchProducts()
+    {
+        try
+        {
+            _isLoading = true;
+            _products.Clear();
+            var response = await ProductsClient.SearchAsync(keyword: _searchKeyword, pageSize: 100);
+            _products.AddRange(response?.Items?.ToList() ?? []);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Search failed: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task AddToCart(IExpendableProductsClient.ProductDto product)
+    {
+        if (string.IsNullOrWhiteSpace(_employeeId))
+        {
+            Snackbar.Add("Employee identity was not detected. Please sign in again.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var cartId = await EnsureCartAsync();
+            var quantity = GetQuantity(product.Id);
+            await CartClient.AddItemAsync(cartId, product.Id, quantity);
+            Snackbar.Add($"Added {quantity} x {product.Name} to your cart.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to add to cart: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task<Guid> EnsureCartAsync()
+    {
+        if (_activeCartId.HasValue)
+        {
+            return _activeCartId.Value;
+        }
+
+        if (string.IsNullOrWhiteSpace(_employeeId))
+        {
+            throw new InvalidOperationException("Employee id not available.");
+        }
+
+        var cart = await CartClient.GetOrCreateAsync(_employeeId);
+        _activeCartId = cart.Id;
+        return cart.Id;
+    }
+
+    private int GetQuantity(Guid productId) => _cartQuantities.TryGetValue(productId, out var qty) ? qty : 1;
+
+    private void SetQuantity(Guid productId, int quantity) => _cartQuantities[productId] = Math.Max(1, quantity);
+
+    private async Task<string?> ResolveEmployeeIdAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            return null;
+        }
+
+        return user.FindFirstValue("employee_id")
+            ?? user.FindFirstValue("employeeId")
+            ?? user.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? user.FindFirstValue("sub");
+    }
+
+    private void OpenCart() => NavigationManager.NavigateTo("/expendable/cart");
+
+    private static string? GetPrimaryImage(IExpendableProductsClient.ProductDto product)
+        => product.ImageUrls.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+}

@@ -27,6 +27,9 @@ public class Product : AggregateRoot<Guid>, IHasTenant, IAuditableEntity
     public string? SupplierId { get; set; }
     public byte[] Version { get; set; } = [];
 
+    private readonly List<ProductImage> _images = [];
+    public IReadOnlyCollection<ProductImage> Images => _images.AsReadOnly();
+
     // IAuditableEntity
     public DateTimeOffset CreatedOnUtc { get; set; } = DateTimeOffset.UtcNow;
     public string? CreatedBy { get; set; }
@@ -40,9 +43,10 @@ public class Product : AggregateRoot<Guid>, IHasTenant, IAuditableEntity
 
     /// <summary>Factory method to create a new product</summary>
     public static Product Create(string tenantId, string sku, string name, string description,
-        decimal unitPrice, string unitOfMeasure, int minimumStockLevel, int reorderQuantity)
+        decimal unitPrice, string unitOfMeasure, int minimumStockLevel, int reorderQuantity,
+        IEnumerable<string>? imageUrls = null)
     {
-        return new Product
+        var product = new Product
         {
             Id = Guid.NewGuid(),
             TenantId = tenantId,
@@ -56,6 +60,9 @@ public class Product : AggregateRoot<Guid>, IHasTenant, IAuditableEntity
             Status = ProductStatus.Active,
             CreatedOnUtc = DateTimeOffset.UtcNow
         };
+
+        product.SetImages(imageUrls);
+        return product;
     }
 
     /// <summary>Activate the product</summary>
@@ -88,14 +95,34 @@ public class Product : AggregateRoot<Guid>, IHasTenant, IAuditableEntity
 
     /// <summary>Update product details</summary>
     public void Update(string name, string description, decimal unitPrice,
-        int minimumStockLevel, int reorderQuantity)
+        int minimumStockLevel, int reorderQuantity, IEnumerable<string>? imageUrls = null)
     {
         Name = name;
         Description = description;
         UnitPrice = unitPrice;
         MinimumStockLevel = minimumStockLevel;
         ReorderQuantity = reorderQuantity;
+        SetImages(imageUrls);
         LastModifiedOnUtc = DateTimeOffset.UtcNow;
+    }
+
+    public void SetImages(IEnumerable<string>? imageUrls)
+    {
+        _images.Clear();
+
+        if (imageUrls is null)
+        {
+            return;
+        }
+
+        foreach (var url in imageUrls
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(3))
+        {
+            _images.Add(ProductImage.Create(url));
+        }
     }
 
     /// <summary>Soft delete the product</summary>
@@ -105,5 +132,21 @@ public class Product : AggregateRoot<Guid>, IHasTenant, IAuditableEntity
         DeletedOnUtc = DateTimeOffset.UtcNow;
         DeletedBy = deletedBy;
     }
+}
+
+public sealed class ProductImage
+{
+    public string Url { get; private set; } = default!;
+
+    private ProductImage()
+    {
+    }
+
+    private ProductImage(string url)
+    {
+        Url = url;
+    }
+
+    public static ProductImage Create(string url) => new(url);
 }
 
