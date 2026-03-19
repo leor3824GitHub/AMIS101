@@ -1,7 +1,5 @@
 using System.Net.Http;
 using FSH.Playground.Blazor.ApiClient;
-using FSH.Playground.Blazor.Services.Api.Expendable;
-using FSH.Playground.Blazor.Services.Api;
 
 namespace FSH.Playground.Blazor;
 
@@ -26,8 +24,10 @@ internal static class ApiClientRegistration
                 (string.Equals(apiUri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
                  string.Equals(apiUri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)))
             {
+#pragma warning disable S4830
                 handler.ServerCertificateCustomValidationCallback =
                     HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+#pragma warning restore S4830
             }
 
             return handler;
@@ -52,6 +52,7 @@ internal static class ApiClientRegistration
             return new TokenClient(client);
         });
 
+        // Framework standard: Register NSwag-generated clients directly
         services.AddTransient<IIdentityClient>(sp =>
             new IdentityClient(ResolveClient(sp)));
 
@@ -73,30 +74,22 @@ internal static class ApiClientRegistration
         services.AddTransient<IV1Client>(sp =>
             new V1Client(ResolveClient(sp)));
 
-        // Expendable module clients (feature-first wrappers)
+        // Expendable module clients (NSwag-generated aggregated client)
         services.AddTransient<IExpendableClient>(sp =>
             new ExpendableClient(ResolveClient(sp)));
 
+        // Expendable module clients (NSwag-generated per API path)
         services.AddTransient<IProductsClient>(sp =>
             new ProductsClient(ResolveClient(sp)));
-
-        services.AddTransient<IExpendableProductsClient, ExpendableProductsClient>();
 
         services.AddTransient<IPurchasesClient>(sp =>
             new PurchasesClient(ResolveClient(sp)));
 
-        services.AddTransient<IExpendablePurchasesClient>(sp =>
-            new ExpendablePurchasesClient(ResolveClient(sp), sp.GetRequiredService<IPurchasesClient>()));
-
         services.AddTransient<ISupply_requestsClient>(sp =>
             new Supply_requestsClient(ResolveClient(sp)));
 
-        services.AddTransient<IExpendableSupplyRequestsClient, ExpendableSupplyRequestsClient>();
-
         services.AddTransient<ICartClient>(sp =>
             new CartClient(ResolveClient(sp)));
-
-        services.AddTransient<IExpendableCartClient, ExpendableCartClient>();
 
         services.AddTransient<IWarehouseClient>(sp =>
             new WarehouseClient(ResolveClient(sp)));
@@ -106,8 +99,6 @@ internal static class ApiClientRegistration
 
         services.AddTransient<IRejectedClient>(sp =>
             new RejectedClient(ResolveClient(sp)));
-
-        services.AddTransient<IExpendableWarehouseClient, ExpendableWarehouseClient>();
 
         services.AddScoped<IHealthClient>(sp =>
             new HealthClient(ResolveClient(sp)));

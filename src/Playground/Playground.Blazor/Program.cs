@@ -5,7 +5,6 @@ using FSH.Playground.Blazor.ApiClient;
 using FSH.Playground.Blazor.Components;
 using FSH.Playground.Blazor.Services;
 using FSH.Playground.Blazor.Services.Api;
-using FSH.Playground.Blazor.Services.Api.Expendable;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
@@ -82,9 +81,6 @@ builder.Services.AddScoped<IApiHealthMonitor>(sp =>
     return new ApiHealthMonitor(healthClient, logger);
 });
 
-// Shared activity timeline across Expendable feature pages
-builder.Services.AddScoped<IExpendableActivityFeed, ExpendableActivityFeed>();
-
 builder.Services.AddHttpClient();
 
 var apiBaseUrl = builder.Configuration["Api:BaseUrl"]
@@ -102,8 +98,10 @@ builder.Services.AddScoped(sp =>
         (string.Equals(apiUri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
          string.Equals(apiUri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)))
     {
+#pragma warning disable S4830
         innerHandler.ServerCertificateCustomValidationCallback =
             HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+#pragma warning restore S4830
     }
 
     handler.InnerHandler = innerHandler;

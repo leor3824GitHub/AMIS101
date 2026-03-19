@@ -99,19 +99,47 @@ public sealed class SearchEmployeeReferencesQuery : IPagedQuery, IQuery<PagedRes
     public string? Sort { get; set; }
 }
 
-public sealed record ListOfficeReferencesQuery(bool IncludeInactive = false) : IQuery<IReadOnlyList<OfficeReferenceDto>>;
+public sealed class ListOfficeReferencesQuery : IPagedQuery, IQuery<PagedResponse<OfficeReferenceDto>>
+{
+    public string? Keyword { get; set; }
+    public bool? IsActive { get; set; }
+    public int? PageNumber { get; set; }
+    public int? PageSize { get; set; }
+    public string? Sort { get; set; }
+}
 
 public sealed record GetOfficeReferenceByIdQuery(Guid Id) : IQuery<OfficeReferenceDto?>;
 
-public sealed record ListDepartmentReferencesQuery(bool IncludeInactive = false) : IQuery<IReadOnlyList<DepartmentReferenceDto>>;
+public sealed class ListDepartmentReferencesQuery : IPagedQuery, IQuery<PagedResponse<DepartmentReferenceDto>>
+{
+    public string? Keyword { get; set; }
+    public bool? IsActive { get; set; }
+    public int? PageNumber { get; set; }
+    public int? PageSize { get; set; }
+    public string? Sort { get; set; }
+}
 
 public sealed record GetDepartmentReferenceByIdQuery(Guid Id) : IQuery<DepartmentReferenceDto?>;
 
-public sealed record ListPositionReferencesQuery(bool IncludeInactive = false) : IQuery<IReadOnlyList<PositionReferenceDto>>;
+public sealed class ListPositionReferencesQuery : IPagedQuery, IQuery<PagedResponse<PositionReferenceDto>>
+{
+    public string? Keyword { get; set; }
+    public bool? IsActive { get; set; }
+    public int? PageNumber { get; set; }
+    public int? PageSize { get; set; }
+    public string? Sort { get; set; }
+}
 
 public sealed record GetPositionReferenceByIdQuery(Guid Id) : IQuery<PositionReferenceDto?>;
 
-public sealed record ListUnitOfMeasureReferencesQuery(bool IncludeInactive = false) : IQuery<IReadOnlyList<UnitOfMeasureReferenceDto>>;
+public sealed class ListUnitOfMeasureReferencesQuery : IPagedQuery, IQuery<PagedResponse<UnitOfMeasureReferenceDto>>
+{
+    public string? Keyword { get; set; }
+    public bool? IsActive { get; set; }
+    public int? PageNumber { get; set; }
+    public int? PageSize { get; set; }
+    public string? Sort { get; set; }
+}
 
 public sealed record GetUnitOfMeasureReferenceByIdQuery(Guid Id) : IQuery<UnitOfMeasureReferenceDto?>;
 

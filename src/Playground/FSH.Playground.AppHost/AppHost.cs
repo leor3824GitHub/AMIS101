@@ -1,7 +1,10 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Postgres container + database
-var postgres = builder.AddPostgres("postgres").WithDataVolume("fsh-postgres-data").AddDatabase("amis104");
+var postgres = builder.AddPostgres("postgres")
+    .WithDataVolume("fsh-postgres-data")
+    .WithEndpoint("tcp", ep => ep.Port = 5432)
+    .AddDatabase("amis104");
 
 var redis = builder.AddRedis("redis").WithDataVolume("fsh-redis-data");
 

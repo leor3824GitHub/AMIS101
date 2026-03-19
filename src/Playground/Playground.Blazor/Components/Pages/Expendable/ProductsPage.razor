@@ -1,10 +1,9 @@
 @page "/expendable/products"
 @using FSH.Framework.Blazor.UI.Components.Cards
-@using FSH.Playground.Blazor.Services.Api.Expendable
 @using FSH.Playground.Blazor.ApiClient
 @inherits ComponentBase
 @inject ISnackbar Snackbar
-@inject IExpendableProductsClient ProductsClient
+@inject IExpendableClient ExpendableClient
 
 <FshPageHeader Title="Products" Description="Manage product catalog">
     <ActionContent>
@@ -82,7 +81,7 @@
                                 {
                                     <tr>
                                         <td>@product.Name</td>
-                                        <td>@product.SKU</td>
+                                        <td>@product.Sku</td>
                                         <td>@product.UnitPrice.ToString("C")</td>
                                         <td>@product.UnitOfMeasure</td>
                                         <td>@product.MinimumStockLevel</td>
@@ -113,8 +112,8 @@
 @code {
     private bool ShowCreateModal { get; set; }
     private ProductForm _form = new();
-    private IExpendableProductsClient.ProductDto? EditingProduct { get; set; }
-    private List<IExpendableProductsClient.ProductDto> _products = new();
+    private ProductDto? EditingProduct { get; set; }
+    private List<ProductDto> _products = new();
     private bool _initialized = false;
     private bool _isLoading = false;
     private string _searchKeyword = string.Empty;
@@ -145,7 +144,7 @@
         try
         {
             _isLoading = true;
-            var response = await ProductsClient.SearchAsync(pageSize: 100);
+            var response = await ExpendableClient.ProductsGetAsync(pageSize: 100);
             _products = response?.Items?.ToList() ?? new();
             StateHasChanged();
         }
@@ -176,7 +175,7 @@
     {
         try
         {
-            var response = await ProductsClient.SearchAsync(pageSize: 100);
+            var response = await ExpendableClient.ProductsGetAsync(pageSize: 100);
             _products = response?.Items?.ToList() ?? new();
             StateHasChanged();
         }
@@ -206,7 +205,7 @@
         try
         {
             _isLoading = true;
-            var response = await ProductsClient.SearchAsync(keyword: _searchKeyword, pageSize: 100);
+            var response = await ExpendableClient.ProductsGetAsync(keyword: _searchKeyword, pageSize: 100);
             var allProducts = response?.Items?.ToList() ?? new();
             
             // Client-side partial text filtering for better matching
@@ -220,7 +219,7 @@
                 _products = allProducts
                     .Where(p => 
                         p.Name.ToLower().Contains(searchTerm) ||
-                        p.SKU.ToLower().Contains(searchTerm) ||
+                        p.Sku.ToLower().Contains(searchTerm) ||
                         p.Description.ToLower().Contains(searchTerm) ||
                         p.UnitOfMeasure.ToLower().Contains(searchTerm))
                     .ToList();
@@ -279,7 +278,7 @@
                     SupplierId = _form.SupplierId
                 };
 
-                await ProductsClient.UpdateAsync(EditingProduct.Id, updateCmd);
+                await ExpendableClient.ProductsPutAsync(EditingProduct.Id, updateCmd);
                 Snackbar.Add("Product updated successfully", Severity.Success);
             }
             else
@@ -297,7 +296,7 @@
                     SupplierId = _form.SupplierId
                 };
 
-                await ProductsClient.CreateAsync(createCmd);
+                await ExpendableClient.ProductsPostAsync(createCmd);
                 Snackbar.Add("Product created successfully", Severity.Success);
             }
 
@@ -310,15 +309,15 @@
         }
     }
 
-    private void EditProduct(IExpendableProductsClient.ProductDto product)
+    private void EditProduct(ProductDto product)
     {
         EditingProduct = product;
         _form = new ProductForm
         {
             Name = product.Name,
-            SKU = product.SKU,
+            SKU = product.Sku,
             Description = product.Description,
-            UnitPrice = product.UnitPrice,
+            UnitPrice = (decimal)product.UnitPrice,
             UnitOfMeasure = product.UnitOfMeasure,
             MinimumStockLevel = product.MinimumStockLevel,
             ReorderQuantity = product.ReorderQuantity,
@@ -338,7 +337,7 @@
     {
         try
         {
-            await ProductsClient.DeleteAsync(id);
+            await ExpendableClient.ProductsDeleteAsync(id);
             await LoadProducts();
             Snackbar.Add("Product deleted", Severity.Success);
         }

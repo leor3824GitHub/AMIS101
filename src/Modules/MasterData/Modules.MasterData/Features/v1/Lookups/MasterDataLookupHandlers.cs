@@ -80,21 +80,30 @@ public sealed class SearchEmployeeReferencesQueryHandler(MasterDataDbContext dbC
 }
 
 public sealed class ListOfficeReferencesQueryHandler(MasterDataDbContext dbContext)
-    : IQueryHandler<ListOfficeReferencesQuery, IReadOnlyList<OfficeReferenceDto>>
+    : IQueryHandler<ListOfficeReferencesQuery, PagedResponse<OfficeReferenceDto>>
 {
-    public async ValueTask<IReadOnlyList<OfficeReferenceDto>> Handle(ListOfficeReferencesQuery query, CancellationToken cancellationToken)
+    public async ValueTask<PagedResponse<OfficeReferenceDto>> Handle(ListOfficeReferencesQuery query, CancellationToken cancellationToken)
     {
         var officesQuery = dbContext.Offices.AsNoTracking();
 
-        if (!query.IncludeInactive)
+        if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
-            officesQuery = officesQuery.Where(x => x.IsActive);
+            officesQuery = officesQuery.Where(x =>
+                x.Code.Contains(query.Keyword) ||
+                x.Name.Contains(query.Keyword) ||
+                (x.Description != null && x.Description.Contains(query.Keyword)));
         }
 
+        if (query.IsActive.HasValue)
+        {
+            officesQuery = officesQuery.Where(x => x.IsActive == query.IsActive.Value);
+        }
+
+        officesQuery = officesQuery.OrderBy(x => x.Name).ThenBy(x => x.Code);
+
         return await officesQuery
-            .OrderBy(x => x.Name)
             .Select(x => new OfficeReferenceDto(x.Id, x.Code, x.Name, x.IsActive))
-            .ToListAsync(cancellationToken)
+            .ToPagedResponseAsync(query, cancellationToken)
             .ConfigureAwait(false);
     }
 }
@@ -113,21 +122,30 @@ public sealed class GetOfficeReferenceByIdQueryHandler(MasterDataDbContext dbCon
 }
 
 public sealed class ListDepartmentReferencesQueryHandler(MasterDataDbContext dbContext)
-    : IQueryHandler<ListDepartmentReferencesQuery, IReadOnlyList<DepartmentReferenceDto>>
+    : IQueryHandler<ListDepartmentReferencesQuery, PagedResponse<DepartmentReferenceDto>>
 {
-    public async ValueTask<IReadOnlyList<DepartmentReferenceDto>> Handle(ListDepartmentReferencesQuery query, CancellationToken cancellationToken)
+    public async ValueTask<PagedResponse<DepartmentReferenceDto>> Handle(ListDepartmentReferencesQuery query, CancellationToken cancellationToken)
     {
         var departmentsQuery = dbContext.Departments.AsNoTracking();
 
-        if (!query.IncludeInactive)
+        if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
-            departmentsQuery = departmentsQuery.Where(x => x.IsActive);
+            departmentsQuery = departmentsQuery.Where(x =>
+                x.Code.Contains(query.Keyword) ||
+                x.Name.Contains(query.Keyword) ||
+                (x.Description != null && x.Description.Contains(query.Keyword)));
         }
 
+        if (query.IsActive.HasValue)
+        {
+            departmentsQuery = departmentsQuery.Where(x => x.IsActive == query.IsActive.Value);
+        }
+
+        departmentsQuery = departmentsQuery.OrderBy(x => x.Name).ThenBy(x => x.Code);
+
         return await departmentsQuery
-            .OrderBy(x => x.Name)
             .Select(x => new DepartmentReferenceDto(x.Id, x.Code, x.Name, x.IsActive))
-            .ToListAsync(cancellationToken)
+            .ToPagedResponseAsync(query, cancellationToken)
             .ConfigureAwait(false);
     }
 }
@@ -146,21 +164,30 @@ public sealed class GetDepartmentReferenceByIdQueryHandler(MasterDataDbContext d
 }
 
 public sealed class ListPositionReferencesQueryHandler(MasterDataDbContext dbContext)
-    : IQueryHandler<ListPositionReferencesQuery, IReadOnlyList<PositionReferenceDto>>
+    : IQueryHandler<ListPositionReferencesQuery, PagedResponse<PositionReferenceDto>>
 {
-    public async ValueTask<IReadOnlyList<PositionReferenceDto>> Handle(ListPositionReferencesQuery query, CancellationToken cancellationToken)
+    public async ValueTask<PagedResponse<PositionReferenceDto>> Handle(ListPositionReferencesQuery query, CancellationToken cancellationToken)
     {
         var positionsQuery = dbContext.Positions.AsNoTracking();
 
-        if (!query.IncludeInactive)
+        if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
-            positionsQuery = positionsQuery.Where(x => x.IsActive);
+            positionsQuery = positionsQuery.Where(x =>
+                x.Code.Contains(query.Keyword) ||
+                x.Name.Contains(query.Keyword) ||
+                (x.Description != null && x.Description.Contains(query.Keyword)));
         }
 
+        if (query.IsActive.HasValue)
+        {
+            positionsQuery = positionsQuery.Where(x => x.IsActive == query.IsActive.Value);
+        }
+
+        positionsQuery = positionsQuery.OrderBy(x => x.Name).ThenBy(x => x.Code);
+
         return await positionsQuery
-            .OrderBy(x => x.Name)
             .Select(x => new PositionReferenceDto(x.Id, x.Code, x.Name, x.IsActive))
-            .ToListAsync(cancellationToken)
+            .ToPagedResponseAsync(query, cancellationToken)
             .ConfigureAwait(false);
     }
 }
@@ -179,21 +206,30 @@ public sealed class GetPositionReferenceByIdQueryHandler(MasterDataDbContext dbC
 }
 
 public sealed class ListUnitOfMeasureReferencesQueryHandler(MasterDataDbContext dbContext)
-    : IQueryHandler<ListUnitOfMeasureReferencesQuery, IReadOnlyList<UnitOfMeasureReferenceDto>>
+    : IQueryHandler<ListUnitOfMeasureReferencesQuery, PagedResponse<UnitOfMeasureReferenceDto>>
 {
-    public async ValueTask<IReadOnlyList<UnitOfMeasureReferenceDto>> Handle(ListUnitOfMeasureReferencesQuery query, CancellationToken cancellationToken)
+    public async ValueTask<PagedResponse<UnitOfMeasureReferenceDto>> Handle(ListUnitOfMeasureReferencesQuery query, CancellationToken cancellationToken)
     {
         var uomQuery = dbContext.UnitOfMeasures.AsNoTracking();
 
-        if (!query.IncludeInactive)
+        if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
-            uomQuery = uomQuery.Where(x => x.IsActive);
+            uomQuery = uomQuery.Where(x =>
+                x.Code.Contains(query.Keyword) ||
+                x.Name.Contains(query.Keyword) ||
+                (x.Description != null && x.Description.Contains(query.Keyword)));
         }
 
+        if (query.IsActive.HasValue)
+        {
+            uomQuery = uomQuery.Where(x => x.IsActive == query.IsActive.Value);
+        }
+
+        uomQuery = uomQuery.OrderBy(x => x.Name).ThenBy(x => x.Code);
+
         return await uomQuery
-            .OrderBy(x => x.Name)
             .Select(x => new UnitOfMeasureReferenceDto(x.Id, x.Code, x.Name, x.IsActive))
-            .ToListAsync(cancellationToken)
+            .ToPagedResponseAsync(query, cancellationToken)
             .ConfigureAwait(false);
     }
 }

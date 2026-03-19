@@ -35,26 +35,26 @@ public static class MasterDataLookupEndpoint
 
         endpoints.MapGet("/offices", ListOffices)
             .WithName(nameof(ListOfficeReferencesQuery))
-            .WithSummary("List office references")
-            .Produces<IReadOnlyList<OfficeReferenceDto>>(StatusCodes.Status200OK)
+            .WithSummary("Search office references with pagination")
+            .Produces<PagedResponse<OfficeReferenceDto>>(StatusCodes.Status200OK)
             .RequirePermission(MasterDataModuleConstants.Permissions.Lookup.View);
 
         endpoints.MapGet("/departments", ListDepartments)
             .WithName(nameof(ListDepartmentReferencesQuery))
-            .WithSummary("List department references")
-            .Produces<IReadOnlyList<DepartmentReferenceDto>>(StatusCodes.Status200OK)
+            .WithSummary("Search department references with pagination")
+            .Produces<PagedResponse<DepartmentReferenceDto>>(StatusCodes.Status200OK)
             .RequirePermission(MasterDataModuleConstants.Permissions.Lookup.View);
 
         endpoints.MapGet("/positions", ListPositions)
             .WithName(nameof(ListPositionReferencesQuery))
-            .WithSummary("List position references")
-            .Produces<IReadOnlyList<PositionReferenceDto>>(StatusCodes.Status200OK)
+            .WithSummary("Search position references with pagination")
+            .Produces<PagedResponse<PositionReferenceDto>>(StatusCodes.Status200OK)
             .RequirePermission(MasterDataModuleConstants.Permissions.Lookup.View);
 
         endpoints.MapGet("/unit-of-measures", ListUnitOfMeasures)
             .WithName(nameof(ListUnitOfMeasureReferencesQuery))
-            .WithSummary("List unit of measure references")
-            .Produces<IReadOnlyList<UnitOfMeasureReferenceDto>>(StatusCodes.Status200OK)
+            .WithSummary("Search unit of measure references with pagination")
+            .Produces<PagedResponse<UnitOfMeasureReferenceDto>>(StatusCodes.Status200OK)
             .RequirePermission(MasterDataModuleConstants.Permissions.Lookup.View);
     }
 
@@ -86,38 +86,38 @@ public static class MasterDataLookupEndpoint
     }
 
     private static async Task<IResult> ListOffices(
-        [FromQuery] bool includeInactive,
+        [AsParameters] ListOfficeReferencesQuery query,
         IMediator mediator,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new ListOfficeReferencesQuery(includeInactive), cancellationToken);
+        var result = await mediator.Send(query, cancellationToken);
         return TypedResults.Ok(result);
     }
 
     private static async Task<IResult> ListDepartments(
-        [FromQuery] bool includeInactive,
+        [AsParameters] ListDepartmentReferencesQuery query,
         IMediator mediator,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new ListDepartmentReferencesQuery(includeInactive), cancellationToken);
+        var result = await mediator.Send(query, cancellationToken);
         return TypedResults.Ok(result);
     }
 
     private static async Task<IResult> ListPositions(
-        [FromQuery] bool includeInactive,
+        [AsParameters] ListPositionReferencesQuery query,
         IMediator mediator,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new ListPositionReferencesQuery(includeInactive), cancellationToken);
+        var result = await mediator.Send(query, cancellationToken);
         return TypedResults.Ok(result);
     }
 
     private static async Task<IResult> ListUnitOfMeasures(
-        [FromQuery] bool includeInactive,
+        [AsParameters] ListUnitOfMeasureReferencesQuery query,
         IMediator mediator,
         CancellationToken cancellationToken)
     {
-        var result = await mediator.Send(new ListUnitOfMeasureReferencesQuery(includeInactive), cancellationToken);
+        var result = await mediator.Send(query, cancellationToken);
         return TypedResults.Ok(result);
     }
 }

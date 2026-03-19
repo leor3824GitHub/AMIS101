@@ -18,29 +18,11 @@ public sealed class GetWarehouseStockLevelsQueryHandler : IQueryHandler<GetWareh
 
     public async ValueTask<PagedResponse<ProductInventoryDto>> Handle(GetWarehouseStockLevelsQuery query, CancellationToken cancellationToken)
     {
-        var inventories = _dbContext.ProductInventories
-            .Where(pi => pi.WarehouseLocationId == query.WarehouseLocationId);
+        var inventories = _dbContext.ProductInventories.AsNoTracking()
+            .Where(pi => pi.WarehouseLocationId == query.WarehouseLocationId)
+            .OrderBy(pi => pi.ProductCode);
 
-        var pageNumber = query.PageNumber ?? 1;
-        var pageSize = query.PageSize ?? 20;
-        var total = await inventories.CountAsync(cancellationToken);
-        var totalPages = total == 0 ? 0 : (int)Math.Ceiling((double)total / pageSize);
-
-        var items = await inventories
-            .OrderBy(pi => pi.ProductCode)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-
-        var dtos = items.Select(i => i.ToProductInventoryDto()).ToList();
-
-        return new PagedResponse<ProductInventoryDto>
-        {
-            Items = dtos,
-            PageNumber = pageNumber,
-            PageSize = pageSize,
-            TotalCount = total,
-            TotalPages = totalPages
-        };
+        var projected = inventories.Select(i => i.ToProductInventoryDto());
+        return await projected.ToPagedResponseAsync(query, cancellationToken).ConfigureAwait(false);
     }
 }
