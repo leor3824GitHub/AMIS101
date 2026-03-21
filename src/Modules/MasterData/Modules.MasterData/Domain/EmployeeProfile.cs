@@ -43,7 +43,8 @@ public sealed class EmployeeProfile : AggregateRoot<Guid>, IHasTenant, IAuditabl
         Guid positionId,
         string? identityUserId = null,
         string? workEmail = null,
-        Guid? defaultUnitOfMeasureId = null)
+        Guid? defaultUnitOfMeasureId = null,
+        bool isActive = true)
     {
         return new EmployeeProfile
         {
@@ -58,7 +59,7 @@ public sealed class EmployeeProfile : AggregateRoot<Guid>, IHasTenant, IAuditabl
             IdentityUserId = identityUserId,
             WorkEmail = workEmail,
             DefaultUnitOfMeasureId = defaultUnitOfMeasureId,
-            IsActive = true,
+            IsActive = isActive,
             CreatedOnUtc = DateTimeOffset.UtcNow
         };
     }

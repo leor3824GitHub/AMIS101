@@ -86,12 +86,34 @@ builder.Services.AddHttpClient();
 var apiBaseUrl = builder.Configuration["Api:BaseUrl"]
                  ?? throw new InvalidOperationException("Api:BaseUrl configuration is missing.");
 
+var apiUri = new Uri(apiBaseUrl);
+
+builder.Services.AddHttpClient("ThemeClient", client =>
+{
+    client.BaseAddress = apiUri;
+    client.Timeout = TimeSpan.FromSeconds(5);
+})
+.ConfigurePrimaryHttpMessageHandler(() =>
+{
+    var handler = new HttpClientHandler();
+
+    if (builder.Environment.IsDevelopment() &&
+        (string.Equals(apiUri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+         string.Equals(apiUri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)))
+    {
+#pragma warning disable S4830
+        handler.ServerCertificateCustomValidationCallback =
+            HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+#pragma warning restore S4830
+    }
+
+    return handler;
+});
+
 // Configure HttpClient with authorization handler for API calls
 builder.Services.AddScoped(sp =>
 {
     var handler = sp.GetRequiredService<AuthorizationHeaderHandler>();
-
-    var apiUri = new Uri(apiBaseUrl);
     var innerHandler = new HttpClientHandler();
 
     if (builder.Environment.IsDevelopment() &&
@@ -108,7 +130,8 @@ builder.Services.AddScoped(sp =>
 
     return new HttpClient(handler)
     {
-        BaseAddress = apiUri
+        BaseAddress = apiUri,
+        Timeout = TimeSpan.FromSeconds(30) // Reduced from default 100s to speed up failures
     };
 });
 

@@ -39,6 +39,6 @@ public sealed class CreateDepartmentCommandHandler : ICommandHandler<CreateDepar
         _dbContext.Departments.Add(department);
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        return new DepartmentReferenceDto(department.Id, department.Code, department.Name, department.IsActive);
+        return new DepartmentReferenceDto(department.Id, department.Code, department.Name, department.Description, department.IsActive);
     }
 }

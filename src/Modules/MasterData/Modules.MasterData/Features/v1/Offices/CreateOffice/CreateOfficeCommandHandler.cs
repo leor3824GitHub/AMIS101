@@ -39,6 +39,6 @@ public sealed class CreateOfficeCommandHandler : ICommandHandler<CreateOfficeCom
         _dbContext.Offices.Add(office);
         await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
-        return new OfficeReferenceDto(office.Id, office.Code, office.Name, office.IsActive);
+        return new OfficeReferenceDto(office.Id, office.Code, office.Name, office.Description, office.IsActive);
     }
 }

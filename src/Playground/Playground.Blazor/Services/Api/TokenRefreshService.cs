@@ -1,5 +1,6 @@
 using FSH.Playground.Blazor.ApiClient;
 using Microsoft.AspNetCore.Authentication;
+using System.Diagnostics.Metrics;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
@@ -23,6 +24,10 @@ internal sealed class TokenRefreshService : ITokenRefreshService, IDisposable
     private static readonly SemaphoreSlim RefreshLock = new(1, 1);
     private static readonly TimeSpan RefreshCacheDuration = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan FailedTokenCacheDuration = TimeSpan.FromHours(24);  // Session-long cache to prevent retry spam
+    private static readonly Meter RefreshMeter = new("FSH.Playground.Blazor.Auth", "1.0.0");
+    private static readonly Counter<long> RefreshAttemptsCounter = RefreshMeter.CreateCounter<long>("blazor_token_refresh_attempts_total");
+    private static readonly Counter<long> RefreshSuccessCounter = RefreshMeter.CreateCounter<long>("blazor_token_refresh_success_total");
+    private static readonly Counter<long> RefreshFailuresCounter = RefreshMeter.CreateCounter<long>("blazor_token_refresh_failures_total");
 
     private static string? _lastRefreshedToken;
     private static string? _cachedForRefreshToken;
@@ -136,6 +141,8 @@ internal sealed class TokenRefreshService : ITokenRefreshService, IDisposable
         string currentRefreshToken,
         CancellationToken cancellationToken)
     {
+        RefreshAttemptsCounter.Add(1);
+
         var user = httpContext.User;
         if (user?.Identity?.IsAuthenticated != true)
         {
@@ -160,16 +167,19 @@ internal sealed class TokenRefreshService : ITokenRefreshService, IDisposable
             UpdateCaches(refreshResponse, currentRefreshToken);
             await TryUpdateCookieAsync(httpContext, newClaims);
 
+            RefreshSuccessCounter.Add(1);
             _logger.LogInformation("Access token refreshed successfully");
             return refreshResponse.Token;
         }
-        catch (ApiException ex) when (ex.StatusCode == 401)
+        catch (ApiException ex) when (ex.StatusCode == 400 || ex.StatusCode == 401)
         {
-            HandleRefreshFailure(currentRefreshToken, ex);
+            var reasonCode = ResolveFailureReasonCode(ex);
+            HandleRefreshFailure(currentRefreshToken, ex, reasonCode);
             return null;
         }
         catch (Exception ex)
         {
+            RefreshFailuresCounter.Add(1, new KeyValuePair<string, object?>("reason", RefreshFailureReasonCodes.UnexpectedError));
             _logger.LogError(ex, "Failed to refresh access token");
             return null;
         }
@@ -283,7 +293,7 @@ internal sealed class TokenRefreshService : ITokenRefreshService, IDisposable
         }
     }
 
-    private void HandleRefreshFailure(string currentRefreshToken, ApiException ex)
+    private void HandleRefreshFailure(string currentRefreshToken, ApiException ex, string reasonCode)
     {
         _circuitTokenCache.Clear();
 
@@ -296,7 +306,58 @@ internal sealed class TokenRefreshService : ITokenRefreshService, IDisposable
         _permanentFailureFlag = true;  // Mark session as permanently failed to fast-fail all subsequent attempts
 #pragma warning restore S2696
 
-        _logger.LogDebug(ex, "Refresh token is invalid or expired (expected after re-auth), user will be signed out");
+        RefreshFailuresCounter.Add(1,
+            new KeyValuePair<string, object?>("reason", reasonCode),
+            new KeyValuePair<string, object?>("status", ex.StatusCode));
+
+        _logger.LogWarning(ex,
+            "Refresh token failed. ReasonCode={ReasonCode}, StatusCode={StatusCode}. User will be signed out.",
+            reasonCode,
+            ex.StatusCode);
+    }
+
+    private static string ResolveFailureReasonCode(ApiException ex)
+    {
+        var body = ex.Response ?? string.Empty;
+
+        if (body.Contains("Session has been revoked", StringComparison.OrdinalIgnoreCase))
+        {
+            return RefreshFailureReasonCodes.SessionRevoked;
+        }
+
+        if (body.Contains("Access token subject mismatch", StringComparison.OrdinalIgnoreCase))
+        {
+            return RefreshFailureReasonCodes.SubjectMismatch;
+        }
+
+        if (body.Contains("Invalid refresh token", StringComparison.OrdinalIgnoreCase) ||
+            body.Contains("invalid or expired", StringComparison.OrdinalIgnoreCase))
+        {
+            return RefreshFailureReasonCodes.InvalidOrExpired;
+        }
+
+        if (ex.StatusCode == 400)
+        {
+            return RefreshFailureReasonCodes.BadRequest;
+        }
+
+        if (ex.StatusCode == 401)
+        {
+            return RefreshFailureReasonCodes.Unauthorized;
+        }
+
+        return RefreshFailureReasonCodes.Unknown;
+    }
+
+    private static class RefreshFailureReasonCodes
+    {
+        internal const string InvalidOrExpired = "invalid_or_expired";
+        internal const string SessionRevoked = "session_revoked";
+        internal const string SubjectMismatch = "subject_mismatch";
+        internal const string BadRequest = "bad_request";
+        internal const string Unauthorized = "unauthorized";
+        internal const string UnexpectedError = "unexpected_error";
+        internal const string Unknown = "unknown";
     }
 
     public void Dispose()

@@ -22,7 +22,7 @@
 <div class="mt-4">
     <MudGrid Spacing="2">
         <!-- Create/Edit Form -->
-        <MudItem xs="12" md="4">
+        <MudItem xs="12" sm="6" md="4" Style="min-height: 100%;">
             <MudCard Class="fsh-card">
                 <MudCardContent>
                     <MudText Typo="Typo.h6" Class="mb-3">@(EditingUnitOfMeasure != null ? "Edit Unit of Measure" : "Create Unit of Measure")</MudText>
@@ -33,7 +33,8 @@
                                       Required="true" />
                         <MudTextField @bind-Value="_form.Description" Label="Description"
                                       Placeholder="Unit description" Lines="2" />
-                        <MudCheckBox T="bool" @bind-Checked="_form.IsActive" Label="Active" />
+                        <MudCheckBox @bind-Value="_form.IsActive"
+                                     Label="Active" />
 
                         <MudStack Row="true" Spacing="2" Class="mt-4">
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
@@ -51,7 +52,7 @@
         </MudItem>
 
         <!-- Units of Measure List -->
-        <MudItem xs="12" md="8">
+        <MudItem xs="12" sm="6" md="8">
             <MudCard Class="fsh-card">
                 <MudCardContent>
                     <MudText Typo="Typo.h6" Class="mb-3">Units of Measure List</MudText>
@@ -99,8 +100,8 @@
 
 @code {
     private UnitOfMeasureForm _form = new();
-    private UnitOfMeasureReferenceDto? EditingUnitOfMeasure { get; set; }
-    private List<UnitOfMeasureReferenceDto> _unitOfMeasures = new();
+    private FSH.Playground.Blazor.ApiClient.UnitOfMeasureReferenceDto? EditingUnitOfMeasure { get; set; }
+    private List<FSH.Playground.Blazor.ApiClient.UnitOfMeasureReferenceDto> _unitOfMeasures = new();
     private bool _initialized = false;
     private bool _isLoading = false;
     private string _searchKeyword = string.Empty;
@@ -231,20 +232,41 @@
         {
             if (EditingUnitOfMeasure != null)
             {
+
                 var updateCmd = new UpdateUnitOfMeasureCommand
                 {
                     Id = EditingUnitOfMeasure.Id,
                     Code = _form.Code,
                     Name = _form.Name,
-                    Description = _form.Description
+                    Description = _form.Description,
+                    IsActive = _form.IsActive
                 };
 
-                await MasterDataClient.UnitOfMeasuresPutAsync(EditingUnitOfMeasure.Id, updateCmd);
+                var updatedUnitOfMeasure = await MasterDataClient.UnitOfMeasuresPutAsync(EditingUnitOfMeasure.Id, updateCmd);
+                
+                // Update the local unit of measure with new values
+                if (updatedUnitOfMeasure != null)
+                {
+                    EditingUnitOfMeasure = updatedUnitOfMeasure;
+                    var unitIndex = _unitOfMeasures.FindIndex(u => u.Id == updatedUnitOfMeasure.Id);
+                    if (unitIndex >= 0)
+                    {
+                        _unitOfMeasures[unitIndex] = updatedUnitOfMeasure;
+                    }
+                    StateHasChanged();
+                }
+                
                 Snackbar.Add("Unit of measure updated successfully", Severity.Success);
             }
             else
             {
-                var createCmd = new CreateUnitOfMeasureCommand { Code = _form.Code, Name = _form.Name, Description = _form.Description };
+                var createCmd = new CreateUnitOfMeasureCommand
+                {
+                    Code = _form.Code,
+                    Name = _form.Name,
+                    Description = _form.Description,
+                    IsActive = _form.IsActive
+                };
                 await MasterDataClient.UnitOfMeasuresPostAsync(createCmd);
                 Snackbar.Add("Unit of measure created successfully", Severity.Success);
             }
@@ -258,15 +280,17 @@
         }
     }
 
-    private void EditUnitOfMeasure(UnitOfMeasureReferenceDto unit)
+    private async Task EditUnitOfMeasure(FSH.Playground.Blazor.ApiClient.UnitOfMeasureReferenceDto unit)
     {
         EditingUnitOfMeasure = unit;
         _form = new UnitOfMeasureForm
         {
             Code = unit.Code,
             Name = unit.Name,
+            Description = unit.Description,
             IsActive = unit.IsActive
         };
+        await InvokeAsync(StateHasChanged);
     }
 
     private void ResetForm()

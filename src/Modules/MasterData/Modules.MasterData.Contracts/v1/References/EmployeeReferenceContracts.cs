@@ -24,33 +24,33 @@ public sealed record EmployeeReferenceDto(
     string? DefaultUnitOfMeasureName,
     bool IsActive);
 
-public sealed record OfficeReferenceDto(Guid Id, string Code, string Name, bool IsActive);
+public sealed record OfficeReferenceDto(Guid Id, string Code, string Name, string? Description, bool IsActive);
 
-public sealed record CreateOfficeCommand(string Code, string Name, string? Description) : ICommand<OfficeReferenceDto>;
+public sealed record CreateOfficeCommand(string Code, string Name, string? Description, bool IsActive = true) : ICommand<OfficeReferenceDto>;
 
 public sealed record UpdateOfficeCommand(Guid Id, string Code, string Name, string? Description, bool IsActive) : ICommand<OfficeReferenceDto>;
 
 public sealed record DeleteOfficeCommand(Guid Id) : ICommand<Unit>;
 
-public sealed record DepartmentReferenceDto(Guid Id, string Code, string Name, bool IsActive);
+public sealed record DepartmentReferenceDto(Guid Id, string Code, string Name, string? Description, bool IsActive);
 
-public sealed record CreateDepartmentCommand(string Code, string Name, string? Description) : ICommand<DepartmentReferenceDto>;
+public sealed record CreateDepartmentCommand(string Code, string Name, string? Description, bool IsActive = true) : ICommand<DepartmentReferenceDto>;
 
 public sealed record UpdateDepartmentCommand(Guid Id, string Code, string Name, string? Description, bool IsActive) : ICommand<DepartmentReferenceDto>;
 
 public sealed record DeleteDepartmentCommand(Guid Id) : ICommand<Unit>;
 
-public sealed record PositionReferenceDto(Guid Id, string Code, string Name, bool IsActive);
+public sealed record PositionReferenceDto(Guid Id, string Code, string Name, string? Description, bool IsActive);
 
-public sealed record CreatePositionCommand(string Code, string Name, string? Description) : ICommand<PositionReferenceDto>;
+public sealed record CreatePositionCommand(string Code, string Name, string? Description, bool IsActive = true) : ICommand<PositionReferenceDto>;
 
 public sealed record UpdatePositionCommand(Guid Id, string Code, string Name, string? Description, bool IsActive) : ICommand<PositionReferenceDto>;
 
 public sealed record DeletePositionCommand(Guid Id) : ICommand<Unit>;
 
-public sealed record UnitOfMeasureReferenceDto(Guid Id, string Code, string Name, bool IsActive);
+public sealed record UnitOfMeasureReferenceDto(Guid Id, string Code, string Name, string? Description, bool IsActive);
 
-public sealed record CreateUnitOfMeasureCommand(string Code, string Name, string? Description) : ICommand<UnitOfMeasureReferenceDto>;
+public sealed record CreateUnitOfMeasureCommand(string Code, string Name, string? Description, bool IsActive = true) : ICommand<UnitOfMeasureReferenceDto>;
 
 public sealed record UpdateUnitOfMeasureCommand(Guid Id, string Code, string Name, string? Description, bool IsActive) : ICommand<UnitOfMeasureReferenceDto>;
 
@@ -65,7 +65,8 @@ public sealed record CreateEmployeeCommand(
     Guid PositionId,
     string? IdentityUserId = null,
     string? WorkEmail = null,
-    Guid? DefaultUnitOfMeasureId = null) : ICommand<EmployeeReferenceDto>;
+    Guid? DefaultUnitOfMeasureId = null,
+    bool IsActive = true) : ICommand<EmployeeReferenceDto>;
 
 public sealed record UpdateEmployeeCommand(
     Guid Id,

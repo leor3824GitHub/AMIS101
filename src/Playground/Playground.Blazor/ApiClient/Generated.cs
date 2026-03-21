@@ -17485,6 +17485,9 @@ namespace FSH.Playground.Blazor.ApiClient
         [System.Text.Json.Serialization.JsonPropertyName("description")]
         public string Description { get; set; }
 
+        [System.Text.Json.Serialization.JsonPropertyName("isActive")]
+        public bool IsActive { get; set; } = true;
+
         private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
 
         [System.Text.Json.Serialization.JsonExtensionData]
@@ -17532,6 +17535,9 @@ namespace FSH.Playground.Blazor.ApiClient
 
         [System.Text.Json.Serialization.JsonPropertyName("defaultUnitOfMeasureId")]
         public System.Guid? DefaultUnitOfMeasureId { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("isActive")]
+        public bool IsActive { get; set; } = true;
 
         private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
 
@@ -17587,6 +17593,9 @@ namespace FSH.Playground.Blazor.ApiClient
         [System.Text.Json.Serialization.JsonPropertyName("description")]
         public string Description { get; set; }
 
+        [System.Text.Json.Serialization.JsonPropertyName("isActive")]
+        public bool IsActive { get; set; } = true;
+
         private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
 
         [System.Text.Json.Serialization.JsonExtensionData]
@@ -17612,6 +17621,9 @@ namespace FSH.Playground.Blazor.ApiClient
 
         [System.Text.Json.Serialization.JsonPropertyName("description")]
         public string Description { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("isActive")]
+        public bool IsActive { get; set; } = true;
 
         private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
 
@@ -17810,6 +17822,9 @@ namespace FSH.Playground.Blazor.ApiClient
         [System.Text.Json.Serialization.JsonPropertyName("description")]
         public string Description { get; set; }
 
+        [System.Text.Json.Serialization.JsonPropertyName("isActive")]
+        public bool IsActive { get; set; } = true;
+
         private System.Collections.Generic.IDictionary<string, object> _additionalProperties;
 
         [System.Text.Json.Serialization.JsonExtensionData]
@@ -17836,6 +17851,9 @@ namespace FSH.Playground.Blazor.ApiClient
         [System.Text.Json.Serialization.JsonPropertyName("name")]
         [System.ComponentModel.DataAnnotations.Required(AllowEmptyStrings = true)]
         public string Name { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string Description { get; set; }
 
         [System.Text.Json.Serialization.JsonPropertyName("isActive")]
         public bool IsActive { get; set; }
@@ -18564,6 +18582,9 @@ namespace FSH.Playground.Blazor.ApiClient
         [System.ComponentModel.DataAnnotations.Required(AllowEmptyStrings = true)]
         public string Name { get; set; }
 
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string Description { get; set; }
+
         [System.Text.Json.Serialization.JsonPropertyName("isActive")]
         public bool IsActive { get; set; }
 
@@ -19195,6 +19216,9 @@ namespace FSH.Playground.Blazor.ApiClient
         [System.Text.Json.Serialization.JsonPropertyName("name")]
         [System.ComponentModel.DataAnnotations.Required(AllowEmptyStrings = true)]
         public string Name { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string Description { get; set; }
 
         [System.Text.Json.Serialization.JsonPropertyName("isActive")]
         public bool IsActive { get; set; }
@@ -20521,6 +20545,9 @@ namespace FSH.Playground.Blazor.ApiClient
         [System.Text.Json.Serialization.JsonPropertyName("name")]
         [System.ComponentModel.DataAnnotations.Required(AllowEmptyStrings = true)]
         public string Name { get; set; }
+
+        [System.Text.Json.Serialization.JsonPropertyName("description")]
+        public string Description { get; set; }
 
         [System.Text.Json.Serialization.JsonPropertyName("isActive")]
         public bool IsActive { get; set; }

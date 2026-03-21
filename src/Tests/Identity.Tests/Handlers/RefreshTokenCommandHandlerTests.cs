@@ -1,10 +1,12 @@
 using AutoFixture;
 using FSH.Framework.Core.Context;
+using FSH.Framework.Core.Exceptions;
 using FSH.Modules.Auditing.Contracts;
 using FSH.Modules.Identity.Contracts.DTOs;
 using FSH.Modules.Identity.Contracts.Services;
 using FSH.Modules.Identity.Contracts.v1.Tokens.RefreshToken;
 using FSH.Modules.Identity.Features.v1.Tokens.RefreshToken;
+using Microsoft.Extensions.Logging;
 using NSubstitute;
 using System.Security.Claims;
 
@@ -20,6 +22,7 @@ public sealed class RefreshTokenCommandHandlerTests
     private readonly ISecurityAudit _securityAudit;
     private readonly IRequestContext _requestContext;
     private readonly ISessionService _sessionService;
+    private readonly ILogger<RefreshTokenCommandHandler> _logger;
     private readonly RefreshTokenCommandHandler _sut;
     private readonly IFixture _fixture;
 
@@ -30,13 +33,15 @@ public sealed class RefreshTokenCommandHandlerTests
         _securityAudit = Substitute.For<ISecurityAudit>();
         _requestContext = Substitute.For<IRequestContext>();
         _sessionService = Substitute.For<ISessionService>();
+        _logger = Substitute.For<ILogger<RefreshTokenCommandHandler>>();
 
         _sut = new RefreshTokenCommandHandler(
             _identityService,
             _tokenService,
             _securityAudit,
             _requestContext,
-            _sessionService);
+            _sessionService,
+            _logger);
 
         _fixture = new Fixture();
     }
@@ -123,7 +128,7 @@ public sealed class RefreshTokenCommandHandlerTests
     #region Handle - Invalid Refresh Token Tests
 
     [Fact]
-    public async Task Handle_Should_ThrowUnauthorizedAccessException_When_RefreshTokenIsInvalid()
+    public async Task Handle_Should_ThrowUnauthorizedException_When_RefreshTokenIsInvalid()
     {
         // Arrange
         var command = new RefreshTokenCommand("access-token", "invalid-refresh-token");
@@ -134,7 +139,7 @@ public sealed class RefreshTokenCommandHandlerTests
             .Returns((ValueTuple<string, IReadOnlyList<Claim>>?)null);
 
         // Act & Assert
-        var exception = await Should.ThrowAsync<UnauthorizedAccessException>(
+        var exception = await Should.ThrowAsync<UnauthorizedException>(
             async () => await _sut.Handle(command, CancellationToken.None));
 
         exception.Message.ShouldBe("Invalid refresh token.");
@@ -152,7 +157,7 @@ public sealed class RefreshTokenCommandHandlerTests
             .Returns((ValueTuple<string, IReadOnlyList<Claim>>?)null);
 
         // Act
-        await Should.ThrowAsync<UnauthorizedAccessException>(
+        await Should.ThrowAsync<UnauthorizedException>(
             async () => await _sut.Handle(command, CancellationToken.None));
 
         // Assert
@@ -164,7 +169,7 @@ public sealed class RefreshTokenCommandHandlerTests
     #region Handle - Session Validation Tests
 
     [Fact]
-    public async Task Handle_Should_ThrowUnauthorizedAccessException_When_SessionIsRevoked()
+    public async Task Handle_Should_ThrowUnauthorizedException_When_SessionIsRevoked()
     {
         // Arrange
         var command = new RefreshTokenCommand("access-token", "valid-refresh-token");
@@ -180,7 +185,7 @@ public sealed class RefreshTokenCommandHandlerTests
             .Returns(false);
 
         // Act & Assert
-        var exception = await Should.ThrowAsync<UnauthorizedAccessException>(
+        var exception = await Should.ThrowAsync<UnauthorizedException>(
             async () => await _sut.Handle(command, CancellationToken.None));
 
         exception.Message.ShouldBe("Session has been revoked.");
@@ -203,7 +208,7 @@ public sealed class RefreshTokenCommandHandlerTests
             .Returns(false);
 
         // Act
-        await Should.ThrowAsync<UnauthorizedAccessException>(
+        await Should.ThrowAsync<UnauthorizedException>(
             async () => await _sut.Handle(command, CancellationToken.None));
 
         // Assert
@@ -215,7 +220,7 @@ public sealed class RefreshTokenCommandHandlerTests
     #region Handle - Access Token Subject Mismatch Tests
 
     [Fact]
-    public async Task Handle_Should_ThrowUnauthorizedAccessException_When_AccessTokenSubjectMismatch()
+    public async Task Handle_Should_ThrowUnauthorizedException_When_AccessTokenSubjectMismatch()
     {
         // Arrange
         var wrongAccessToken = CreateValidJwtToken("different-user", "other@example.com");
@@ -232,7 +237,7 @@ public sealed class RefreshTokenCommandHandlerTests
             .Returns(true);
 
         // Act & Assert
-        var exception = await Should.ThrowAsync<UnauthorizedAccessException>(
+        var exception = await Should.ThrowAsync<UnauthorizedException>(
             async () => await _sut.Handle(command, CancellationToken.None));
 
         exception.Message.ShouldBe("Access token subject mismatch.");

@@ -22,7 +22,7 @@
 <div class="mt-4">
     <MudGrid Spacing="2">
         <!-- Create/Edit Form -->
-        <MudItem xs="12" md="4">
+        <MudItem xs="12" sm="6" md="4" Style="min-height: 100%;">
             <MudCard Class="fsh-card">
                 <MudCardContent>
                     <MudText Typo="Typo.h6" Class="mb-3">@(EditingEmployee != null ? "Edit Employee" : "Create Employee")</MudText>
@@ -58,7 +58,7 @@
                             }
                         </MudSelect>
                         
-                        <MudCheckBox T="bool" @bind-Checked="_form.IsActive" Label="Active" />
+                        <MudCheckBox @bind-Value="_form.IsActive" Label="Active" />
 
                         <MudStack Row="true" Spacing="2" Class="mt-4">
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
@@ -76,7 +76,7 @@
         </MudItem>
 
         <!-- Employees List -->
-        <MudItem xs="12" md="8">
+        <MudItem xs="12" sm="6" md="8">
             <MudCard Class="fsh-card">
                 <MudCardContent>
                     <MudText Typo="Typo.h6" Class="mb-3">Employees List</MudText>
@@ -337,7 +337,8 @@
                     WorkEmail = _form.WorkEmail,
                     OfficeId = _form.OfficeId,
                     DepartmentId = _form.DepartmentId,
-                    PositionId = _form.PositionId
+                    PositionId = _form.PositionId,
+                    IsActive = _form.IsActive
                 };
 
                 await MasterDataClient.EmployeesPutAsync(EditingEmployee.Id, updateCmd);
@@ -353,7 +354,8 @@
                     WorkEmail = _form.WorkEmail,
                     OfficeId = _form.OfficeId,
                     DepartmentId = _form.DepartmentId,
-                    PositionId = _form.PositionId
+                    PositionId = _form.PositionId,
+                    IsActive = _form.IsActive
                 };
 
                 await MasterDataClient.EmployeesPostAsync(createCmd);
@@ -383,6 +385,7 @@
             PositionId = employee.PositionId,
             IsActive = employee.IsActive
         };
+        StateHasChanged();
     }
 
     private void ResetForm()

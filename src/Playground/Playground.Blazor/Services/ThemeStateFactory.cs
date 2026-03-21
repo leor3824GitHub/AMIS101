@@ -19,19 +19,20 @@ internal sealed class CachedThemeStateFactory : IThemeStateFactory
 {
     private static readonly Uri ThemeEndpoint = new("/api/v1/tenants/theme", UriKind.Relative);
     private static readonly TenantThemeSettings DefaultSettings = TenantThemeSettings.Default;
+    private static readonly TimeSpan ThemeRequestTimeout = TimeSpan.FromSeconds(5);
 
     private readonly IDistributedCache _cache;
-    private readonly HttpClient _httpClient;
+    private readonly HttpClient _themeHttpClient;
     private readonly ILogger<CachedThemeStateFactory> _logger;
     private readonly TimeSpan _cacheExpiry = TimeSpan.FromMinutes(15);
 
     public CachedThemeStateFactory(
         IDistributedCache cache,
-        HttpClient httpClient,
+        IHttpClientFactory httpClientFactory,
         ILogger<CachedThemeStateFactory> logger)
     {
         _cache = cache;
-        _httpClient = httpClient;
+        _themeHttpClient = httpClientFactory.CreateClient("ThemeClient");
         _logger = logger;
     }
 
@@ -97,6 +98,18 @@ internal sealed class CachedThemeStateFactory : IThemeStateFactory
                 return settings;
             }
         }
+        catch (TaskCanceledException)
+        {
+            _logger.LogInformation("Theme fetch timed out for tenant {TenantId}, using defaults", tenantId);
+            // Return defaults on timeout instead of blocking the page
+            return DefaultSettings;
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Theme fetch cancelled for tenant {TenantId}, using defaults", tenantId);
+            // Return defaults on cancellation instead of blocking the page
+            return DefaultSettings;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error loading tenant theme for {TenantId}", tenantId);
@@ -107,11 +120,14 @@ internal sealed class CachedThemeStateFactory : IThemeStateFactory
 
     private async Task<TenantThemeSettings?> FetchThemeFromApiAsync(CancellationToken cancellationToken)
     {
-        var response = await _httpClient.GetAsync(ThemeEndpoint, cancellationToken);
+        using var timeoutCts = new CancellationTokenSource(ThemeRequestTimeout);
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token);
+
+        var response = await _themeHttpClient.GetAsync(ThemeEndpoint, linkedCts.Token);
 
         if (!response.IsSuccessStatusCode)
         {
-            _logger.LogWarning("Failed to load tenant theme from API: {StatusCode}", response.StatusCode);
+            _logger.LogDebug("Failed to load tenant theme from API: {StatusCode}", response.StatusCode);
             return null;
         }
 

@@ -5,319 +5,308 @@ paths:
 
 # Module Rules
 
-Modules are **bounded contexts** in the modular monolith. Each module is self-contained.
+Modules are bounded contexts in the modular monolith. They are independently developed within a single deployment unit and are loaded by the host through the module pipeline.
+
+## Source Of Truth
+
+When in doubt, follow the repo's working modules instead of older generic examples:
+
+- `src/Modules/MasterData/Modules.MasterData`
+- `src/Modules/Expendable/Modules.Expendable`
+- `src/Modules/MasterData/Modules.MasterData.Contracts`
+- `src/Modules/Expendable/Modules.Expendable.Contracts`
+
+Host wiring lives here:
+
+- `src/Playground/Playground.Api/Program.cs`
+- `src/Playground/Playground.Api/Playground.Api.csproj`
 
 ## Module Structure
 
+Actual repo baseline:
+
 ```
 Modules/{ModuleName}/
-├── {ModuleName}.Contracts/        # Public interface (DTOs, events)
-│   ├── {Entity}Dto.cs
-│   ├── I{Module}Service.cs
-│   └── {Module}Events.cs
-├── {ModuleName}/                  # Implementation (internal)
-│   ├── Features/                  # CQRS features
-│   │   └── v1/{Feature}/
-│   │       ├── {Action}Command.cs
-│   │       ├── {Action}Handler.cs
-│   │       ├── {Action}Validator.cs
-│   │       └── {Action}Endpoint.cs
-│   ├── Entities/                  # Domain models
-│   ├── Persistence/               # DbContext, configurations
-│   ├── Permissions/               # Permission constants
-│   └── Extensions.cs              # DI registration
+├── Modules.{ModuleName}.Contracts/
+│   ├── Modules.{ModuleName}.Contracts.csproj
+│   ├── {ModuleName}ContractsMarker.cs
+│   └── v1/
+│       └── {Area}/
+│           └── Contracts, DTOs, queries, commands, events
+└── Modules.{ModuleName}/
+    ├── Modules.{ModuleName}.csproj
+    ├── {ModuleName}Module.cs
+    ├── {ModuleName}ModuleConstants.cs
+    ├── Data/
+    │   ├── {ModuleName}DbContext.cs
+    │   ├── {ModuleName}DbContextFactory.cs
+    │   ├── {ModuleName}DbInitializer.cs
+    │   └── Configurations/
+    ├── Domain/
+    │   └── entities or subdomain folders
+    ├── Features/
+    │   └── v1/{Area}/{UseCase}/
+    │       ├── {UseCase}Command.cs or {UseCase}Query.cs
+    │       ├── {UseCase}CommandHandler.cs or {UseCase}QueryHandler.cs
+    │       ├── {UseCase}CommandValidator.cs when applicable
+    │       └── {UseCase}Endpoint.cs
+    └── Provisioning/
+        └── optional hosted services
 ```
+
+Notes:
+
+- Use `Domain/`, not `Entities/`.
+- Use `Data/`, not `Persistence/`.
+- Use `{ModuleName}Module.cs`, not `Extensions.cs`, for DI and endpoint mapping.
+- Use `{ModuleName}ModuleConstants.cs` for schema and permission constants.
+- `Provisioning/` is optional. Expendable uses it; MasterData does not.
 
 ## Module Independence
 
-### ✅ Allowed
+### Allowed
 
 ```csharp
-// Reference Contracts project
+// Reference another module's contracts only
 using FSH.Modules.Identity.Contracts;
-
-public record UserDto(Guid Id, string Email);  // Public DTO
 ```
 
 ```csharp
 // Use BuildingBlocks
-using FSH.BuildingBlocks.Core;
-using FSH.BuildingBlocks.Persistence;
+using FSH.Framework.Persistence;
+using FSH.Framework.Web.Modules;
 ```
 
-### ❌ Forbidden
+### Forbidden
 
 ```csharp
-// Direct reference to another module's internals
-using FSH.Modules.Identity;  // ❌ NO! Use .Contracts instead
-
-using FSH.Modules.Identity.Entities;  // ❌ Domain models are internal
+// Direct reference to another module's implementation assembly internals
+using FSH.Modules.Identity;
+using FSH.Modules.Identity.Data;
+using FSH.Modules.Identity.Features;
+using FSH.Modules.Identity.Domain;
 ```
+
+Rule:
+
+- Other modules may depend on `Modules.{Other}.Contracts`
+- Other modules must not depend on `Modules.{Other}` internals
 
 ## Communication Between Modules
 
-### Option 1: Contracts (Preferred)
+### Option 1: Contracts
 
-**Identity.Contracts:**
-```csharp
-public interface IUserService
-{
-    Task<UserDto?> GetUserByIdAsync(Guid userId);
-}
-```
+Keep public DTOs, public requests, and integration contracts in the `.Contracts` project under `v1/...`.
 
-**Identity implementation:**
+### Option 2: Events
+
+When the module publishes integration events, use the contracts project plus `BuildingBlocks/Eventing.Abstractions` and only add `BuildingBlocks/Eventing` to the implementation project when required.
+
+## Core Implementation Rules
+
+### 1. Module Bootstrap
+
+Each module implements `IModule`:
+
 ```csharp
-internal class UserService : IUserService
+public class CatalogModule : IModule
 {
-    public async Task<UserDto?> GetUserByIdAsync(Guid userId)
+    public void ConfigureServices(IHostApplicationBuilder builder)
     {
-        // Query database
-        return userDto;
+        PermissionConstants.Register(RegisteredPermissions);
+        builder.Services.AddHeroDbContext<CatalogDbContext>();
+        builder.Services.AddScoped<IDbInitializer, CatalogDbInitializer>();
+    }
+
+    public void MapEndpoints(IEndpointRouteBuilder endpoints)
+    {
+        var apiVersionSet = endpoints.NewApiVersionSet()
+            .HasApiVersion(new ApiVersion(1))
+            .ReportApiVersions()
+            .Build();
+
+        var moduleGroup = endpoints
+            .MapGroup("api/v{version:apiVersion}/catalog")
+            .WithTags("Catalog")
+            .WithApiVersionSet(apiVersionSet);
     }
 }
 ```
 
-**Other module uses it:**
+Do not scaffold `AddCatalogModule()` or `MapCatalogEndpoints()` extension methods as the primary module integration pattern.
+
+### 2. DbContext Pattern
+
+Module DbContexts inherit `BaseDbContext`, not plain `DbContext`:
+
 ```csharp
-public class OrderHandler(IUserService userService)
+public class CatalogDbContext : BaseDbContext
 {
-    public async ValueTask Handle(...)
+    public DbSet<Product> Products => Set<Product>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        var user = await userService.GetUserByIdAsync(userId);
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(CatalogDbContext).Assembly);
     }
 }
 ```
 
-### Option 2: Domain Events
+Use `AddHeroDbContext<T>()` in the module. Do not register module DbContexts with raw `AddDbContext<T>()` unless there is a specific reason.
 
-**Identity module raises event:**
+### 3. DbContext Factory
+
+Add a design-time `DbContextFactory` under `Data/` for EF tooling and migrations.
+
+### 4. Database Initializer
+
+Implement `IDbInitializer` with the repo's actual interface:
+
 ```csharp
-public record UserCreatedEvent(Guid UserId, string Email) : DomainEvent;
-
-// In handler
-await eventBus.PublishAsync(new UserCreatedEvent(user.Id, user.Email));
-```
-
-**Other module subscribes:**
-```csharp
-public class UserCreatedEventHandler : IEventHandler<UserCreatedEvent>
+internal sealed class CatalogDbInitializer : IDbInitializer
 {
-    public async Task Handle(UserCreatedEvent evt, CancellationToken ct)
-    {
-        // React to user creation (e.g., send welcome email)
-    }
+    public Task MigrateAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task SeedAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }
 ```
 
-## Creating a New Module
+Do not scaffold `InitializeDatabasesAsync` or `SeedDatabaseAsync`.
 
-### 1. Create Projects
+### 5. Domain Entities
 
-```bash
-# Contracts (public interface)
-dotnet new classlib -n FSH.Modules.Catalog.Contracts -o src/Modules/Catalog/Modules.Catalog.Contracts
+Place domain entities under `Domain/`.
 
-# Implementation (internal)
-dotnet new classlib -n FSH.Modules.Catalog -o src/Modules/Catalog/Modules.Catalog
-```
-
-### 2. Add to Solution
-
-```bash
-dotnet sln src/FSH.Framework.slnx add \
-    src/Modules/Catalog/Modules.Catalog.Contracts/Modules.Catalog.Contracts.csproj \
-    src/Modules/Catalog/Modules.Catalog/Modules.Catalog.csproj
-```
-
-### 3. Reference BuildingBlocks
-
-```xml
-<!-- In Modules.Catalog.csproj -->
-<ItemGroup>
-  <ProjectReference Include="..\..\BuildingBlocks\Core\Core.csproj" />
-  <ProjectReference Include="..\..\BuildingBlocks\Persistence\Persistence.csproj" />
-  <ProjectReference Include="..\Modules.Catalog.Contracts\Modules.Catalog.Contracts.csproj" />
-</ItemGroup>
-```
-
-### 4. Create Entities
+Typical pattern:
 
 ```csharp
-namespace FSH.Modules.Catalog.Entities;
-
 public class Product : BaseEntity, IAuditable, IMustHaveTenant
 {
     public string Name { get; private set; } = default!;
-    public string Description { get; private set; } = default!;
-    public Money Price { get; private set; } = default!;
     public Guid TenantId { get; set; }
-    
-    public static Product Create(string name, string description, Money price)
-    {
-        return new Product 
-        { 
-            Name = name, 
-            Description = description, 
-            Price = price 
-        };
-    }
-    
-    public void Update(string name, string description, Money price)
-    {
-        Name = name;
-        Description = description;
-        Price = price;
-    }
 }
 ```
 
-### 5. Create DbContext
+Use subfolders only when the domain is large, as in Expendable.
+
+### 6. Configuration Classes
+
+Add `IEntityTypeConfiguration<T>` types under `Data/Configurations/`.
+
+### 7. Constants
+
+Use `{ModuleName}ModuleConstants.cs` for:
+
+- `SchemaName`
+- nested `Permissions`
+- optional `MigrationsTable`
+- optional `Features`
+
+Keep constants minimal. Do not copy Expendable's richer constants structure unless the module actually needs it.
+
+## Host Wiring
+
+The host integrates modules through the existing framework pipeline.
+
+In `Playground.Api/Program.cs`, new modules typically require:
+
+- representative types added to the Mediator assembly list
+- `typeof({ModuleName}Module).Assembly` added to `moduleAssemblies`
+- no replacement of `AddHeroPlatform`, `AddModules`, `UseHeroMultiTenantDatabases`, or `UseHeroPlatform`
+
+Pattern:
 
 ```csharp
-namespace FSH.Modules.Catalog.Persistence;
-
-public class CatalogDbContext(DbContextOptions<CatalogDbContext> options) 
-    : BaseDbContext(options)
+builder.Services.AddMediator(o =>
 {
-    public DbSet<Product> Products => Set<Product>();
-    
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        modelBuilder.HasDefaultSchema("catalog");
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(CatalogDbContext).Assembly);
-        base.OnModelCreating(modelBuilder);
-    }
-}
-```
+    o.ServiceLifetime = ServiceLifetime.Scoped;
+    o.Assemblies = [
+        // existing entries,
+        typeof(CatalogModule),
+        typeof(CatalogContractsMarker),
+        typeof(CreateCatalogItemCommand)
+    ];
+});
 
-### 6. Create Entity Configuration
-
-```csharp
-namespace FSH.Modules.Catalog.Persistence.Configurations;
-
-public class ProductConfiguration : IEntityTypeConfiguration<Product>
+var moduleAssemblies = new Assembly[]
 {
-    public void Configure(EntityTypeBuilder<Product> builder)
-    {
-        builder.ToTable("products", "catalog");
-        
-        builder.Property(p => p.Name)
-            .IsRequired()
-            .HasMaxLength(200);
-        
-        builder.OwnsOne(p => p.Price, price =>
-        {
-            price.Property(m => m.Amount).HasColumnName("price_amount");
-            price.Property(m => m.Currency).HasColumnName("price_currency");
-        });
-    }
-}
+    typeof(IdentityModule).Assembly,
+    typeof(MultitenancyModule).Assembly,
+    typeof(AuditingModule).Assembly,
+    typeof(CatalogModule).Assembly
+};
+
+builder.AddHeroPlatform(...);
+builder.AddModules(moduleAssemblies);
+
+var app = builder.Build();
+app.UseHeroMultiTenantDatabases();
+app.UseHeroPlatform(p => p.MapModules = true);
 ```
 
-### 7. Register Module (Extensions.cs)
+## Project References
 
-```csharp
-namespace FSH.Modules.Catalog;
+### Implementation Project
 
-public static class Extensions
-{
-    public static IServiceCollection AddCatalogModule(this IServiceCollection services)
-    {
-        // Register DbContext
-        services.AddDbContext<CatalogDbContext>();
-        
-        // Register repositories
-        services.AddScoped<IRepository<Product>, Repository<Product>>();
-        
-        // Register services (if any)
-        // services.AddScoped<ICatalogService, CatalogService>();
-        
-        return services;
-    }
-    
-    public static IEndpointRouteBuilder MapCatalogEndpoints(this IEndpointRouteBuilder endpoints)
-    {
-        var group = endpoints.MapGroup("/api/v1/catalog")
-            .WithTags("Catalog");
-        
-        // Map feature endpoints here
-        // group.MapCreateProductEndpoint();
-        
-        return endpoints;
-    }
-}
-```
+Baseline references usually include:
 
-### 8. Wire Up in Program.cs
+- `BuildingBlocks/Caching`
+- `BuildingBlocks/Persistence`
+- `BuildingBlocks/Web`
+- `Modules.{Name}.Contracts`
 
-```csharp
-// In Playground.Api/Program.cs
-builder.Services.AddCatalogModule();
+Optional references include:
 
-// ...
+- `BuildingBlocks/Eventing`
+- other module `.Contracts` projects
 
-app.MapCatalogEndpoints();
-```
+### Contracts Project
 
-## Module Boundaries
+Contracts projects usually include:
 
-### Namespace Convention
+- `Mediator.Abstractions`
+- `BuildingBlocks/Eventing.Abstractions`
+- `BuildingBlocks/Shared`
 
-- **Public:** `FSH.Modules.{Module}.Contracts`
-- **Internal:** `FSH.Modules.{Module}.*`
+## Vertical Slice Rules
 
-### Assembly Internals
+Each use case stays self-contained under `Features/v1/...`.
 
-Mark module types as `internal` unless explicitly needed externally:
-
-```csharp
-internal class ProductService { }  // ✅ Internal by default
-public record ProductDto { }       // ✅ Public DTO in Contracts
-```
-
-### Dependency Direction
+Typical shape:
 
 ```
-Other Modules → Module.Contracts
-                     ↑
-                Module (implements Contracts)
-                     ↑
-                BuildingBlocks
+Features/v1/{Area}/{UseCase}/
+├── {UseCase}Command.cs or {UseCase}Query.cs
+├── {UseCase}CommandHandler.cs or {UseCase}QueryHandler.cs
+├── {UseCase}CommandValidator.cs when applicable
+└── {UseCase}Endpoint.cs
 ```
 
-**Never:**
-- Module A → Module B (direct reference)
-- Module → Playground (implementation referencing host)
+Follow the Mediator library, not MediatR.
 
-## Testing Modules
+## Creating A New Module
 
-**Architecture Test:**
-```csharp
-[Fact]
-public void Catalog_Module_Should_Not_Reference_Identity_Module()
-{
-    var catalog = Types.InAssembly(typeof(CatalogDbContext).Assembly);
-    var identity = Types.InAssembly(typeof(IdentityDbContext).Assembly);
-    
-    catalog.Should().NotHaveDependencyOn(identity.Assemblies);
-}
+1. Create both projects under `src/Modules/{Name}`.
+2. Add the correct project references.
+3. Add `ContractsMarker`, `ModuleConstants`, `DbContext`, `DbContextFactory`, and `DbInitializer`.
+4. Implement `IModule` with permissions, `AddHeroDbContext`, and endpoint grouping.
+5. Add at least one vertical slice under `Features/v1/...`.
+6. Add both projects to `src/FSH.Framework.slnx`.
+7. Add both project references to `Playground.Api.csproj`.
+8. Update `Playground.Api/Program.cs` Mediator and `moduleAssemblies` wiring.
+9. Build and test the full solution.
+
+## Verification
+
+```bash
+dotnet build src/FSH.Framework.slnx
+dotnet test src/FSH.Framework.slnx
 ```
 
-**Unit Test:**
-```csharp
-public class ProductTests
-{
-    [Fact]
-    public void Create_Should_Set_Properties()
-    {
-        var product = Product.Create("Test", "Description", new Money(100, "USD"));
-        
-        product.Name.Should().Be("Test");
-        product.Price.Amount.Should().Be(100);
-    }
-}
-```
+## Practical Baseline
+
+- Use MasterData as the lean baseline.
+- Use Expendable as the richer example with subdomains, Eventing, and optional provisioning.
+- Prefer the actual repo modules over outdated generic examples when the two disagree.
 
 ## Common Patterns
 
