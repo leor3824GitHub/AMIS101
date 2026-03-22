@@ -137,6 +137,9 @@ builder.Services.AddScoped(sp =>
 
 builder.Services.AddApiClients(builder.Configuration, builder.Environment);
 
+// Register MasterData service for Supplier and Category operations
+builder.Services.AddScoped<MasterDataService>();
+
 // Response Compression for static assets and API responses
 builder.Services.AddResponseCompression(options =>
 {

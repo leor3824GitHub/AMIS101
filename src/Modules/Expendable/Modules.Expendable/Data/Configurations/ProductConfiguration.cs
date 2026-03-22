@@ -39,6 +39,9 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
             .HasMaxLength(50)
             .IsRequired();
 
+        builder.Property(p => p.ImageUrl)
+            .HasMaxLength(10_000_000);  // Support base64-encoded images (up to ~7.6MB images)
+
         builder.Property(p => p.Status)
             .HasConversion<int>();
 

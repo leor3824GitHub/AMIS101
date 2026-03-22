@@ -28,7 +28,7 @@ Docker PostgreSQL:  No "amis105" database exists
 
 ```
 appsettings.json:  Password=password
-Docker PostgreSQL:  Password=eR.q!fjweTd7RabGS0)5~{
+Docker PostgreSQL:  Password=password
 ```
 
 **ACTION REQUIRED:** Update `appsettings.json` with actual Docker PostgreSQL password.
@@ -43,7 +43,7 @@ Docker PostgreSQL:  Password=eR.q!fjweTd7RabGS0)5~{
 | **Port**         | (implicit 5432)  | 5432                     | ✓ Match                     |
 | **Port Mapping** | N/A              | 127.0.0.1:58388→5432/tcp | ⚠️ Must use 58388 from host |
 | **User**         | postgres         | postgres                 | ✓ Match                     |
-| **Password**     | password         | eR.q!fjweTd7RabGS0)5~{   | ❌ MISMATCH                 |
+| **Password**     | password         | password                 | ✅ MATCH                    |
 | **Database**     | amis105          | NOT EXISTS               | ❌ MISMATCH                 |
 | **Auth Method**  | N/A              | scram-sha-256            | ℹ️ Info                     |
 
@@ -84,7 +84,7 @@ Docker PostgreSQL:  Password=eR.q!fjweTd7RabGS0)5~{
    {
      "DatabaseOptions": {
        "Provider": "POSTGRESQL",
-       "ConnectionString": "Server=localhost;Database=AMIS101;User Id=postgres;Password=eR.q!fjweTd7RabGS0)5~{",
+       "ConnectionString": "Server=localhost;Database=AMIS101;User Id=postgres;Password=password",
        "MigrationsAssembly": "FSH.Playground.Migrations.PostgreSQL"
      }
    }
@@ -93,7 +93,7 @@ Docker PostgreSQL:  Password=eR.q!fjweTd7RabGS0)5~{
 2. **Alternative:** If you need port 58388 from outside Docker:
    ```json
    {
-     "ConnectionString": "Server=localhost;Port=58388;Database=AMIS101;User Id=postgres;Password=eR.q!fjweTd7RabGS0)5~{"
+     "ConnectionString": "Server=localhost;Port=58388;Database=AMIS101;User Id=postgres;Password=password"
    }
    ```
 
@@ -128,7 +128,7 @@ Result: ❌ Database "amis105" does not exist
 **Recommended (WORKING):**
 
 ```
-Server=localhost;Database=AMIS101;User Id=postgres;Password=eR.q!fjweTd7RabGS0)5~{
+Server=localhost;Database=AMIS101;User Id=postgres;Password=password
 ```
 
 Result: ✓ Should connect successfully

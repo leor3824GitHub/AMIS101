@@ -1,9 +1,11 @@
 # Blazor API Consumption Architecture Analysis
+
 ## ForgotPassword.razor vs MasterData Module Alignment
 
 **Analysis Date:** March 21, 2026  
 **Context:** FSH .NET Modular Monolith with auto-generated NSwag clients  
 **Reference Documents:**
+
 - [BLAZOR-API-CLIENT-GENERATION.md](BLAZOR-API-CLIENT-GENERATION.md) — Official framework pattern
 - [BLAZOR-API-CONNECTION-ARCHITECTURE.md](BLAZOR-API-CONNECTION-ARCHITECTURE.md) — Full connection flow
 - [BLAZOR-CLIENT-CONFORMANCE-AUDIT.md](BLAZOR-CLIENT-CONFORMANCE-AUDIT.md) — Compliance validation
@@ -20,7 +22,9 @@ The `ForgotPassword.razor` component uses an **undocumented antipattern** for AP
 ### Violation of Documented Standards
 
 From **BLAZOR-API-CLIENT-GENERATION.md (The Official Pattern):**
+
 > "Key Principle: Decoupled Architecture
+>
 > - **Backend:** Exposes OpenAPI spec (contracts, not implementation)
 > - **Blazor UI:** Generates clients from spec (never imports backend modules)
 > - **Communication:** Type-safe HTTP clients generated from spec"
@@ -36,6 +40,7 @@ From **BLAZOR-API-CLIENT-GENERATION.md (The Official Pattern):**
 The project explicitly documents the standard pattern:
 
 > **Architecture Overview - End-to-End Flow:**
+>
 > 1. Backend API exposes OpenAPI spec at `/openapi/v1.json`
 > 2. NSwag generates C# clients from spec
 > 3. Dependency injection registers generated clients
@@ -71,6 +76,7 @@ The architecture diagram shows the intended consumption pattern:
 The audit validates that pages CONFORM to the pattern:
 
 > "**ApiClientRegistration.cs: ✅ FULLY CONFORMS**
+>
 > - ✅ Generated clients registered as transient (IExpendableClient, IPurchasesClient, etc.)
 > - ✅ Feature wrapper clients registered properly"
 >
@@ -88,11 +94,11 @@ The audit validates that pages CONFORM to the pattern:
 **Standard:** ✅ API correctly exposes `/openapi/v1.json`  
 **ForgotPassword:** ❌ Ignores the spec entirely, uses magic strings
 
-| Layer | ForgotPassword | Standard |
-|-------|---|---|
-| **Endpoint URL** | `"api/v1/identity/forgot-password"` (magic string) | Generated from OpenAPI spec |
-| **Request DTO** | `new { email = _model.Email }` (ad-hoc) | `ForgotPasswordRequest` (generated DTO) |
-| **Response Type** | `IsSuccessStatusCode` (HTTP status) | Typed response or `ApiException` |
+| Layer             | ForgotPassword                                     | Standard                                |
+| ----------------- | -------------------------------------------------- | --------------------------------------- |
+| **Endpoint URL**  | `"api/v1/identity/forgot-password"` (magic string) | Generated from OpenAPI spec             |
+| **Request DTO**   | `new { email = _model.Email }` (ad-hoc)            | `ForgotPasswordRequest` (generated DTO) |
+| **Response Type** | `IsSuccessStatusCode` (HTTP status)                | Typed response or `ApiException`        |
 
 ### Principle #2: Blazor Generates Clients from Spec
 
@@ -100,6 +106,7 @@ The audit validates that pages CONFORM to the pattern:
 **ForgotPassword:** ❌ Generates client but never uses it
 
 **Evidence from ApiClientRegistration.cs:**
+
 ```csharp
 // This is registered and READY TO USE
 services.AddTransient<IIdentityClient>(sp =>
@@ -107,6 +114,7 @@ services.AddTransient<IIdentityClient>(sp =>
 ```
 
 **What ForgotPassword should inject:**
+
 ```csharp
 @inject IIdentityClient IdentityClient  // ← Available, registered, unused!
 ```
@@ -117,6 +125,7 @@ services.AddTransient<IIdentityClient>(sp =>
 **ForgotPassword:** ❌ Uses `IHttpClientFactory` with raw HTTP
 
 **Documented conforming pattern (from MasterData):**
+
 ```csharp
 @inject IMaster_dataClient MasterDataClient  // ✅ Type-safe
 private async Task SaveDepartment() {
@@ -125,6 +134,7 @@ private async Task SaveDepartment() {
 ```
 
 **ForgotPassword antipattern (not documented):**
+
 ```csharp
 @inject IHttpClientFactory HttpClientFactory  // ❌ Low-level factory
 private async Task SendResetRequestAsync() {
@@ -151,20 +161,20 @@ From **BLAZOR-CLIENT-CONFORMANCE-AUDIT.md** (dated March 8, 2026):
 
 ### ✅ What Currently Conforms
 
-| Category | Status | Score | Evidence |
-|----------|--------|-------|----------|
-| **DI Setup (Program.cs)** | ✅ Conforms | 95% | AuthorizationHeaderHandler, token services properly registered |
-| **ApiClientRegistration** | ✅ Conforms | 100% | All generated clients (IIdentityClient, IMaster_dataClient) registered as transient |
-| **AuthorizationHeaderHandler** | ✅ Conforms | 100% | Bearer token injection, 401 retry logic implemented |
-| **Generated Clients** | ✅ Conforms | 100% | NSwag output: async methods, DTO records, proper serialization |
-| **Configuration** | ✅ Conforms | 100% | appsettings.json and appsettings.Production.json configured correctly |
+| Category                       | Status      | Score | Evidence                                                                            |
+| ------------------------------ | ----------- | ----- | ----------------------------------------------------------------------------------- |
+| **DI Setup (Program.cs)**      | ✅ Conforms | 95%   | AuthorizationHeaderHandler, token services properly registered                      |
+| **ApiClientRegistration**      | ✅ Conforms | 100%  | All generated clients (IIdentityClient, IMaster_dataClient) registered as transient |
+| **AuthorizationHeaderHandler** | ✅ Conforms | 100%  | Bearer token injection, 401 retry logic implemented                                 |
+| **Generated Clients**          | ✅ Conforms | 100%  | NSwag output: async methods, DTO records, proper serialization                      |
+| **Configuration**              | ✅ Conforms | 100%  | appsettings.json and appsettings.Production.json configured correctly               |
 
 ### ⚠️ What Has Issues
 
-| Category | Status | Score | Note |
-|----------|--------|-------|------|
-| **Wrapper Client Stubs** | ⚠️ Issues | 60% | ExpendablePurchasesClient has placeholder SearchAsync() |
-| **Page Usage Patterns** | ⚠️ Issues | 70% | Some components don't use DI properly (NOT ForgotPassword, but others) |
+| Category                 | Status    | Score | Note                                                                   |
+| ------------------------ | --------- | ----- | ---------------------------------------------------------------------- |
+| **Wrapper Client Stubs** | ⚠️ Issues | 60%   | ExpendablePurchasesClient has placeholder SearchAsync()                |
+| **Page Usage Patterns**  | ⚠️ Issues | 70%   | Some components don't use DI properly (NOT ForgotPassword, but others) |
 
 **Key Finding:** The audit VALIDATES the architecture is sound. Pages that DO conform work perfectly (DepartmentsPage ✅). Pages that struggle are those with wrapper client issues, NOT those using typed clients directly.
 
@@ -183,7 +193,7 @@ services.AddTransient<IIdentityClient>(sp =>
 services.AddTransient<IMaster_dataClient>(sp =>
     new Master_dataClient(ResolveClient(sp)));
 
-// ✅ LOOKUP CLIENT - Ready for use  
+// ✅ LOOKUP CLIENT - Ready for use
 services.AddTransient<ILookupClient>(sp =>
     new LookupClient(ResolveClient(sp)));
 ```
@@ -192,7 +202,7 @@ services.AddTransient<ILookupClient>(sp =>
 
 ```csharp
 // ❌ NOT registered anywhere in ApiClientRegistration.cs
-services.AddHttpClient("BackendApi", ...)  
+services.AddHttpClient("BackendApi", ...)
 
 // But available as a built-in Blazor feature
 // This is a fallback, not the intended pattern
@@ -213,17 +223,18 @@ services.AddHttpClient("BackendApi", ...)
 ```
 
 **API Consumption Pattern:**
+
 ```csharp
 private async Task SendResetRequestAsync()
 {
     var client = HttpClientFactory.CreateClient("BackendApi");  // Manual client creation
-    
+
     var request = new HttpRequestMessage(HttpMethod.Post, "api/v1/identity/forgot-password");
     request.Headers.Add(MultitenancyConstants.Identifier, _model.Tenant);  // Manual header injection
     request.Content = JsonContent.Create(new { email = _model.Email });    // Manual JSON serialization
-    
+
     var response = await client.SendAsync(request);  // Manual response handling
-    
+
     if (response.IsSuccessStatusCode)
     {
         _emailSent = true;
@@ -236,6 +247,7 @@ private async Task SendResetRequestAsync()
 ```
 
 **Issues:**
+
 - ❌ Magic string for endpoint (`"api/v1/identity/forgot-password"`)
 - ❌ Manual header management (tenant identifier)
 - ❌ Manual JSON serialization
@@ -249,6 +261,7 @@ private async Task SendResetRequestAsync()
 ### 2. MasterData Components (✅ Standard FSH Approach)
 
 **DepartmentsPage.razor (List):**
+
 ```csharp
 @inject ISnackbar Snackbar
 @inject IMaster_dataClient MasterDataClient  // ✅ Auto-generated typed client
@@ -256,6 +269,7 @@ private async Task SendResetRequestAsync()
 ```
 
 **Register.razor (Identity):**
+
 ```csharp
 @inject NavigationManager Navigation
 @inject IIdentityClient IdentityClient       // ✅ Auto-generated typed client
@@ -263,6 +277,7 @@ private async Task SendResetRequestAsync()
 ```
 
 **API Consumption Pattern:**
+
 ```csharp
 // List with search
 private async Task LoadDepartments()
@@ -272,11 +287,11 @@ private async Task LoadDepartments()
 }
 
 // Create with command object
-var createCmd = new CreateDepartmentCommand 
-{ 
-    Code = _form.Code, 
-    Name = _form.Name, 
-    Description = _form.Description 
+var createCmd = new CreateDepartmentCommand
+{
+    Code = _form.Code,
+    Name = _form.Name,
+    Description = _form.Description
 };
 await MasterDataClient.DepartmentsPostAsync(createCmd);
 
@@ -289,6 +304,7 @@ await IdentityClient.SelfRegisterAsync(_model.Tenant, command);
 ```
 
 **Benefits:**
+
 - ✅ Type-safe: All DTOs and methods are intellisense-discoverable
 - ✅ Auto-generated from OpenAPI spec (no stale code)
 - ✅ Tenant identifier injected automatically (if configured in client)
@@ -328,6 +344,7 @@ services.AddHttpClient("BackendApi", client =>
 ## Dependency Injection Tree
 
 ### ForgotPassword Anti-Pattern
+
 ```
 ForgotPassword.razor
 ├── IHttpClientFactory (low-level)
@@ -338,11 +355,12 @@ ForgotPassword.razor
 ```
 
 ### MasterData Standard Pattern
+
 ```
 DepartmentsPage.razor / Register.razor
 ├── IMaster_dataClient (high-level typed)
 │   ├── Generated from OpenAPI spec
-│   ├── DepartmentsPutAsync() 
+│   ├── DepartmentsPutAsync()
 │   ├── DepartmentsPostAsync()
 │   └── DepartmentsDeleteAsync()
 ├── ILookupClient (for read-only operations)
@@ -387,6 +405,7 @@ public partial class IdentityClient : IIdentityClient
 ### Migration Path: ForgotPassword → Standard Pattern
 
 **Current (Anti-Pattern):**
+
 ```csharp
 @inject IHttpClientFactory HttpClientFactory
 @inject ISnackbar Snackbar
@@ -402,6 +421,7 @@ var response = await client.SendAsync(request);
 ```
 
 **Recommended (Standard Pattern):**
+
 ```csharp
 @inject IIdentityClient IdentityClient       // ✅ Type-safe client
 @inject ISnackbar Snackbar
@@ -431,6 +451,7 @@ await IdentityClient.ForgotPasswordAsync(_model.Tenant, request);
 ### 1. **Modular Monolith Contract Pattern**
 
 FSH modules expose Contracts via OpenAPI and generated clients:
+
 - **Register.razor** → Uses `IIdentityClient` (Identity contract)
 - **DepartmentsPage.razor** → Uses `IMaster_dataClient` (MasterData contract)
 - **ForgotPassword.razor** → ❌ Bypasses the contract layer entirely
@@ -438,6 +459,7 @@ FSH modules expose Contracts via OpenAPI and generated clients:
 ### 2. **Vertical Slice Consistency**
 
 Each vertical slice (feature) should follow:
+
 ```
 Feature/
 ├── Command/Handler
@@ -451,6 +473,7 @@ ForgotPassword breaks this: endpoint is implemented but component doesn't use th
 ### 3. **Multi-Tenancy Integration**
 
 FSH handles tenant context at the client level:
+
 ```csharp
 // Auto-injected by generated client
 await IdentityClient.ForgotPasswordAsync(tenantId, request);
@@ -466,12 +489,14 @@ request.Headers.Add(MultitenancyConstants.Identifier, tenant);
 ### How NSwag Auto-Generation Works
 
 1. **API Endpoint** (Playground.Api)
+
    ```csharp
    [HttpPost("forgot-password")]
    public async Task ForgotPasswordAsync(ForgotPasswordRequest request) { ... }
    ```
 
 2. **OpenAPI Spec** (generated at build)
+
    ```json
    {
      "paths": {
@@ -503,12 +528,14 @@ request.Headers.Add(MultitenancyConstants.Identifier, tenant);
 ## Performance & Caching Implications
 
 ### Standard NSwag Approach (MasterData)
+
 - ✅ Supports Polly resilience policies (retry, timeout)
 - ✅ Can cache responses via options
 - ✅ Automatic connection pooling
 - ✅ Built-in auth header injection
 
 ### Raw IHttpClientFactory (ForgotPassword)
+
 - ❌ No automatic resilience
 - ❌ Manual retry logic needed (if desired)
 - ❌ Manual header management
@@ -518,22 +545,23 @@ request.Headers.Add(MultitenancyConstants.Identifier, tenant);
 
 ## Alignment Checklist
 
-| Criterion | ForgotPassword | MasterData | Comment |
-|-----------|---|---|---|
-| Uses auto-generated client | ❌ | ✅ | Should use `IIdentityClient` |
-| Type-safe API calls | ❌ | ✅ | Commands are DTOs |
-| Tenant handled automatically | ❌ | ✅ | Manual header injection |
-| Error handling standardized | ❌ | ✅ | Custom if/else logic |
-| Discoverable in IDE | ❌ | ✅ | Intellisense available |
-| Unit testable | ⚠️ Limited | ✅ | Mock typed client interface |
-| Follows FSH patterns | ❌ | ✅ | Vertical slice complete |
-| OpenAPI spec reflects reality | ❌ | ✅ | Client implementation matches spec |
+| Criterion                     | ForgotPassword | MasterData | Comment                            |
+| ----------------------------- | -------------- | ---------- | ---------------------------------- |
+| Uses auto-generated client    | ❌             | ✅         | Should use `IIdentityClient`       |
+| Type-safe API calls           | ❌             | ✅         | Commands are DTOs                  |
+| Tenant handled automatically  | ❌             | ✅         | Manual header injection            |
+| Error handling standardized   | ❌             | ✅         | Custom if/else logic               |
+| Discoverable in IDE           | ❌             | ✅         | Intellisense available             |
+| Unit testable                 | ⚠️ Limited     | ✅         | Mock typed client interface        |
+| Follows FSH patterns          | ❌             | ✅         | Vertical slice complete            |
+| OpenAPI spec reflects reality | ❌             | ✅         | Client implementation matches spec |
 
 ---
 
 ## The NSwag Code Generation Pipeline - How ForgotPassword Gets Generated But Ignored
 
 ### Step 1: API Endpoint Implementation
+
 **File:** `src/Playground/Playground.Api/Modules/Identity/Features/*/ForgotPasswordEndpoint.cs`
 
 ```csharp
@@ -549,6 +577,7 @@ public async Task<NoContent> ForgotPasswordAsync(ForgotPasswordRequest request)
 ✅ Endpoint exists and follows FSH vertical slice pattern.
 
 ### Step 2: OpenAPI Spec Generation
+
 **File:** `https://localhost:7030/openapi/v1.json` (runtime, not stored)
 
 The endpoint is automatically documented in the OpenAPI spec by the framework:
@@ -580,6 +609,7 @@ The endpoint is automatically documented in the OpenAPI spec by the framework:
 ✅ Spec is accurate and exposes the contract.
 
 ### Step 3: NSwag Code Generation
+
 **Command:** `./scripts/openapi/generate-api-clients.ps1 -SpecUrl "https://localhost:7030/openapi/v1.json"`
 
 **Output File:** `src/Playground/Playground.Blazor/ApiClient/Generated.cs`
@@ -601,7 +631,7 @@ public partial class IdentityClient : IIdentityClient
         using var request = new HttpRequestMessage(HttpMethod.Post, $"api/v1/identity/forgot-password");
         request.Headers.Add("X-Tenant-Id", tenant);
         request.Content = content;
-        
+
         using var response = await _httpClient.SendAsync(request, cancellationToken);
         return await response.StatusCode switch
         {
@@ -615,6 +645,7 @@ public partial class IdentityClient : IIdentityClient
 ✅ Client is generated with full type safety.
 
 ### Step 4: Dependency Injection Registration
+
 **File:** `src/Playground/Playground.Blazor/Services/Api/ApiClientRegistration.cs`
 
 ```csharp
@@ -625,6 +656,7 @@ services.AddTransient<IIdentityClient>(sp =>
 ✅ Client is registered and ready for injection.
 
 ### Step 5: Blazor Component Usage
+
 **File:** `src/Playground/Playground.Blazor/Components/Pages/Authentication/Register.razor` ✅
 
 ```csharp
@@ -657,17 +689,18 @@ Register.razor correctly uses the pattern.
 private async Task SendResetRequestAsync()
 {
     var client = HttpClientFactory.CreateClient("BackendApi");
-    
+
     var request = new HttpRequestMessage(HttpMethod.Post, "api/v1/identity/forgot-password");
     request.Headers.Add(MultitenancyConstants.Identifier, _model.Tenant);
     request.Content = JsonContent.Create(new { email = _model.Email });
-    
+
     var response = await client.SendAsync(request);
     // ... manual handling ...
 }
 ```
 
 ❌ Ignores the entire NSwag pipeline:
+
 1. ❌ Doesn't use generated `IIdentityClient`
 2. ❌ Recreates the HTTP request manually (error-prone)
 3. ❌ Loses automatic token refresh
@@ -697,6 +730,7 @@ private async Task SendResetRequestAsync()
    - Confirm command/request DTOs exist
 
 2. **Refactor ForgotPassword.razor**
+
    ```csharp
    @inject IIdentityClient IdentityClient  // Replace IHttpClientFactory
    @inject ISnackbar Snackbar
@@ -704,6 +738,7 @@ private async Task SendResetRequestAsync()
    ```
 
 3. **Update API call**
+
    ```csharp
    var request = new ForgotPasswordRequest { Email = _model.Email };
    await IdentityClient.ForgotPasswordAsync(_model.Tenant, request);
@@ -719,30 +754,30 @@ private async Task SendResetRequestAsync()
 
 ### Official FSH Architecture Requirements (from Project Docs)
 
-| Requirement | Source Doc | ForgotPassword | MasterData | Verdict |
-|-------------|-----------|---|---|---|
-| **Inject generated typed client** | BLAZOR-API-CLIENT-GENERATION.md | ❌ Manual HttpFactory | ✅ Injects IMaster_dataClient | **VIOLATION** |
-| **Avoid magic endpoint strings** | NSwag pattern | ❌ `"api/v1/identity/forgot-password"` | ✅ Generated methods | **VIOLATION** |
-| **Use DTO command/query objects** | api-conventions.md (rules) | ❌ `new { email }` | ✅ CreateDepartmentCommand | **VIOLATION** |
-| **Handle errors as typed exceptions** | BLAZOR-CLIENT-CONFORMANCE-AUDIT.md | ❌ if/else status codes | ✅ ApiException catch | **VIOLATION** |
-| **Leverage multi-tenancy built into client** | BLAZOR-API-CONNECTION-ARCHITECTURE.md | ❌ Manual header | ✅ Automatic | **VIOLATION** |
-| **Support automatic token refresh** | AuthorizationHeaderHandler | ❌ Only if using injected HttpClient | ✅ Works automatically | **PARTIAL failure** |
-| **Discoverable in IDE intellisense** | Code generation principle | ❌ Magic strings | ✅ Method autocomplete | **VIOLATION** |
-| **Automatically seeded by DI** | ApiClientRegistration.cs | ❌ Bypass registration | ✅ Registered transient | **VIOLATION** |
+| Requirement                                  | Source Doc                            | ForgotPassword                         | MasterData                    | Verdict             |
+| -------------------------------------------- | ------------------------------------- | -------------------------------------- | ----------------------------- | ------------------- |
+| **Inject generated typed client**            | BLAZOR-API-CLIENT-GENERATION.md       | ❌ Manual HttpFactory                  | ✅ Injects IMaster_dataClient | **VIOLATION**       |
+| **Avoid magic endpoint strings**             | NSwag pattern                         | ❌ `"api/v1/identity/forgot-password"` | ✅ Generated methods          | **VIOLATION**       |
+| **Use DTO command/query objects**            | api-conventions.md (rules)            | ❌ `new { email }`                     | ✅ CreateDepartmentCommand    | **VIOLATION**       |
+| **Handle errors as typed exceptions**        | BLAZOR-CLIENT-CONFORMANCE-AUDIT.md    | ❌ if/else status codes                | ✅ ApiException catch         | **VIOLATION**       |
+| **Leverage multi-tenancy built into client** | BLAZOR-API-CONNECTION-ARCHITECTURE.md | ❌ Manual header                       | ✅ Automatic                  | **VIOLATION**       |
+| **Support automatic token refresh**          | AuthorizationHeaderHandler            | ❌ Only if using injected HttpClient   | ✅ Works automatically        | **PARTIAL failure** |
+| **Discoverable in IDE intellisense**         | Code generation principle             | ❌ Magic strings                       | ✅ Method autocomplete        | **VIOLATION**       |
+| **Automatically seeded by DI**               | ApiClientRegistration.cs              | ❌ Bypass registration                 | ✅ Registered transient       | **VIOLATION**       |
 
 ### Summary
 
-| Aspect | ForgotPassword | Standard (MasterData) | Status |
-|--------|---|---|---|
-| **Dependency** | `IHttpClientFactory` | `IIdentityClient`/`IMaster_dataClient` | ❌ Violates docs |
-| **API Call** | Manual `HttpRequestMessage` | Type-safe method call | ❌ Violates docs |
-| **Header Injection** | Manual headers.Add() | Automatic via client | ❌ Violates docs |
-| **Error Handling** | if/else HTTP status | ApiException catch | ❌ Violates docs |
-| **Type Safety** | ❌ Strings & dynamic | ✅ DTOs & intellisense | ❌ Violates docs |
-| **Documented Pattern** | ❌ No (undocumented) | ✅ Yes | ❌ Violates docs |
-| **Audit Status** | Not listed (likely pre-audit) | ✅ Conforming | ❌ Out of scope |
-| **Maintainability Score** | 🔴 2/10 (manual sync required) | 🟢 9/10 (auto-generated) | ❌ Violates docs |
-| **FSH Compliance** | 🔴 0% | 🟢 100% | ❌ CRITICAL |
+| Aspect                    | ForgotPassword                 | Standard (MasterData)                  | Status           |
+| ------------------------- | ------------------------------ | -------------------------------------- | ---------------- |
+| **Dependency**            | `IHttpClientFactory`           | `IIdentityClient`/`IMaster_dataClient` | ❌ Violates docs |
+| **API Call**              | Manual `HttpRequestMessage`    | Type-safe method call                  | ❌ Violates docs |
+| **Header Injection**      | Manual headers.Add()           | Automatic via client                   | ❌ Violates docs |
+| **Error Handling**        | if/else HTTP status            | ApiException catch                     | ❌ Violates docs |
+| **Type Safety**           | ❌ Strings & dynamic           | ✅ DTOs & intellisense                 | ❌ Violates docs |
+| **Documented Pattern**    | ❌ No (undocumented)           | ✅ Yes                                 | ❌ Violates docs |
+| **Audit Status**          | Not listed (likely pre-audit)  | ✅ Conforming                          | ❌ Out of scope  |
+| **Maintainability Score** | 🔴 2/10 (manual sync required) | 🟢 9/10 (auto-generated)               | ❌ Violates docs |
+| **FSH Compliance**        | 🔴 0%                          | 🟢 100%                                | ❌ CRITICAL      |
 
 **Verdict:** ForgotPassword.razor is an undocumented antipattern that violates multiple official FSH architecture standards documented in the project.
 
@@ -753,22 +788,26 @@ private async Task SendResetRequestAsync()
 ### Phase 1: Verification ✅
 
 **Task 1.1:** Confirm IIdentityClient has ForgotPassword method
+
 ```powershell
 # Search Generated.cs for ForgotPasswordAsync
 Select-String "ForgotPasswordAsync" src/Playground/Playground.Blazor/ApiClient/Generated.cs
 ```
 
 **Task 1.2:** Verify Register.razor uses the correct pattern (baseline)
+
 - Reference: [BLAZOR-API-CLIENT-GENERATION.md](BLAZOR-API-CLIENT-GENERATION.md) Section 8 "Workflow: Adding a New Endpoint"
 - Check: Register.razor should inject `IIdentityClient` and call `SelfRegisterAsync()`
 
 ### Phase 2: Refactoring ForgotPassword.razor 🔧
 
 **Reference Documents:**
+
 - [BLAZOR-API-CONNECTION-ARCHITECTURE.md](BLAZOR-API-CONNECTION-ARCHITECTURE.md#31-blazor-programcs-configuration) - DI setup pattern
 - [BLAZOR-CLIENT-CONFORMANCE-AUDIT.md](BLAZOR-CLIENT-CONFORMANCE-AUDIT.md#-areas-that-conform) - Conforming examples
 
 **Step 1: Update Injections**
+
 ```diff
 - @inject NavigationManager Navigation
 - @inject IHttpClientFactory HttpClientFactory
@@ -778,6 +817,7 @@ Select-String "ForgotPasswordAsync" src/Playground/Playground.Blazor/ApiClient/G
 ```
 
 **Step 2: Refactor SendResetRequestAsync()**
+
 ```csharp
 private async Task SendResetRequestAsync()
 {
@@ -818,17 +858,21 @@ private async Task SendResetRequestAsync()
 **Reference:** [scripts/openapi/README.md](scripts/openapi/README.md) - Drift detection
 
 **Test 1: Build Verification**
+
 ```powershell
 dotnet build src/Playground/Playground.Blazor/Playground.Blazor.csproj
 ```
+
 Should complete with 0 warnings.
 
 **Test 2: OpenAPI Drift Check (optional)**
+
 ```powershell
 ./scripts/openapi/check-openapi-drift.ps1 -SpecUrl "https://localhost:7030/openapi/v1.json"
 ```
 
 **Test 3: Manual Testing**
+
 1. Start Playground.Api: `dotnet run --project src/Playground/Playground.Api`
 2. Start Playground.Blazor: `dotnet run --project src/Playground/Playground.Blazor`
 3. Navigate to `/forgot-password`
@@ -836,6 +880,7 @@ Should complete with 0 warnings.
 5. Verify success message displays correctly
 
 **Test 4: Architecture Compliance**
+
 ```powershell
 # Run architecture tests
 dotnet test src/Tests/Architecture.Tests/ --filter "Blazor"
@@ -853,6 +898,7 @@ After refactoring, update the conformance audit to show ForgotPassword and Reset
 Status: ✅ **FULLY CONFORM** (as of [DATE])
 
 All authentication pages now use auto-generated IIdentityClient:
+
 - Register.razor — Uses IIdentityClient.SelfRegisterAsync()
 - ForgotPassword.razor — Uses IIdentityClient.ForgotPasswordAsync()
 - ResetPassword.razor — Uses IIdentityClient.ResetPasswordAsync()
@@ -863,6 +909,7 @@ Pattern: @inject IIdentityClient IdentityClient + typed method calls
 ### Phase 5: Commit & Documentation 📚
 
 **Commit Message:**
+
 ```
 refactor(blazor): align ForgotPassword.razor with official API consumption pattern
 
@@ -879,6 +926,7 @@ Documentation:
 ```
 
 **Files Modified:**
+
 - `src/Playground/Playground.Blazor/Components/Pages/Authentication/ForgotPassword.razor`
 - `src/Playground/Playground.Blazor/Components/Pages/Authentication/ResetPassword.razor` (if same issue)
 - `BLAZOR-CLIENT-CONFORMANCE-AUDIT.md` (update audit)
@@ -889,15 +937,15 @@ Documentation:
 
 These official project documents establish and validate the architecture:
 
-| Document | Purpose | Key Section | ForgotPassword Status |
-|----------|---------|---|---|
-| **BLAZOR-API-CLIENT-GENERATION.md** | Official generation & consumption pattern | Key Principle: Decoupled Architecture | ❌ Violates |
-| **BLAZOR-API-CONNECTION-ARCHITECTURE.md** | Full connection flow & architecture layers | Layer 3: HTTP Client Abstraction | ❌ Violates |
-| **BLAZOR-CLIENT-CONFORMANCE-AUDIT.md** | Validates page conformance | ✅ Areas that Conform | ❌ Not listed / out of scope |
-| **scripts/openapi/README.md** | NSwag generation workflow | Key Design Decisions | ❌ Ignores pattern |
-| **CLAUDE.md** | Framework quick-start guide | CQRS & Mediator pattern | ❌ Not highlighted |
-| **MASTERDATA-MODULE-ANALYSIS.md** | Example of correct module implementation | API Endpoints - Complete Map | ✅ Reference pattern |
-| **.claude/rules/api-conventions.md** | API endpoint conventions (backend) | Endpoint design principles | N/A (frontend issue) |
+| Document                                  | Purpose                                    | Key Section                           | ForgotPassword Status        |
+| ----------------------------------------- | ------------------------------------------ | ------------------------------------- | ---------------------------- |
+| **BLAZOR-API-CLIENT-GENERATION.md**       | Official generation & consumption pattern  | Key Principle: Decoupled Architecture | ❌ Violates                  |
+| **BLAZOR-API-CONNECTION-ARCHITECTURE.md** | Full connection flow & architecture layers | Layer 3: HTTP Client Abstraction      | ❌ Violates                  |
+| **BLAZOR-CLIENT-CONFORMANCE-AUDIT.md**    | Validates page conformance                 | ✅ Areas that Conform                 | ❌ Not listed / out of scope |
+| **scripts/openapi/README.md**             | NSwag generation workflow                  | Key Design Decisions                  | ❌ Ignores pattern           |
+| **CLAUDE.md**                             | Framework quick-start guide                | CQRS & Mediator pattern               | ❌ Not highlighted           |
+| **MASTERDATA-MODULE-ANALYSIS.md**         | Example of correct module implementation   | API Endpoints - Complete Map          | ✅ Reference pattern         |
+| **.claude/rules/api-conventions.md**      | API endpoint conventions (backend)         | Endpoint design principles            | N/A (frontend issue)         |
 
 **Conclusion:** The violation is well-documented and evidenced by comparing against official project docs.
 

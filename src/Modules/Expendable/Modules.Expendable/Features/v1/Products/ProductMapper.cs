@@ -18,6 +18,7 @@ internal static class ProductMapper
             product.Status.ToString(),
             product.CategoryId,
             product.SupplierId,
+            product.ImageUrl,
             product.CreatedOnUtc,
             product.CreatedBy,
             product.LastModifiedOnUtc,

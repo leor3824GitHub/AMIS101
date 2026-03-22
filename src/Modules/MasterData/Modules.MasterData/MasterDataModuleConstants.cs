@@ -50,6 +50,21 @@ public static class MasterDataModuleConstants
             public const string Update = "Permissions.MasterData.UnitOfMeasures.Update";
             public const string Delete = "Permissions.MasterData.UnitOfMeasures.Delete";
         }
+
+        public static class Suppliers
+        {
+            public const string View = "Permissions.MasterData.Suppliers.View";
+            public const string Create = "Permissions.MasterData.Suppliers.Create";
+            public const string Update = "Permissions.MasterData.Suppliers.Update";
+            public const string Delete = "Permissions.MasterData.Suppliers.Delete";
+        }
+
+        public static class Categories
+        {
+            public const string View = "Permissions.MasterData.Categories.View";
+            public const string Create = "Permissions.MasterData.Categories.Create";
+            public const string Update = "Permissions.MasterData.Categories.Update";
+            public const string Delete = "Permissions.MasterData.Categories.Delete";
+        }
     }
 }
-

@@ -17,6 +17,8 @@ public class MasterDataDbContext : BaseDbContext
     public DbSet<Department> Departments => Set<Department>();
     public DbSet<Position> Positions => Set<Position>();
     public DbSet<UnitOfMeasure> UnitOfMeasures => Set<UnitOfMeasure>();
+    public DbSet<Supplier> Suppliers => Set<Supplier>();
+    public DbSet<Category> Categories => Set<Category>();
 
     public MasterDataDbContext(
         IMultiTenantContextAccessor<AppTenantInfo> multiTenantContextAccessor,

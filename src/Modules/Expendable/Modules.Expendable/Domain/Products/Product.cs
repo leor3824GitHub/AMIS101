@@ -25,6 +25,7 @@ public class Product : AggregateRoot<Guid>, IHasTenant, IAuditableEntity
     public ProductStatus Status { get; set; } = ProductStatus.Active;
     public string? CategoryId { get; set; }
     public string? SupplierId { get; set; }
+    public string? ImageUrl { get; set; }
     public byte[] Version { get; set; } = [];
 
     // IAuditableEntity
@@ -88,13 +89,17 @@ public class Product : AggregateRoot<Guid>, IHasTenant, IAuditableEntity
 
     /// <summary>Update product details</summary>
     public void Update(string name, string description, decimal unitPrice,
-        int minimumStockLevel, int reorderQuantity)
+        int minimumStockLevel, int reorderQuantity, string? imageUrl = null)
     {
         Name = name;
         Description = description;
         UnitPrice = unitPrice;
         MinimumStockLevel = minimumStockLevel;
         ReorderQuantity = reorderQuantity;
+        if (imageUrl != null)
+        {
+            ImageUrl = imageUrl;
+        }
         LastModifiedOnUtc = DateTimeOffset.UtcNow;
     }
 

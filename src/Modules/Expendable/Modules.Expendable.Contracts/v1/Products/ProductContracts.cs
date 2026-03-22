@@ -15,6 +15,7 @@ public record ProductDto(
     string Status,
     string? CategoryId,
     string? SupplierId,
+    string? ImageUrl,
     DateTimeOffset CreatedOnUtc,
     string? CreatedBy,
     DateTimeOffset? LastModifiedOnUtc,
@@ -29,7 +30,8 @@ public record CreateProductCommand(
     int MinimumStockLevel,
     int ReorderQuantity,
     string? CategoryId = null,
-    string? SupplierId = null) : ICommand<ProductDto>;
+    string? SupplierId = null,
+    string? ImageUrl = null) : ICommand<ProductDto>;
 
 public record UpdateProductCommand(
     Guid Id,
@@ -39,7 +41,8 @@ public record UpdateProductCommand(
     int MinimumStockLevel,
     int ReorderQuantity,
     string? CategoryId = null,
-    string? SupplierId = null) : ICommand<ProductDto>;
+    string? SupplierId = null,
+    string? ImageUrl = null) : ICommand<ProductDto>;
 
 public record ActivateProductCommand(Guid Id) : ICommand<Unit>;
 

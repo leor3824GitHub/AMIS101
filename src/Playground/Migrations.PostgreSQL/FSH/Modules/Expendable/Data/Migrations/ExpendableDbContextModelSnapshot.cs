@@ -142,7 +142,6 @@ namespace FSH.Modules.Expendable.Data.Migrations
                     b.Property<byte[]>("Version")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea");
 
                     b.HasKey("Id");
@@ -199,7 +198,6 @@ namespace FSH.Modules.Expendable.Data.Migrations
                     b.Property<byte[]>("Version")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea");
 
                     b.HasKey("Id");
@@ -358,7 +356,6 @@ namespace FSH.Modules.Expendable.Data.Migrations
                     b.Property<byte[]>("Version")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea");
 
                     b.Property<Guid>("WarehouseLocationId")
@@ -410,6 +407,10 @@ namespace FSH.Modules.Expendable.Data.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(10000000)
+                        .HasColumnType("character varying(10000000)");
+
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -460,7 +461,6 @@ namespace FSH.Modules.Expendable.Data.Migrations
                     b.Property<byte[]>("Version")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea");
 
                     b.HasKey("Id");
@@ -549,7 +549,6 @@ namespace FSH.Modules.Expendable.Data.Migrations
                     b.Property<byte[]>("Version")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea");
 
                     b.Property<Guid>("WarehouseLocationId")
@@ -729,7 +728,6 @@ namespace FSH.Modules.Expendable.Data.Migrations
                     b.Property<byte[]>("Version")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea");
 
                     b.HasKey("Id");
@@ -826,7 +824,6 @@ namespace FSH.Modules.Expendable.Data.Migrations
                     b.Property<byte[]>("Version")
                         .IsConcurrencyToken()
                         .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("bytea");
 
                     b.Property<Guid>("WarehouseLocationId")

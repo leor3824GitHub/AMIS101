@@ -1,9 +1,12 @@
 @page "/expendable/products"
 @using FSH.Framework.Blazor.UI.Components.Cards
 @using FSH.Playground.Blazor.ApiClient
+@using System.IO
 @inherits ComponentBase
 @inject ISnackbar Snackbar
 @inject IExpendableClient ExpendableClient
+@inject IMaster_dataClient MasterDataClient
+@inject ILookupClient LookupClient
 
 <FshPageHeader Title="Products" Description="Manage product catalog">
     <ActionContent>
@@ -34,12 +37,47 @@
                         <MudTextField @bind-Value="_form.Description" Label="Description"
                                       Placeholder="Product description" Lines="2" />
                         <MudNumericField @bind-Value="_form.UnitPrice" Label="Unit Price" Min="0" Step="0.01m" />
-                        <MudTextField @bind-Value="_form.UnitOfMeasure" Label="Unit of Measure"
-                                      Placeholder="PCS, BOX, etc." />
+                        <MudAutocomplete T="UnitOfMeasureReferenceDto"
+                                         @bind-Value="_selectedUnitOfMeasure"
+                                         SearchFunc="SearchUnitOfMeasures"
+                                         Label="Unit of Measure"
+                                         CoerceValue="true"
+                                         Clearable="true"
+                                         ToStringFunc="@(um => um != null ? um.Code : "")"
+
+                                         Placeholder="Search or select unit..." />
                         <MudNumericField @bind-Value="_form.MinimumStockLevel" Label="Minimum Stock Level" Min="0" />
                         <MudNumericField @bind-Value="_form.ReorderQuantity" Label="Reorder Quantity" Min="0" />
                         <MudTextField @bind-Value="_form.CategoryId" Label="Category ID" Placeholder="(Optional)" />
                         <MudTextField @bind-Value="_form.SupplierId" Label="Supplier ID" Placeholder="(Optional)" />
+                        
+                        <!-- Image Upload Section -->
+                        <MudDivider Class="my-3" />
+                        <MudText Typo="Typo.subtitle2" Color="Color.Primary">Product Image</MudText>
+                        
+                        @if (!string.IsNullOrEmpty(_form.ImagePreview))
+                        {
+                            <div class="mb-3">
+                                <MudImage Src="@_form.ImagePreview" Alt="Product preview" 
+                                         ObjectFit="ObjectFit.Cover" Width="150" Height="150" Class="rounded" />
+                                <MudButton Size="Size.Small" Color="Color.Error" OnClick="ClearImagePreview" Class="mt-2">
+                                    Clear Image
+                                </MudButton>
+                            </div>
+                        }
+                        
+                        <MudFileUpload T="IBrowserFile" OnFilesChanged="HandleImageUpload" 
+                                      Accept=".jpg,.jpeg,.png,.gif,.webp" MaxFileSize="5242880" 
+                                      Hidden="false" Class="mb-3">
+                            <MudButton HtmlTag="label" Variant="Variant.Outlined" Color="Color.Primary" 
+                                      StartIcon="@Icons.Material.Filled.CloudUpload">
+                                Choose Image (Max 5MB)
+                            </MudButton>
+                        </MudFileUpload>
+                        
+                        <MudTextField @bind-Value="_form.ImageUrl" Label="Or Paste Image URL" 
+                                      Placeholder="https://example.com/image.jpg"
+                                      Helpertext="Or provide an absolute URL instead" />
 
                         <MudStack Row="true" Spacing="2" Class="mt-4">
                             <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
@@ -67,6 +105,7 @@
                         <MudSimpleTable Dense="true" Hover="true" Striped="true">
                             <thead>
                                 <tr>
+                                    <th>Image</th>
                                     <th>Name</th>
                                     <th>SKU</th>
                                     <th>Price</th>
@@ -80,6 +119,17 @@
                                 @foreach (var product in _products)
                                 {
                                     <tr>
+                                        <td>
+                                            @if (!string.IsNullOrEmpty(product.ImageUrl))
+                                            {
+                                                <MudImage Src="@product.ImageUrl" Alt="@product.Name" 
+                                                         ObjectFit="ObjectFit.Cover" Width="48" Height="48" Class="rounded" />
+                                            }
+                                            else
+                                            {
+                                                <MudAvatar>@product.Name.FirstOrDefault()</MudAvatar>
+                                            }
+                                        </td>
                                         <td>@product.Name</td>
                                         <td>@product.Sku</td>
                                         <td>@product.UnitPrice.ToString("C")</td>
@@ -114,6 +164,8 @@
     private ProductForm _form = new();
     private ProductDto? EditingProduct { get; set; }
     private List<ProductDto> _products = new();
+    private List<UnitOfMeasureReferenceDto> _unitOfMeasures = new();
+    private UnitOfMeasureReferenceDto? _selectedUnitOfMeasure;
     private bool _initialized = false;
     private bool _isLoading = false;
     private string _searchKeyword = string.Empty;
@@ -123,12 +175,14 @@
         public string Name { get; set; } = string.Empty;
         public string SKU { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
-        public decimal UnitPrice { get; set; } = 10.00m; // Default 10.00 instead of 0
+        public decimal UnitPrice { get; set; } = 10.00m;
         public string UnitOfMeasure { get; set; } = "PCS";
         public int MinimumStockLevel { get; set; } = 1;
         public int ReorderQuantity { get; set; } = 10;
         public string? CategoryId { get; set; }
         public string? SupplierId { get; set; }
+        public string? ImageUrl { get; set; }
+        public string? ImagePreview { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -136,7 +190,36 @@
         if (_initialized) return;
         _initialized = true;
 
+        await LoadUnitOfMeasures();
         await LoadProducts();
+    }
+
+    private async Task LoadUnitOfMeasures()
+    {
+        try
+        {
+            var response = await LookupClient.UnitOfMeasuresAsync(
+                pageSize: 1000,
+                isActive: true);
+            _unitOfMeasures = response?.Items?.ToList() ?? new();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load unit of measures: {ex.Message}", Severity.Error);
+            _unitOfMeasures = new();
+        }
+    }
+
+    private async Task<IEnumerable<UnitOfMeasureReferenceDto>> SearchUnitOfMeasures(string searchText, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+            return _unitOfMeasures;
+
+        var search = searchText.ToLower();
+        return _unitOfMeasures
+            .Where(x => x.Code.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                       x.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
+            .ToList();
     }
 
     private async Task LoadProducts()
@@ -245,6 +328,12 @@
 
     private async Task SaveProduct()
     {
+        // Update _form.UnitOfMeasure from selected dropdown if available
+        if (_selectedUnitOfMeasure != null)
+        {
+            _form.UnitOfMeasure = _selectedUnitOfMeasure.Code;
+        }
+
         if (string.IsNullOrWhiteSpace(_form.Name) || string.IsNullOrWhiteSpace(_form.SKU))
         {
             Snackbar.Add("Name and SKU are required", Severity.Warning);
@@ -275,7 +364,8 @@
                     MinimumStockLevel = _form.MinimumStockLevel,
                     ReorderQuantity = _form.ReorderQuantity,
                     CategoryId = _form.CategoryId,
-                    SupplierId = _form.SupplierId
+                    SupplierId = _form.SupplierId,
+                    ImageUrl = _form.ImageUrl
                 };
 
                 await ExpendableClient.ProductsPutAsync(EditingProduct.Id, updateCmd);
@@ -293,7 +383,8 @@
                     MinimumStockLevel = _form.MinimumStockLevel,
                     ReorderQuantity = _form.ReorderQuantity,
                     CategoryId = _form.CategoryId,
-                    SupplierId = _form.SupplierId
+                    SupplierId = _form.SupplierId,
+                    ImageUrl = _form.ImageUrl
                 };
 
                 await ExpendableClient.ProductsPostAsync(createCmd);
@@ -312,6 +403,7 @@
     private void EditProduct(ProductDto product)
     {
         EditingProduct = product;
+        _selectedUnitOfMeasure = _unitOfMeasures.FirstOrDefault(x => x.Code == product.UnitOfMeasure);
         _form = new ProductForm
         {
             Name = product.Name,
@@ -322,13 +414,16 @@
             MinimumStockLevel = product.MinimumStockLevel,
             ReorderQuantity = product.ReorderQuantity,
             CategoryId = null,
-            SupplierId = product.SupplierId
+            SupplierId = product.SupplierId,
+            ImageUrl = product.ImageUrl,
+            ImagePreview = product.ImageUrl
         };
     }
 
     private void ResetForm()
     {
         _form = new();
+        _selectedUnitOfMeasure = null;
         EditingProduct = null;
         ShowCreateModal = false;
     }
@@ -345,5 +440,56 @@
         {
             Snackbar.Add($"Failed to delete product: {ex.Message}", Severity.Error);
         }
+    }
+
+    private async Task HandleImageUpload(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            if (e.File == null)
+                return;
+
+            // Validate file size (5MB max)
+            if (e.File.Size > 5242880)
+            {
+                Snackbar.Add("Image file must be smaller than 5MB", Severity.Warning);
+                return;
+            }
+
+            // Validate file type
+            var validTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
+            if (!validTypes.Contains(e.File.ContentType))
+            {
+                Snackbar.Add("Please upload a valid image file (JPG, PNG, GIF, WebP)", Severity.Warning);
+                return;
+            }
+
+            // Read file and convert to base64 data URL
+            using var stream = e.File.OpenReadStream(e.File.Size);
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+
+            var bytes = memoryStream.ToArray();
+            var base64 = Convert.ToBase64String(bytes);
+            var dataUrl = $"data:{e.File.ContentType};base64,{base64}";
+
+            // Store both the data URL for preview and use as ImageUrl
+            _form.ImagePreview = dataUrl;
+            _form.ImageUrl = dataUrl;
+
+            Snackbar.Add("Image uploaded successfully", Severity.Success);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to upload image: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void ClearImagePreview()
+    {
+        _form.ImagePreview = null;
+        _form.ImageUrl = null;
+        StateHasChanged();
     }
 }

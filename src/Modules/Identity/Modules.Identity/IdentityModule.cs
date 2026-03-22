@@ -63,6 +63,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace FSH.Modules.Identity;
 
@@ -158,20 +159,35 @@ public class IdentityModule : IModule
 
         // Optional Hangfire-based dispatcher. Disabled by default to avoid startup races
         // where recurring jobs can execute before module migrations complete.
+        // NOTE: Hangfire operations can open a DB connection; guard to avoid startup crash on transient DB timeouts.
         var jobManager = endpoints.ServiceProvider.GetService<IRecurringJobManager>();
         var configuration = endpoints.ServiceProvider.GetService<IConfiguration>();
+        var loggerFactory = endpoints.ServiceProvider.GetService<ILoggerFactory>();
+        var logger = loggerFactory?.CreateLogger<IdentityModule>();
         var enableIdentityOutboxJob = configuration?.GetValue<bool>("EventingOptions:EnableIdentityHangfireDispatcher") ?? false;
-        if (jobManager is not null && enableIdentityOutboxJob)
+
+        if (jobManager is not null)
         {
-            jobManager.AddOrUpdate(
-                "identity-outbox-dispatcher",
-                Job.FromExpression<OutboxDispatcher>(d => d.DispatchAsync(CancellationToken.None)),
-                Cron.Minutely(),
-                new RecurringJobOptions());
-        }
-        else if (jobManager is not null)
-        {
-            jobManager.RemoveIfExists("identity-outbox-dispatcher");
+            try
+            {
+                if (enableIdentityOutboxJob)
+                {
+                    jobManager.AddOrUpdate(
+                        "identity-outbox-dispatcher",
+                        Job.FromExpression<OutboxDispatcher>(d => d.DispatchAsync(CancellationToken.None)),
+                        Cron.Minutely(),
+                        new RecurringJobOptions());
+                }
+                else
+                {
+                    jobManager.RemoveIfExists("identity-outbox-dispatcher");
+                }
+            }
+            catch (Exception ex)
+            {
+                logger?.LogWarning(ex,
+                    "Skipping identity Hangfire recurring job registration due to storage connectivity issue. API startup will continue.");
+            }
         }
 
         // roles
