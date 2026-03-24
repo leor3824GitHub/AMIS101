@@ -34,7 +34,11 @@ public class Group : ISoftDeletable
             Description = description,
             IsDefault = isDefault,
             IsSystemGroup = isSystemGroup,
+<<<<<<< HEAD
             CreatedAt = DateTime.UtcNow,
+=======
+            CreatedOnUtc = TimeProvider.System.GetUtcNow(),
+>>>>>>> d964bcda (fix(identity): align Group entity with IAuditableEntity and encapsulate soft-delete)
             CreatedBy = createdBy
         };
     }
@@ -43,14 +47,31 @@ public class Group : ISoftDeletable
     {
         Name = name;
         Description = description;
+<<<<<<< HEAD
         ModifiedAt = DateTime.UtcNow;
         ModifiedBy = modifiedBy;
+=======
+        LastModifiedOnUtc = TimeProvider.System.GetUtcNow();
+        LastModifiedBy = modifiedBy;
+>>>>>>> d964bcda (fix(identity): align Group entity with IAuditableEntity and encapsulate soft-delete)
     }
 
     public void SetAsDefault(bool isDefault, string? modifiedBy = null)
     {
         IsDefault = isDefault;
+<<<<<<< HEAD
         ModifiedAt = DateTime.UtcNow;
         ModifiedBy = modifiedBy;
+=======
+        LastModifiedOnUtc = TimeProvider.System.GetUtcNow();
+        LastModifiedBy = modifiedBy;
+    }
+
+    public void Delete(string? deletedBy = null)
+    {
+        IsDeleted = true;
+        DeletedOnUtc = TimeProvider.System.GetUtcNow();
+        DeletedBy = deletedBy;
+>>>>>>> d964bcda (fix(identity): align Group entity with IAuditableEntity and encapsulate soft-delete)
     }
 }

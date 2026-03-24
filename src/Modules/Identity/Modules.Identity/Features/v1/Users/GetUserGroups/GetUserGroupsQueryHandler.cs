@@ -75,7 +75,11 @@ public sealed class GetUserGroupsQueryHandler : IQueryHandler<GetUserGroupsQuery
                 .Select(gr => roleNames.GetValueOrDefault(gr.RoleId, gr.RoleId))
                 .ToList()
                 .AsReadOnly(),
+<<<<<<< HEAD
             CreatedAt = g.CreatedAt
+=======
+            CreatedAt = g.CreatedOnUtc
+>>>>>>> d964bcda (fix(identity): align Group entity with IAuditableEntity and encapsulate soft-delete)
         });
     }
 }

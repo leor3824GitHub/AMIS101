@@ -44,7 +44,7 @@ public sealed class GetGroupByIdQueryHandler : IQueryHandler<GetGroupByIdQuery, 
             MemberCount = memberCount,
             RoleIds = roleIds.AsReadOnly(),
             RoleNames = roleNames.AsReadOnly(),
-            CreatedAt = group.CreatedAt
+            CreatedAt = group.CreatedOnUtc
         };
     }
 }

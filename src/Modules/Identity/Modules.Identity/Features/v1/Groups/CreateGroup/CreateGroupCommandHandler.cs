@@ -41,7 +41,11 @@ public sealed class CreateGroupCommandHandler : ICommandHandler<CreateGroupComma
                 .Select(r => r.Id)
                 .ToListAsync(cancellationToken);
 
+<<<<<<< HEAD
             var invalidRoleIds = command.RoleIds.Except(existingRoleIds).ToList();
+=======
+            var invalidRoleIds = command.RoleIds.Except(resolvedRoles.Select(r => r.Id)).ToList();
+>>>>>>> d964bcda (fix(identity): align Group entity with IAuditableEntity and encapsulate soft-delete)
             if (invalidRoleIds.Count > 0)
             {
                 throw new NotFoundException($"Roles not found: {string.Join(", ", invalidRoleIds)}");
@@ -83,9 +87,15 @@ public sealed class CreateGroupCommandHandler : ICommandHandler<CreateGroupComma
             IsDefault = group.IsDefault,
             IsSystemGroup = group.IsSystemGroup,
             MemberCount = 0,
+<<<<<<< HEAD
             RoleIds = command.RoleIds?.AsReadOnly(),
             RoleNames = roleNames.AsReadOnly(),
             CreatedAt = group.CreatedAt
+=======
+            RoleIds = resolvedRoles.Select(r => r.Id).ToList().AsReadOnly(),
+            RoleNames = resolvedRoles.Select(r => r.Name).ToList().AsReadOnly(),
+            CreatedAt = group.CreatedOnUtc
+>>>>>>> d964bcda (fix(identity): align Group entity with IAuditableEntity and encapsulate soft-delete)
         };
     }
 }
