@@ -2,6 +2,8 @@ using FSH.Playground.Blazor.ApiClient;
 using Microsoft.AspNetCore.Authentication;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace FSH.Playground.Blazor.Services.Api;
 
@@ -13,6 +15,13 @@ internal interface ITokenRefreshService
     Task<string?> TryRefreshTokenAsync(CancellationToken cancellationToken = default);
 }
 
+/// <summary>
+/// Scoped service (one instance per Blazor circuit) that refreshes expired access tokens.
+///
+/// All mutable state is intentionally kept as instance fields so that a refresh failure
+/// in one circuit does not affect other circuits (no cross-circuit pollution / mass logout).
+/// TokenRefreshService is registered as Scoped in Program.cs; do not change to Singleton.
+/// </summary>
 internal sealed class TokenRefreshService : ITokenRefreshService, IDisposable
 {
     private readonly IHttpContextAccessor _httpContextAccessor;
@@ -20,16 +29,17 @@ internal sealed class TokenRefreshService : ITokenRefreshService, IDisposable
     private readonly ICircuitTokenCache _circuitTokenCache;
     private readonly ILogger<TokenRefreshService> _logger;
 
-    private static readonly SemaphoreSlim RefreshLock = new(1, 1);
+    // Instance (not static) so each Blazor circuit has independent refresh state.
+    private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private static readonly TimeSpan RefreshCacheDuration = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan FailedTokenCacheDuration = TimeSpan.FromHours(24);  // Session-long cache to prevent retry spam
 
-    private static string? _lastRefreshedToken;
-    private static string? _cachedForRefreshToken;
-    private static DateTime _lastRefreshTime = DateTime.MinValue;
-    private static string? _failedRefreshToken;
-    private static DateTime _failedRefreshTime = DateTime.MinValue;
-    private static bool _permanentFailureFlag;  // Fast-fail once a token is permanently invalid
+    private string? _lastRefreshedToken;
+    private string? _cachedForRefreshToken;
+    private DateTime _lastRefreshTime = DateTime.MinValue;
+    private string? _failedRefreshToken;
+    private DateTime _failedRefreshTime = DateTime.MinValue;
+    private bool _permanentFailureFlag;  // Fast-fail once a token is permanently invalid for this circuit
 
     public TokenRefreshService(
         IHttpContextAccessor httpContextAccessor,
@@ -88,11 +98,11 @@ internal sealed class TokenRefreshService : ITokenRefreshService, IDisposable
         return !string.IsNullOrEmpty(circuitRefreshToken) ? circuitRefreshToken : claimsRefreshToken;
     }
 
-    private static bool IsTokenRecentlyFailed(string refreshToken) =>
+    private bool IsTokenRecentlyFailed(string refreshToken) =>
         _failedRefreshToken == refreshToken &&
         DateTime.UtcNow - _failedRefreshTime < FailedTokenCacheDuration;
 
-    private static string? TryGetCachedToken(string currentRefreshToken)
+    private string? TryGetCachedToken(string currentRefreshToken)
     {
         if (_lastRefreshedToken is not null &&
             _cachedForRefreshToken == currentRefreshToken &&
@@ -108,7 +118,7 @@ internal sealed class TokenRefreshService : ITokenRefreshService, IDisposable
         string currentRefreshToken,
         CancellationToken cancellationToken)
     {
-        if (!await RefreshLock.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken))
+        if (!await _refreshLock.WaitAsync(TimeSpan.FromSeconds(10), cancellationToken))
         {
             _logger.LogWarning("Token refresh lock acquisition timed out");
             return null;
@@ -127,7 +137,7 @@ internal sealed class TokenRefreshService : ITokenRefreshService, IDisposable
         }
         finally
         {
-            RefreshLock.Release();
+            _refreshLock.Release();
         }
     }
 
@@ -257,11 +267,9 @@ internal sealed class TokenRefreshService : ITokenRefreshService, IDisposable
     {
         _circuitTokenCache.UpdateTokens(response.Token, response.RefreshToken);
 
-#pragma warning disable S2696
         _lastRefreshedToken = response.Token;
         _cachedForRefreshToken = oldRefreshToken;
         _lastRefreshTime = DateTime.UtcNow;
-#pragma warning restore S2696
     }
 
     private static async Task TryUpdateCookieAsync(HttpContext httpContext, List<Claim> newClaims)
@@ -287,20 +295,23 @@ internal sealed class TokenRefreshService : ITokenRefreshService, IDisposable
     {
         _circuitTokenCache.Clear();
 
-#pragma warning disable S2696
         _lastRefreshedToken = null;
         _cachedForRefreshToken = null;
         _lastRefreshTime = DateTime.MinValue;
         _failedRefreshToken = currentRefreshToken;
         _failedRefreshTime = DateTime.UtcNow;
-        _permanentFailureFlag = true;  // Mark session as permanently failed to fast-fail all subsequent attempts
-#pragma warning restore S2696
+        _permanentFailureFlag = true;  // Mark this circuit's session as permanently failed to fast-fail all subsequent attempts
 
-        _logger.LogDebug(ex, "Refresh token is invalid or expired (expected after re-auth), user will be signed out");
+        // Log status code and a non-sensitive SHA-256 fingerprint of the token (first 8 hex chars, no raw value in logs).
+        var tokenFingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(currentRefreshToken)))[..8];
+        _logger.LogWarning(
+            "Token refresh failed for this circuit (HTTP {StatusCode}). Refresh token fingerprint: {TokenFingerprint}. User will be signed out.",
+            ex.StatusCode,
+            tokenFingerprint);
     }
 
     public void Dispose()
     {
-        // Static semaphore should not be disposed by individual instances
+        _refreshLock.Dispose();
     }
 }
