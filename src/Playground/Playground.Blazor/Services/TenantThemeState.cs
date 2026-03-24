@@ -76,22 +76,60 @@ internal sealed class TenantThemeState : ITenantThemeState
 
     public async Task SaveThemeAsync(CancellationToken cancellationToken = default)
     {
-        var dto = MapToDto(_current);
-        var response = await _httpClient.PutAsJsonAsync("/api/v1/tenants/theme", dto, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        _theme = _current.ToMudTheme();
-        OnThemeChanged?.Invoke();
+        try
+        {
+            var dto = MapToDto(_current);
+            var response = await _httpClient.PutAsJsonAsync("/api/v1/tenants/theme", dto, cancellationToken);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                _theme = _current.ToMudTheme();
+                OnThemeChanged?.Invoke();
+            }
+            else
+            {
+                _logger.LogWarning("Failed to save tenant theme: {StatusCode}", response.StatusCode);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error saving tenant theme");
+        }
     }
 
     public async Task ResetThemeAsync(CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.PostAsync(ThemeResetEndpoint, null, cancellationToken);
-        response.EnsureSuccessStatusCode();
-
-        _current = TenantThemeSettings.Default;
-        _theme = _current.ToMudTheme();
-        OnThemeChanged?.Invoke();
+        try
+        {
+            var response = await _httpClient.PostAsync(ThemeResetEndpoint, null, cancellationToken);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                _current = TenantThemeSettings.Default;
+                _theme = _current.ToMudTheme();
+                OnThemeChanged?.Invoke();
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                // Session expired or unauthorized - use default theme silently
+                _current = TenantThemeSettings.Default;
+                _theme = _current.ToMudTheme();
+                OnThemeChanged?.Invoke();
+                _logger.LogDebug("User unauthorized during theme reset, using default theme");
+            }
+            else
+            {
+                _logger.LogWarning("Failed to reset tenant theme: {StatusCode}", response.StatusCode);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resetting tenant theme");
+            // Ensure we fall back to default theme even on error
+            _current = TenantThemeSettings.Default;
+            _theme = _current.ToMudTheme();
+            OnThemeChanged?.Invoke();
+        }
     }
 
     public void UpdateSettings(TenantThemeSettings settings)
