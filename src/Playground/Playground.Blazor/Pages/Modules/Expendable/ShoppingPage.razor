@@ -1,0 +1,311 @@
+@page "/expendable/shopping"
+@using System.Timers
+@using MudBlazor
+@using FSH.Playground.Blazor.ApiClient
+@inject IProductsClient _productsClient
+@inject IEmployeeClient _employeeClient
+@inject ICartClient _cartClient
+@inject NavigationManager _navigationManager
+@inject ISnackbar _snackbar
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
+    <MudGrid>
+        <MudItem xs="12">
+            <div Class="d-flex justify-space-between align-center">
+                <MudText Typo="Typo.h4" Class="mb-6">Product Catalog</MudText>
+                <MudBadge Content="_cartItemCount" Color="Color.Primary" Overlap="true" Class="mb-6">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => _navigationManager.NavigateTo("/expendable/cart"))">
+                        <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" /> Basket
+                    </MudButton>
+                </MudBadge>
+            </div>
+        </MudItem>
+        
+        <!-- Search Box -->
+        <MudItem xs="12">
+            <MudTextField @bind-Value="_searchKeyword"
+                          Placeholder="Search products..."
+                          DebounceInterval="300"
+                          OnDebounceIntervalElapsed="SearchProductsDebounce"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Class="mb-4" />
+        </MudItem>
+
+        <!-- Product Grid -->
+        @if (_products != null && _products.Any())
+        {
+            <MudItem xs="12">
+                <MudGrid Spacing="3">
+                    @foreach (var product in _products)
+                    {
+                        <MudItem xs="12" sm="6" md="4" lg="3">
+                            <MudCard Class="h-100 d-flex flex-column" Style="transition: all 0.3s ease; cursor: pointer;">
+                                <MudCardMedia Image="@(product.ImageUrl ?? "/images/placeholder.png")"
+                                              Height="250" />
+                                <MudCardContent Class="flex-grow-1">
+                                    <MudText Typo="Typo.body2" Class="mb-2">
+                                        <strong>@product.Name</strong>
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Default">
+                                        SKU: @product.Sku
+                                    </MudText>
+                                    <MudDivider Class="my-2" />
+                                    <MudText Typo="Typo.h6" Color="Color.Primary">
+                                        $@product.UnitPrice.ToString("F2")
+                                    </MudText>
+                                </MudCardContent>
+                                <MudCardActions>
+                                    <MudButton Variant="Variant.Text"
+                                               Color="Color.Primary"
+                                               Size="Size.Small"
+                                               OnClick="@(() => OpenProductDetails(product))">
+                                        Details
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Filled"
+                                               Color="Color.Primary"
+                                               Size="Size.Small"
+                                               OnClick="@(() => QuickAddToCart(product))"
+                                               Class="ml-auto">
+                                        Add
+                                    </MudButton>
+                                </MudCardActions>
+                            </MudCard>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudItem>
+        }
+        else if (_isLoading)
+        {
+            <MudItem xs="12">
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+            </MudItem>
+        }
+        else
+        {
+            <MudItem xs="12">
+                <MudAlert Severity="Severity.Info">No products found</MudAlert>
+            </MudItem>
+        }
+    </MudGrid>
+
+    <!-- Product Details Modal -->
+    <MudDialog @bind-IsOpen="_showProductDetailsDialog">
+        <TitleContent>
+            <MudText Typo="Typo.h6">@_selectedProduct?.Name</MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (_selectedProduct != null)
+            {
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudImage Src="@(_selectedProduct.ImageUrl ?? "/images/placeholder.png")"
+                                  Alt="@_selectedProduct.Name"
+                                  Style="width: 100%; border-radius: 8px;" />
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudText Typo="Typo.caption" Color="Color.Default">SKU: @_selectedProduct.Sku</MudText>
+                        <MudText Typo="Typo.h5" Class="my-3">$@_selectedProduct.UnitPrice.ToString("F2")</MudText>
+                        <MudText Typo="Typo.body2" Class="mb-4">@_selectedProduct.Description</MudText>
+                        
+                        <MudStack>
+                            <MudField Label="Unit of Measure">
+                                <MudText>@_selectedProduct.UnitOfMeasure</MudText>
+                            </MudField>
+                            <MudField Label="Status">
+                                <MudChip T="string" Size="Size.Small"
+                                         Color="@(_selectedProduct.Status == "Active" ? Color.Success : Color.Error)">
+                                    @_selectedProduct.Status
+                                </MudChip>
+                            </MudField>
+                        </MudStack>
+                    </MudItem>
+                </MudGrid>
+            }
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="@(() => _showProductDetailsDialog = false)">Close</MudButton>
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       OnClick="@(() => OpenAddToCartDialog(_selectedProduct))">
+                Add to Basket
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+
+    <!-- Add to Cart Dialog -->
+    <MudDialog @bind-IsOpen="_showAddToCartDialog">
+        <TitleContent>
+            <MudText Typo="Typo.h6">Add to Basket</MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (_selectedProductForCart != null)
+            {
+                <MudGrid>
+                    <MudItem xs="12" sm="4">
+                        <MudImage Src="@(_selectedProductForCart.ImageUrl ?? "/images/placeholder.png")"
+                                  Alt="@_selectedProductForCart.Name"
+                                  Style="width: 100%; border-radius: 4px;" />
+                    </MudItem>
+                    <MudItem xs="12" sm="8">
+                        <MudText Typo="Typo.body2"><strong>@_selectedProductForCart.Name</strong></MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Default">Price: $@_selectedProductForCart.UnitPrice.ToString("F2")</MudText>
+                        <MudNumericField @bind-Value="_cartQuantity"
+                                        Label="Quantity"
+                                        Min="1"
+                                        Class="my-3" />
+                        <MudText Typo="Typo.h6">
+                            Subtotal: $@((_selectedProductForCart.UnitPrice * _cartQuantity).ToString("F2"))
+                        </MudText>
+                    </MudItem>
+                </MudGrid>
+            }
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="@(() => _showAddToCartDialog = false)">Cancel</MudButton>
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       OnClick="AddToCart">
+                Add to Basket
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+</MudContainer>
+
+@code {
+    private List<ProductDto>? _products = new();
+    private string _searchKeyword = "";
+    private bool _isLoading = false;
+    private int _cartItemCount = 0;
+
+    private bool _showProductDetailsDialog = false;
+    private ProductDto? _selectedProduct;
+
+    private bool _showAddToCartDialog = false;
+    private ProductDto? _selectedProductForCart;
+    private int _cartQuantity = 1;
+
+    private string _currentEmployeeId = "test-employee"; // TODO: Get from authentication context
+    private Guid? _currentCartId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProducts();
+        await GetOrCreateCart();
+    }
+
+    private async Task LoadProducts()
+    {
+        try
+        {
+            _isLoading = true;
+            var query = new SearchProductsQuery { Keyword = _searchKeyword };
+            var result = await _productsClient.SearchAsync(query);
+            _products = result.Items?.ToList() ?? new List<ProductDto>();
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error loading products: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task GetOrCreateCart()
+    {
+        try
+        {
+            var cart = await _employeeClient.CartAsync(_currentEmployeeId);
+            _currentCartId = cart.Id;
+            _cartItemCount = cart.Items?.Count ?? 0;
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error loading basket: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SearchProducts(ElapsedEventArgs args)
+    {
+        await LoadProducts();
+    }
+
+    private async Task SearchProductsDebounce()
+    {
+        await LoadProducts();
+    }
+
+    private void OpenProductDetails(ProductDto? product)
+    {
+        if (product != null)
+        {
+            _selectedProduct = product;
+            _showProductDetailsDialog = true;
+        }
+    }
+
+    private void OpenAddToCartDialog(ProductDto? product)
+    {
+        if (product != null)
+        {
+            _selectedProductForCart = product;
+            _cartQuantity = 1;
+            _showProductDetailsDialog = false;
+            _showAddToCartDialog = true;
+        }
+    }
+
+    private async Task QuickAddToCart(ProductDto? product)
+    {
+        if (product == null || !_currentCartId.HasValue)
+            return;
+
+        try
+        {
+            var command = new AddToCartCommand
+            {
+                CartId = _currentCartId.Value,
+                ProductId = product.Id,
+                Quantity = 1,
+                UnitPrice = product.UnitPrice
+            };
+
+            await _cartClient.ItemsPostAsync(_currentCartId.Value, command);
+            _snackbar.Add($"Added {product.Name} to basket!", Severity.Success);
+            _cartItemCount++;
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error adding to basket: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task AddToCart()
+    {
+        if (_selectedProductForCart == null || !_currentCartId.HasValue)
+            return;
+
+        try
+        {
+            var command = new AddToCartCommand
+            {
+                CartId = _currentCartId.Value,
+                ProductId = _selectedProductForCart.Id,
+                Quantity = _cartQuantity,
+                UnitPrice = _selectedProductForCart.UnitPrice
+            };
+
+            await _cartClient.ItemsPostAsync(_currentCartId.Value, command);
+            _snackbar.Add("Item added to basket!", Severity.Success);
+            _showAddToCartDialog = false;
+            _cartItemCount++;
+        }
+        catch (Exception ex)
+        {
+            _snackbar.Add($"Error adding to basket: {ex.Message}", Severity.Error);
+        }
+    }
+}

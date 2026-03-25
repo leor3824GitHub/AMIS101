@@ -48,8 +48,22 @@
                                          Placeholder="Search or select unit..." />
                         <MudNumericField @bind-Value="_form.MinimumStockLevel" Label="Minimum Stock Level" Min="0" />
                         <MudNumericField @bind-Value="_form.ReorderQuantity" Label="Reorder Quantity" Min="0" />
-                        <MudTextField @bind-Value="_form.CategoryId" Label="Category ID" Placeholder="(Optional)" />
-                        <MudTextField @bind-Value="_form.SupplierId" Label="Supplier ID" Placeholder="(Optional)" />
+                        <MudAutocomplete T="CategoryDto"
+                                         @bind-Value="_selectedCategory"
+                                         SearchFunc="SearchCategories"
+                                         Label="Category"
+                                         CoerceValue="true"
+                                         Clearable="true"
+                                         ToStringFunc="@(c => c != null ? c.Name : "")"
+                                         Placeholder="Search or select category..." />
+                        <MudAutocomplete T="SupplierDto"
+                                         @bind-Value="_selectedSupplier"
+                                         SearchFunc="SearchSuppliers"
+                                         Label="Supplier"
+                                         CoerceValue="true"
+                                         Clearable="true"
+                                         ToStringFunc="@(s => s != null ? s.Name : "")"
+                                         Placeholder="Search or select supplier..." />
                         
                         <!-- Image Upload Section -->
                         <MudDivider Class="my-3" />
@@ -165,7 +179,11 @@
     private ProductDto? EditingProduct { get; set; }
     private List<ProductDto> _products = new();
     private List<UnitOfMeasureReferenceDto> _unitOfMeasures = new();
+    private List<CategoryDto> _categories = new();
+    private List<SupplierDto> _suppliers = new();
     private UnitOfMeasureReferenceDto? _selectedUnitOfMeasure;
+    private CategoryDto? _selectedCategory;
+    private SupplierDto? _selectedSupplier;
     private bool _initialized = false;
     private bool _isLoading = false;
     private string _searchKeyword = string.Empty;
@@ -191,6 +209,8 @@
         _initialized = true;
 
         await LoadUnitOfMeasures();
+        await LoadCategories();
+        await LoadSuppliers();
         await LoadProducts();
     }
 
@@ -210,6 +230,34 @@
         }
     }
 
+    private async Task LoadCategories()
+    {
+        try
+        {
+            var response = await MasterDataClient.CategoriesListAsync(pageSize: 1000, isActive: true);
+            _categories = response?.Items?.ToList() ?? new();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load categories: {ex.Message}", Severity.Error);
+            _categories = new();
+        }
+    }
+
+    private async Task LoadSuppliers()
+    {
+        try
+        {
+            var response = await MasterDataClient.SuppliersListAsync(pageSize: 1000, isActive: true);
+            _suppliers = response?.Items?.ToList() ?? new();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load suppliers: {ex.Message}", Severity.Error);
+            _suppliers = new();
+        }
+    }
+
     private async Task<IEnumerable<UnitOfMeasureReferenceDto>> SearchUnitOfMeasures(string searchText, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(searchText))
@@ -217,6 +265,30 @@
 
         var search = searchText.ToLower();
         return _unitOfMeasures
+            .Where(x => x.Code.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                       x.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private async Task<IEnumerable<CategoryDto>> SearchCategories(string searchText, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+            return _categories;
+
+        var search = searchText.ToLower();
+        return _categories
+            .Where(x => x.Code.Contains(search, StringComparison.OrdinalIgnoreCase) ||
+                       x.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    private async Task<IEnumerable<SupplierDto>> SearchSuppliers(string searchText, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+            return _suppliers;
+
+        var search = searchText.ToLower();
+        return _suppliers
             .Where(x => x.Code.Contains(search, StringComparison.OrdinalIgnoreCase) ||
                        x.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
             .ToList();
@@ -334,6 +406,17 @@
             _form.UnitOfMeasure = _selectedUnitOfMeasure.Code;
         }
 
+        // Update _form.CategoryId and SupplierId from selected dropdowns
+        if (_selectedCategory != null)
+        {
+            _form.CategoryId = _selectedCategory.Id.ToString();
+        }
+
+        if (_selectedSupplier != null)
+        {
+            _form.SupplierId = _selectedSupplier.Id.ToString();
+        }
+
         if (string.IsNullOrWhiteSpace(_form.Name) || string.IsNullOrWhiteSpace(_form.SKU))
         {
             Snackbar.Add("Name and SKU are required", Severity.Warning);
@@ -404,6 +487,27 @@
     {
         EditingProduct = product;
         _selectedUnitOfMeasure = _unitOfMeasures.FirstOrDefault(x => x.Code == product.UnitOfMeasure);
+        
+        // Set selected category from the list
+        if (!string.IsNullOrEmpty(product.CategoryId) && Guid.TryParse(product.CategoryId, out var categoryId))
+        {
+            _selectedCategory = _categories.FirstOrDefault(x => x.Id == categoryId);
+        }
+        else
+        {
+            _selectedCategory = null;
+        }
+
+        // Set selected supplier from the list
+        if (!string.IsNullOrEmpty(product.SupplierId) && Guid.TryParse(product.SupplierId, out var supplierId))
+        {
+            _selectedSupplier = _suppliers.FirstOrDefault(x => x.Id == supplierId);
+        }
+        else
+        {
+            _selectedSupplier = null;
+        }
+
         _form = new ProductForm
         {
             Name = product.Name,
@@ -413,7 +517,7 @@
             UnitOfMeasure = product.UnitOfMeasure,
             MinimumStockLevel = product.MinimumStockLevel,
             ReorderQuantity = product.ReorderQuantity,
-            CategoryId = null,
+            CategoryId = product.CategoryId,
             SupplierId = product.SupplierId,
             ImageUrl = product.ImageUrl,
             ImagePreview = product.ImageUrl
@@ -424,6 +528,8 @@
     {
         _form = new();
         _selectedUnitOfMeasure = null;
+        _selectedCategory = null;
+        _selectedSupplier = null;
         EditingProduct = null;
         ShowCreateModal = false;
     }
