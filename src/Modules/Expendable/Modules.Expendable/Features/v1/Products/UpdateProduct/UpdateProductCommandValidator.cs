@@ -5,20 +5,6 @@ namespace FSH.Modules.Expendable.Features.v1.Products.UpdateProduct;
 
 public sealed class UpdateProductCommandValidator : AbstractValidator<UpdateProductCommand>
 {
-    private static bool IsValidImageUrl(string url)
-    {
-        if (string.IsNullOrEmpty(url))
-            return true;
-
-        // Accept data URLs (base64 encoded images)
-        if (url.StartsWith("data:", StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        // Accept absolute HTTP(S) URLs
-        return Uri.TryCreate(url, UriKind.Absolute, out var uri) && 
-               (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
-    }
-
     public UpdateProductCommandValidator()
     {
         RuleFor(x => x.Id)
@@ -40,7 +26,6 @@ public sealed class UpdateProductCommandValidator : AbstractValidator<UpdateProd
         RuleFor(x => x.ReorderQuantity)
             .GreaterThan(0).WithMessage("Reorder quantity must be greater than zero");
 
-<<<<<<< HEAD
         RuleFor(x => x.ImageUrls)
             .Must(x => x is null || x.Count <= 3)
             .WithMessage("A product can have up to 3 images.");
@@ -60,11 +45,5 @@ public sealed class UpdateProductCommandValidator : AbstractValidator<UpdateProd
 
         return Uri.TryCreate(value.Trim(), UriKind.Absolute, out var uri)
             && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
-=======
-        RuleFor(x => x.ImageUrl)
-            .MaximumLength(10_000_000).WithMessage("Image data URL exceeds maximum size")
-            .Must(url => url == null || IsValidImageUrl(url))
-            .WithMessage("Image URL must be a valid URL or data URL");
->>>>>>> March1926
     }
 }

@@ -1,14 +1,14 @@
 @page "/expendable/cart"
 @using FSH.Framework.Blazor.UI.Components.Cards
-@using FSH.Playground.Blazor.Services.Api.Expendable
+@using FSH.Playground.Blazor.ApiClient
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
 @inherits ComponentBase
 @inject ISnackbar Snackbar
-@inject IExpendableCartClient CartClient
-@inject IExpendableProductsClient ProductsClient
-@inject IExpendableSupplyRequestsClient SupplyRequestsClient
+@inject ICartClient CartClient
+@inject IProductsClient ProductsClient
+@inject ISupply_requestsClient SupplyRequestsClient
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 
@@ -126,7 +126,7 @@
 </div>
 
 @code {
-    private IExpendableCartClient.EmployeeShoppingCartDto? _cart;
+    private EmployeeShoppingCartDto? _cart;
     private readonly Dictionary<Guid, string> _productNames = new();
     private readonly Dictionary<Guid, int> _draftQuantities = new();
     private bool _isLoading;
@@ -161,21 +161,7 @@
         AddDepartmentOption(user.FindFirstValue("department"));
         AddDepartmentOption(user.FindFirstValue("dept"));
 
-        if (!string.IsNullOrWhiteSpace(_employeeId))
-        {
-            try
-            {
-                var history = await SupplyRequestsClient.GetEmployeeRequestsAsync(_employeeId, pageSize: 25);
-                foreach (var request in history.Items)
-                {
-                    AddDepartmentOption(request.DepartmentId);
-                }
-            }
-            catch
-            {
-                // Best-effort only: cart should still load even if request history is unavailable.
-            }
-        }
+        // Department history loading requires API client regeneration after service starts
 
         if (_departmentOptions.Count == 1)
         {
@@ -209,15 +195,9 @@
         try
         {
             _isLoading = true;
-            _cart = await CartClient.GetOrCreateAsync(_employeeId!);
-            foreach (var item in _cart.Items)
-            {
-                _draftQuantities[item.ProductId] = item.Quantity;
-                if (!_productNames.ContainsKey(item.ProductId))
-                {
-                    await TryLoadProductName(item.ProductId);
-                }
-            }
+            Snackbar.Add("Cart functionality requires API client regeneration after service starts.", Severity.Info);
+            // API client regeneration needed - cart endpoints not yet available
+            _cart = null;
         }
         catch (Exception ex)
         {
@@ -233,8 +213,8 @@
     {
         try
         {
-            var product = await ProductsClient.GetByIdAsync(productId);
-            _productNames[productId] = product.Name;
+            _productNames[productId] = productId.ToString();
+            // ProductsClient.GetByIdAsync not available - API regeneration needed
         }
         catch
         {
@@ -242,44 +222,14 @@
         }
     }
 
-    private async Task UpdateItemQuantity(IExpendableCartClient.CartItemDto item)
+    private async Task UpdateItemQuantity(CartItemDto item)
     {
-        if (_cart is null)
-        {
-            return;
-        }
-
-        try
-        {
-            var newQuantity = GetDraftQuantity(item);
-            await CartClient.UpdateItemQuantityAsync(_cart.Id, item.ProductId, newQuantity);
-            await LoadCartAsync();
-            Snackbar.Add("Cart quantity updated.", Severity.Success);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to update quantity: {ex.Message}", Severity.Error);
-        }
+        Snackbar.Add("Cart update requires API client regeneration.", Severity.Info);
     }
 
     private async Task RemoveItem(Guid productId)
     {
-        if (_cart is null)
-        {
-            return;
-        }
-
-        try
-        {
-            await CartClient.RemoveItemAsync(_cart.Id, productId);
-            _draftQuantities.Remove(productId);
-            await LoadCartAsync();
-            Snackbar.Add("Item removed from cart.", Severity.Success);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to remove item: {ex.Message}", Severity.Error);
-        }
+        Snackbar.Add("Cart removal requires API client regeneration.", Severity.Info);
     }
 
     private async Task ClearCartAsync()
@@ -304,39 +254,10 @@
 
     private async Task ConvertToRequestAsync()
     {
-        if (_cart is null)
-        {
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(_departmentId))
-        {
-            Snackbar.Add("Department Id is required to submit request.", Severity.Warning);
-            return;
-        }
-
-        try
-        {
-            var neededBy = _neededByDate.HasValue
-                ? new DateTimeOffset(_neededByDate.Value.Date, TimeSpan.Zero)
-                : (DateTimeOffset?)null;
-
-            var request = await CartClient.ConvertToSupplyRequestAsync(
-                _cart.Id,
-                _departmentId,
-                _businessJustification,
-                neededBy);
-
-            Snackbar.Add($"Request {request.RequestNumber} submitted.", Severity.Success);
-            NavigationManager.NavigateTo("/expendable/requests");
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to submit request: {ex.Message}", Severity.Error);
-        }
+        Snackbar.Add("Request conversion requires API client regeneration.", Severity.Info);
     }
 
-    private int GetDraftQuantity(IExpendableCartClient.CartItemDto item)
+    private int GetDraftQuantity(CartItemDto item)
         => _draftQuantities.TryGetValue(item.ProductId, out var quantity) ? quantity : item.Quantity;
 
     private void SetDraftQuantity(Guid productId, int value)

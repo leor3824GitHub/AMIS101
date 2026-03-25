@@ -1,24 +1,16 @@
 @page "/expendable/products"
 @using FSH.Framework.Blazor.UI.Components.Cards
-<<<<<<< HEAD
+@using FSH.Playground.Blazor.ApiClient
+@using System.IO
+@using System.Linq
 @using FSH.Framework.Shared.Constants
 @using FSH.Modules.Expendable.Contracts
-@using FSH.Playground.Blazor.Services.Api.Expendable
-@using FSH.Playground.Blazor.ApiClient
 @using Microsoft.AspNetCore.Components.Authorization
 @inherits ComponentBase
 @inject ISnackbar Snackbar
-@inject IExpendableProductsClient ProductsClient
-@inject AuthenticationStateProvider AuthenticationStateProvider
-=======
-@using FSH.Playground.Blazor.ApiClient
-@using System.IO
-@inherits ComponentBase
-@inject ISnackbar Snackbar
 @inject IExpendableClient ExpendableClient
-@inject IMaster_dataClient MasterDataClient
 @inject ILookupClient LookupClient
->>>>>>> March1926
+@inject AuthenticationStateProvider AuthenticationStateProvider
 
 <FshPageHeader Title="Products" Description="Manage product catalog">
     <ActionContent>
@@ -40,164 +32,110 @@
     }
     else
     {
-    <MudGrid Spacing="2">
-        <!-- Create/Edit Form -->
-        <MudItem xs="12" md="4">
-            <MudCard Class="fsh-card">
-                <MudCardContent>
-                    <MudText Typo="Typo.h6" Class="mb-3">@(EditingProduct != null ? "Edit Product" : "Create Product")
-                    </MudText>
-                    <MudStack Spacing="3">
-                        <MudTextField @bind-Value="_form.Name" Label="Product Name" Placeholder="Enter product name"
-                                      Required="true" />
-                        <MudTextField @bind-Value="_form.SKU" Label="SKU" Placeholder="Enter SKU code"
-                                      Required="true" />
-                        <MudTextField @bind-Value="_form.Description" Label="Description"
-                                      Placeholder="Product description" Lines="2" />
-                        <MudNumericField @bind-Value="_form.UnitPrice" Label="Unit Price" Min="0" Step="0.01m" />
-                        <MudAutocomplete T="UnitOfMeasureReferenceDto"
-                                         @bind-Value="_selectedUnitOfMeasure"
-                                         SearchFunc="SearchUnitOfMeasures"
-                                         Label="Unit of Measure"
-                                         CoerceValue="true"
-                                         Clearable="true"
-                                         ToStringFunc="@(um => um != null ? um.Code : "")"
+        <MudGrid Spacing="2">
+            <!-- Create/Edit Form -->
+            <MudItem xs="12" md="4">
+                <MudCard Class="fsh-card">
+                    <MudCardContent>
+                        <MudText Typo="Typo.h6" Class="mb-3">@(EditingProduct != null ? "Edit Product" : "Create Product")</MudText>
+                        <MudStack Spacing="3">
+                            <MudTextField @bind-Value="_form.Name" Label="Product Name" Placeholder="Enter product name" Required="true" />
+                            <MudTextField @bind-Value="_form.SKU" Label="SKU" Placeholder="Enter SKU code" Required="true" />
+                            <MudTextField @bind-Value="_form.Description" Label="Description" Placeholder="Product description" Lines="2" />
+                            <MudNumericField @bind-Value="_form.UnitPrice" Label="Unit Price" Min="0" Step="0.01m" />
+                            <MudAutocomplete T="UnitOfMeasureReferenceDto" @bind-Value="_selectedUnitOfMeasure" SearchFunc="SearchUnitOfMeasures" Label="Unit of Measure" CoerceValue="true" Clearable="true" ToStringFunc="@(um => um != null ? um.Code : "")" Placeholder="Search or select unit..." />
+                            <MudNumericField @bind-Value="_form.MinimumStockLevel" Label="Minimum Stock Level" Min="0" />
+                            <MudNumericField @bind-Value="_form.ReorderQuantity" Label="Reorder Quantity" Min="0" />
+                            <MudTextField @bind-Value="_form.CategoryId" Label="Category ID" Placeholder="(Optional)" />
+                            <MudTextField @bind-Value="_form.SupplierId" Label="Supplier ID" Placeholder="(Optional)" />
 
-                                         Placeholder="Search or select unit..." />
-                        <MudNumericField @bind-Value="_form.MinimumStockLevel" Label="Minimum Stock Level" Min="0" />
-                        <MudNumericField @bind-Value="_form.ReorderQuantity" Label="Reorder Quantity" Min="0" />
-                        <MudTextField @bind-Value="_form.CategoryId" Label="Category ID" Placeholder="(Optional)" />
-                        <MudTextField @bind-Value="_form.SupplierId" Label="Supplier ID" Placeholder="(Optional)" />
-<<<<<<< HEAD
-                        <MudDivider Class="my-1" />
-                        <MudText Typo="Typo.subtitle2">Product Images (up to 3)</MudText>
-                        <MudTextField @bind-Value="_form.ImageUrl1" Label="Image URL 1" Placeholder="https://..." />
-                        <MudTextField @bind-Value="_form.ImageUrl2" Label="Image URL 2" Placeholder="https://..." />
-                        <MudTextField @bind-Value="_form.ImageUrl3" Label="Image URL 3" Placeholder="https://..." />
-=======
-                        
-                        <!-- Image Upload Section -->
-                        <MudDivider Class="my-3" />
-                        <MudText Typo="Typo.subtitle2" Color="Color.Primary">Product Image</MudText>
-                        
-                        @if (!string.IsNullOrEmpty(_form.ImagePreview))
-                        {
-                            <div class="mb-3">
-                                <MudImage Src="@_form.ImagePreview" Alt="Product preview" 
-                                         ObjectFit="ObjectFit.Cover" Width="150" Height="150" Class="rounded" />
-                                <MudButton Size="Size.Small" Color="Color.Error" OnClick="ClearImagePreview" Class="mt-2">
-                                    Clear Image
-                                </MudButton>
-                            </div>
-                        }
-                        
-                        <MudFileUpload T="IBrowserFile" OnFilesChanged="HandleImageUpload" 
-                                      Accept=".jpg,.jpeg,.png,.gif,.webp" MaxFileSize="5242880" 
-                                      Hidden="false" Class="mb-3">
-                            <MudButton HtmlTag="label" Variant="Variant.Outlined" Color="Color.Primary" 
-                                      StartIcon="@Icons.Material.Filled.CloudUpload">
-                                Choose Image (Max 5MB)
-                            </MudButton>
-                        </MudFileUpload>
-                        
-                        <MudTextField @bind-Value="_form.ImageUrl" Label="Or Paste Image URL" 
-                                      Placeholder="https://example.com/image.jpg"
-                                      Helpertext="Or provide an absolute URL instead" />
->>>>>>> March1926
+                            <!-- Image Upload Section -->
+                            <MudDivider Class="my-3" />
+                            <MudText Typo="Typo.subtitle2" Color="Color.Primary">Product Image</MudText>
 
-                        <MudStack Row="true" Spacing="2" Class="mt-4">
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
-                                       OnClick="SaveProduct" Disabled="_isLoading">
-                                @(EditingProduct != null ? "Update" : "Create")
-                            </MudButton>
-                            <MudButton Variant="Variant.Outlined" Color="Color.Default" FullWidth="true"
-                                       OnClick="ResetForm">
-                                Clear
-                            </MudButton>
+                            @if (!string.IsNullOrEmpty(_form.ImagePreview))
+                            {
+                                <div class="mb-3">
+                                    <MudImage Src="@_form.ImagePreview" Alt="Product preview" ObjectFit="ObjectFit.Cover" Width="150" Height="150" Class="rounded" />
+                                    <MudButton Size="Size.Small" Color="Color.Error" OnClick="ClearImagePreview" Class="mt-2">Clear Image</MudButton>
+                                </div>
+                            }
+
+                            <MudFileUpload T="IBrowserFile" OnFilesChanged="HandleImageUpload" Accept=".jpg,.jpeg,.png,.gif,.webp" MaxFileSize="5242880" Hidden="false" Class="mb-3">
+                                <MudButton HtmlTag="label" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Filled.CloudUpload">Choose Image (Max 5MB)</MudButton>
+                            </MudFileUpload>
+
+                            <MudTextField @bind-Value="_form.ImageUrl" Label="Or Paste Image URL" Placeholder="https://example.com/image.jpg" Helpertext="Or provide an absolute URL instead" />
+
+                            <MudStack Row="true" Spacing="2" Class="mt-4">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="SaveProduct" Disabled="_isLoading">@(EditingProduct != null ? "Update" : "Create")</MudButton>
+                                <MudButton Variant="Variant.Outlined" Color="Color.Default" FullWidth="true" OnClick="ResetForm">Clear</MudButton>
+                            </MudStack>
                         </MudStack>
-                    </MudStack>
-                </MudCardContent>
-            </MudCard>
-        </MudItem>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
 
-        <!-- Products List -->
-        <MudItem xs="12" md="8">
-            <MudCard Class="fsh-card">
-                <MudCardContent>
-                    <MudText Typo="Typo.h6" Class="mb-3">Products List</MudText>
+            <!-- Products List -->
+            <MudItem xs="12" md="8">
+                <MudCard Class="fsh-card">
+                    <MudCardContent>
+                        <MudText Typo="Typo.h6" Class="mb-3">Products List</MudText>
 
-                    @if (_products.Any())
-                    {
-                        <MudSimpleTable Dense="true" Hover="true" Striped="true">
-                            <thead>
-                                <tr>
-                                    <th>Image</th>
-                                    <th>Name</th>
-                                    <th>SKU</th>
-                                    <th>Image</th>
-                                    <th>Price</th>
-                                     <th>UoM</th>
-                                    <th>Min Stock</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var product in _products)
-                                {
+                        @if (_products.Any())
+                        {
+                            <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                                <thead>
                                     <tr>
-                                        <td>
-                                            @if (!string.IsNullOrEmpty(product.ImageUrl))
-                                            {
-                                                <MudImage Src="@product.ImageUrl" Alt="@product.Name" 
-                                                         ObjectFit="ObjectFit.Cover" Width="48" Height="48" Class="rounded" />
-                                            }
-                                            else
-                                            {
-                                                <MudAvatar>@product.Name.FirstOrDefault()</MudAvatar>
-                                            }
-                                        </td>
-                                        <td>@product.Name</td>
-<<<<<<< HEAD
-                                        <td>@product.SKU</td>
-                                        <td>
-                                            @if (!string.IsNullOrWhiteSpace(GetPrimaryImage(product)))
-                                            {
-                                                <MudAvatar Image="@GetPrimaryImage(product)" Size="Size.Medium" Rounded="true" />
-                                            }
-                                            else
-                                            {
-                                                <MudAvatar Icon="@Icons.Material.Filled.ImageNotSupported" Size="Size.Medium" />
-                                            }
-                                        </td>
-=======
-                                        <td>@product.Sku</td>
->>>>>>> March1926
-                                        <td>@product.UnitPrice.ToString("C")</td>
-                                        <td>@product.UnitOfMeasure</td>
-                                        <td>@product.MinimumStockLevel</td>
-                                        <td><MudChip T="string" Size="Size.Small">@product.Status</MudChip></td>
-                                        <td>
-                                            <MudStack Row="true" Spacing="1">
-                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
-                                                               Color="Color.Primary" OnClick="@(() => EditProduct(product))" />
-                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
-                                                               Color="Color.Error" OnClick="@(() => DeleteProduct(product.Id))" />
-                                            </MudStack>
-                                        </td>
+                                        <th>Image</th>
+                                        <th>Name</th>
+                                        <th>SKU</th>
+                                        <th>Price</th>
+                                        <th>UoM</th>
+                                        <th>Min Stock</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
                                     </tr>
-                                }
-                            </tbody>
-                        </MudSimpleTable>
-                    }
-                    else
-                    {
-                        <MudAlert Severity="Severity.Info">No products yet. Create one to get started.</MudAlert>
-                    }
-                </MudCardContent>
-            </MudCard>
-        </MudItem>
-    </MudGrid>
+                                </thead>
+                                <tbody>
+                                    @foreach (var product in _products)
+                                    {
+                                        <tr>
+                                            <td>
+                                                @if (!string.IsNullOrEmpty(product.ImageUrl))
+                                                {
+                                                    <MudImage Src="@product.ImageUrl" Alt="@product.Name" ObjectFit="ObjectFit.Cover" Width="48" Height="48" Class="rounded" />
+                                                }
+                                                else
+                                                {
+                                                    <MudAvatar>@product.Name.FirstOrDefault()</MudAvatar>
+                                                }
+                                            </td>
+                                            <td>@product.Name</td>
+                                            <td>@product.Sku</td>
+                                            <td>@product.UnitPrice.ToString("C")</td>
+                                            <td>@product.UnitOfMeasure</td>
+                                            <td>@product.MinimumStockLevel</td>
+                                            <td><MudChip T="string" Size="Size.Small">@product.Status</MudChip></td>
+                                            <td>
+                                                <MudStack Row="true" Spacing="1">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => EditProduct(product))" />
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => DeleteProduct(product.Id))" />
+                                                </MudStack>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </MudSimpleTable>
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Info">No products yet. Create one to get started.</MudAlert>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
     }
 </div>
 
@@ -224,24 +162,8 @@
         public int ReorderQuantity { get; set; } = 10;
         public string? CategoryId { get; set; }
         public string? SupplierId { get; set; }
-<<<<<<< HEAD
-        public string? ImageUrl1 { get; set; }
-        public string? ImageUrl2 { get; set; }
-        public string? ImageUrl3 { get; set; }
-
-        public List<string> GetImageUrls()
-        {
-            return new[] { ImageUrl1, ImageUrl2, ImageUrl3 }
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Select(x => x!.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .Take(3)
-                .ToList();
-        }
-=======
         public string? ImageUrl { get; set; }
         public string? ImagePreview { get; set; }
->>>>>>> March1926
     }
 
     protected override async Task OnInitializedAsync()
@@ -249,36 +171,33 @@
         if (_initialized) return;
         _initialized = true;
 
-<<<<<<< HEAD
-        _canAccessProducts = await CanAccessProductsAsync();
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated != true)
+        {
+            _canAccessProducts = false;
+        }
+        else
+        {
+            var roles = user.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value);
+            var isAdmin = roles.Any(r => string.Equals(r, RoleConstants.Admin, StringComparison.OrdinalIgnoreCase));
+            var permissions = user.FindAll(CustomClaims.Permission)
+                .Select(c => c.Value)
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            _canAccessProducts = isAdmin
+                || permissions.Contains(ExpendablePermissionConstants.Products.View)
+                || permissions.Contains(ExpendablePermissionConstants.Products.Create)
+                || permissions.Contains(ExpendablePermissionConstants.Products.Update)
+                || permissions.Contains(ExpendablePermissionConstants.Products.Delete);
+        }
+
         if (!_canAccessProducts)
         {
             return;
         }
 
-        await LoadProducts();
-    }
-
-    private async Task<bool> CanAccessProductsAsync()
-    {
-        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        if (user.Identity?.IsAuthenticated != true)
-        {
-            return false;
-        }
-
-        var roles = user.FindAll(System.Security.Claims.ClaimTypes.Role).Select(c => c.Value);
-        if (roles.Any(r => string.Equals(r, RoleConstants.Admin, StringComparison.OrdinalIgnoreCase)))
-        {
-            return true;
-        }
-
-        var permissions = user.FindAll(CustomClaims.Permission).Select(c => c.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return permissions.Contains(ExpendablePermissionConstants.Products.Create)
-            || permissions.Contains(ExpendablePermissionConstants.Products.Update)
-            || permissions.Contains(ExpendablePermissionConstants.Products.Delete);
-=======
         await LoadUnitOfMeasures();
         await LoadProducts();
     }
@@ -287,9 +206,7 @@
     {
         try
         {
-            var response = await LookupClient.UnitOfMeasuresAsync(
-                pageSize: 1000,
-                isActive: true);
+            var response = await LookupClient.UnitOfMeasuresAsync(pageSize: 1000, isActive: true);
             _unitOfMeasures = response?.Items?.ToList() ?? new();
         }
         catch (Exception ex)
@@ -305,11 +222,7 @@
             return _unitOfMeasures;
 
         var search = searchText.ToLower();
-        return _unitOfMeasures
-            .Where(x => x.Code.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-                       x.Name.Contains(search, StringComparison.OrdinalIgnoreCase))
-            .ToList();
->>>>>>> March1926
+        return _unitOfMeasures.Where(x => x.Code.Contains(search, StringComparison.OrdinalIgnoreCase) || x.Name.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
     }
 
     private async Task LoadProducts()
@@ -326,7 +239,6 @@
             ex.Message.Contains("401 (Unauthorized)", StringComparison.OrdinalIgnoreCase) ||
             (ex.InnerException?.Message?.Contains("401", StringComparison.OrdinalIgnoreCase) ?? false))
         {
-            // On page refresh after login, claims might not be hydrated yet - retry with backoff
             Snackbar.Add("Authenticating...", Severity.Info);
             await Task.Delay(500);
             await LoadProductsInternal(retryCount: 1);
@@ -352,13 +264,8 @@
             _products = response?.Items?.ToList() ?? new();
             StateHasChanged();
         }
-        catch (HttpRequestException ex) when (
-            (ex.Message.Contains("StatusCode=401", StringComparison.OrdinalIgnoreCase) ||
-             ex.Message.Contains("401 (Unauthorized)", StringComparison.OrdinalIgnoreCase) ||
-             (ex.InnerException?.Message?.Contains("401", StringComparison.OrdinalIgnoreCase) ?? false)) &&
-            retryCount < maxRetries)
+        catch (HttpRequestException ex) when ((ex.Message.Contains("StatusCode=401", StringComparison.OrdinalIgnoreCase) || ex.Message.Contains("401 (Unauthorized)", StringComparison.OrdinalIgnoreCase) || (ex.InnerException?.Message?.Contains("401", StringComparison.OrdinalIgnoreCase) ?? false)) && retryCount < maxRetries)
         {
-            // Retry on 401 with exponential backoff
             await Task.Delay(300 * (retryCount + 1));
             await LoadProductsInternal(retryCount + 1, maxRetries);
         }
@@ -380,8 +287,7 @@
             _isLoading = true;
             var response = await ExpendableClient.ProductsGetAsync(keyword: _searchKeyword, pageSize: 100);
             var allProducts = response?.Items?.ToList() ?? new();
-            
-            // Client-side partial text filtering for better matching
+
             if (string.IsNullOrWhiteSpace(_searchKeyword))
             {
                 _products = allProducts;
@@ -389,15 +295,9 @@
             else
             {
                 var searchTerm = _searchKeyword.ToLower();
-                _products = allProducts
-                    .Where(p => 
-                        p.Name.ToLower().Contains(searchTerm) ||
-                        p.Sku.ToLower().Contains(searchTerm) ||
-                        p.Description.ToLower().Contains(searchTerm) ||
-                        p.UnitOfMeasure.ToLower().Contains(searchTerm))
-                    .ToList();
+                _products = allProducts.Where(p => p.Name.ToLower().Contains(searchTerm) || p.Sku.ToLower().Contains(searchTerm) || p.Description.ToLower().Contains(searchTerm) || p.UnitOfMeasure.ToLower().Contains(searchTerm)).ToList();
             }
-            
+
             if (_products.Count == 0 && !string.IsNullOrWhiteSpace(_searchKeyword))
             {
                 Snackbar.Add("No products found matching your search", Severity.Info);
@@ -418,11 +318,8 @@
 
     private async Task SaveProduct()
     {
-        // Update _form.UnitOfMeasure from selected dropdown if available
         if (_selectedUnitOfMeasure != null)
-        {
             _form.UnitOfMeasure = _selectedUnitOfMeasure.Code;
-        }
 
         if (string.IsNullOrWhiteSpace(_form.Name) || string.IsNullOrWhiteSpace(_form.SKU))
         {
@@ -442,20 +339,6 @@
             return;
         }
 
-        var imageUrls = _form.GetImageUrls();
-        if (imageUrls.Count > 3)
-        {
-            Snackbar.Add("A product can have up to 3 images", Severity.Warning);
-            return;
-        }
-
-        if (imageUrls.Any(x => !Uri.TryCreate(x, UriKind.Absolute, out var uri)
-            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)))
-        {
-            Snackbar.Add("Each image must be a valid absolute http/https URL", Severity.Warning);
-            return;
-        }
-
         try
         {
             if (EditingProduct != null)
@@ -472,11 +355,7 @@
                     ImageUrl = _form.ImageUrl
                 };
 
-<<<<<<< HEAD
-                await ProductsClient.UpdateAsync(EditingProduct.Id, updateCmd, imageUrls);
-=======
                 await ExpendableClient.ProductsPutAsync(EditingProduct.Id, updateCmd);
->>>>>>> March1926
                 Snackbar.Add("Product updated successfully", Severity.Success);
             }
             else
@@ -495,11 +374,7 @@
                     ImageUrl = _form.ImageUrl
                 };
 
-<<<<<<< HEAD
-                await ProductsClient.CreateAsync(createCmd, imageUrls);
-=======
                 await ExpendableClient.ProductsPostAsync(createCmd);
->>>>>>> March1926
                 Snackbar.Add("Product created successfully", Severity.Success);
             }
 
@@ -527,14 +402,8 @@
             ReorderQuantity = product.ReorderQuantity,
             CategoryId = null,
             SupplierId = product.SupplierId,
-<<<<<<< HEAD
-            ImageUrl1 = product.ImageUrls.ElementAtOrDefault(0),
-            ImageUrl2 = product.ImageUrls.ElementAtOrDefault(1),
-            ImageUrl3 = product.ImageUrls.ElementAtOrDefault(2)
-=======
             ImageUrl = product.ImageUrl,
             ImagePreview = product.ImageUrl
->>>>>>> March1926
         };
     }
 
@@ -560,25 +429,18 @@
         }
     }
 
-<<<<<<< HEAD
-    private static string? GetPrimaryImage(IExpendableProductsClient.ProductDto product)
-        => product.ImageUrls.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
-=======
     private async Task HandleImageUpload(InputFileChangeEventArgs e)
     {
         try
         {
-            if (e.File == null)
-                return;
+            if (e.File == null) return;
 
-            // Validate file size (5MB max)
             if (e.File.Size > 5242880)
             {
                 Snackbar.Add("Image file must be smaller than 5MB", Severity.Warning);
                 return;
             }
 
-            // Validate file type
             var validTypes = new[] { "image/jpeg", "image/png", "image/gif", "image/webp" };
             if (!validTypes.Contains(e.File.ContentType))
             {
@@ -586,7 +448,6 @@
                 return;
             }
 
-            // Read file and convert to base64 data URL
             using var stream = e.File.OpenReadStream(e.File.Size);
             using var memoryStream = new MemoryStream();
             await stream.CopyToAsync(memoryStream);
@@ -595,7 +456,6 @@
             var base64 = Convert.ToBase64String(bytes);
             var dataUrl = $"data:{e.File.ContentType};base64,{base64}";
 
-            // Store both the data URL for preview and use as ImageUrl
             _form.ImagePreview = dataUrl;
             _form.ImageUrl = dataUrl;
 
@@ -614,5 +474,4 @@
         _form.ImageUrl = null;
         StateHasChanged();
     }
->>>>>>> March1926
 }

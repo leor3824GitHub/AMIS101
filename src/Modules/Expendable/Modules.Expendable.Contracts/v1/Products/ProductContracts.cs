@@ -15,11 +15,7 @@ public record ProductDto(
     string Status,
     string? CategoryId,
     string? SupplierId,
-<<<<<<< HEAD
     List<string> ImageUrls,
-=======
-    string? ImageUrl,
->>>>>>> March1926
     DateTimeOffset CreatedOnUtc,
     string? CreatedBy,
     DateTimeOffset? LastModifiedOnUtc,
@@ -35,11 +31,7 @@ public record CreateProductCommand(
     int ReorderQuantity,
     string? CategoryId = null,
     string? SupplierId = null,
-<<<<<<< HEAD
     List<string>? ImageUrls = null) : ICommand<ProductDto>;
-=======
-    string? ImageUrl = null) : ICommand<ProductDto>;
->>>>>>> March1926
 
 public record UpdateProductCommand(
     Guid Id,
@@ -50,11 +42,7 @@ public record UpdateProductCommand(
     int ReorderQuantity,
     string? CategoryId = null,
     string? SupplierId = null,
-<<<<<<< HEAD
     List<string>? ImageUrls = null) : ICommand<ProductDto>;
-=======
-    string? ImageUrl = null) : ICommand<ProductDto>;
->>>>>>> March1926
 
 public record ActivateProductCommand(Guid Id) : ICommand<Unit>;
 
@@ -83,4 +71,5 @@ public sealed class ListActiveProductsQuery : IPagedQuery, IQuery<PagedResponse<
     public int? PageSize { get; set; }
     public string? Sort { get; set; }
 }
+
 

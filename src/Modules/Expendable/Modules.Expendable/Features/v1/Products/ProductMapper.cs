@@ -1,5 +1,6 @@
 using FSH.Modules.Expendable.Contracts.v1.Products;
 using FSH.Modules.Expendable.Domain.Products;
+using System.Linq;
 
 namespace FSH.Modules.Expendable.Features.v1.Products;
 
@@ -18,11 +19,7 @@ internal static class ProductMapper
             product.Status.ToString(),
             product.CategoryId,
             product.SupplierId,
-<<<<<<< HEAD
-            product.Images.Select(i => i.Url).ToList(),
-=======
-            product.ImageUrl,
->>>>>>> March1926
+            product.Images?.Select(i => i.Url).ToList() ?? new List<string>(),
             product.CreatedOnUtc,
             product.CreatedBy,
             product.LastModifiedOnUtc,

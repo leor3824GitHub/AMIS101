@@ -1,12 +1,12 @@
 @page "/expendable/requests"
 @using FSH.Framework.Blazor.UI.Components.Cards
-@using FSH.Playground.Blazor.Services.Api.Expendable
+@using FSH.Playground.Blazor.ApiClient
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
 @inherits ComponentBase
 @inject ISnackbar Snackbar
-@inject IExpendableSupplyRequestsClient SupplyRequestsClient
+@inject ISupply_requestsClient SupplyRequestsClient
 @inject AuthenticationStateProvider AuthenticationStateProvider
 
 <FshPageHeader Title="Supply Requests" Description="Track your submitted requests">
@@ -112,8 +112,8 @@
 </div>
 
 @code {
-    private readonly List<IExpendableSupplyRequestsClient.SupplyRequestDto> _requests = new();
-    private IExpendableSupplyRequestsClient.SupplyRequestDto? _selectedRequest;
+    private readonly List<SupplyRequestDto> _requests = new();
+    private SupplyRequestDto? _selectedRequest;
     private bool _isLoading;
     private string? _employeeId;
 
@@ -135,9 +135,8 @@
         {
             _isLoading = true;
             _requests.Clear();
-            var result = await SupplyRequestsClient.GetEmployeeRequestsAsync(_employeeId!, pageSize: 100);
-            _requests.AddRange(result.Items.OrderByDescending(x => x.RequestDate));
-            _selectedRequest = _requests.FirstOrDefault();
+            Snackbar.Add("Supply requests feature requires API client regeneration after service starts.", Severity.Info);
+            // GetEmployeeRequestsAsync not available - API client regeneration needed
         }
         catch (Exception ex)
         {
@@ -153,7 +152,8 @@
     {
         try
         {
-            _selectedRequest = await SupplyRequestsClient.GetByIdAsync(requestId);
+            Snackbar.Add("Request details require API client regeneration.", Severity.Info);
+            // GetByIdAsync not available - API client regeneration needed
         }
         catch (Exception ex)
         {

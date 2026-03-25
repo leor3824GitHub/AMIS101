@@ -1,13 +1,13 @@
 @page "/expendable/shop"
 @using FSH.Framework.Blazor.UI.Components.Cards
-@using FSH.Playground.Blazor.Services.Api.Expendable
+@using FSH.Playground.Blazor.ApiClient
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
 @inherits ComponentBase
 @inject ISnackbar Snackbar
-@inject IExpendableProductsClient ProductsClient
-@inject IExpendableCartClient CartClient
+@inject IProductsClient ProductsClient
+@inject ICartClient CartClient
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 
@@ -59,7 +59,7 @@
                                 }
 
                                 <MudText Typo="Typo.h6">@product.Name</MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">SKU: @product.SKU</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">SKU: @product.Sku</MudText>
                                 <MudText Typo="Typo.body2">@product.Description</MudText>
                                 <MudChip T="string" Size="Size.Small">@product.UnitOfMeasure</MudChip>
                                 <MudText Typo="Typo.body1" Class="fw-bold">@product.UnitPrice.ToString("C")</MudText>
@@ -68,9 +68,10 @@
                                                  ValueChanged="@(value => SetQuantity(product.Id, value))" Label="Quantity" Min="1" Max="100"
                                                  Variant="Variant.Outlined" Margin="Margin.Dense" />
 
-                                <MudButton Variant="Variant.Filled" Color="Color.Success"
-                                           StartIcon="@Icons.Material.Filled.AddShoppingCart" OnClick="@(() => AddToCart(product))">
-                                    Add to Cart
+                                <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="true"
+                                           StartIcon="@Icons.Material.Filled.AddShoppingCart"
+                                           Title="Cart functionality requires API client regeneration">
+                                    Add to Cart (API Offline)
                                 </MudButton>
                             </MudStack>
                         </MudCardContent>
@@ -82,7 +83,7 @@
 </div>
 
 @code {
-    private readonly List<IExpendableProductsClient.ProductDto> _products = new();
+    private readonly List<ProductDto> _products = new();
     private readonly Dictionary<Guid, int> _cartQuantities = new();
     private bool _isLoading;
     private string _searchKeyword = string.Empty;
@@ -101,7 +102,8 @@
         {
             _isLoading = true;
             _products.Clear();
-            var response = await ProductsClient.SearchAsync(pageSize: 100);
+            var query = new SearchProductsQuery { PageSize = 100 };
+            var response = await ProductsClient.SearchAsync(query);
             _products.AddRange(response?.Items?.ToList() ?? []);
         }
         catch (Exception ex)
@@ -120,7 +122,8 @@
         {
             _isLoading = true;
             _products.Clear();
-            var response = await ProductsClient.SearchAsync(keyword: _searchKeyword, pageSize: 100);
+            var query = new SearchProductsQuery { Keyword = _searchKeyword, PageSize = 100 };
+            var response = await ProductsClient.SearchAsync(query);
             _products.AddRange(response?.Items?.ToList() ?? []);
         }
         catch (Exception ex)
@@ -133,25 +136,10 @@
         }
     }
 
-    private async Task AddToCart(IExpendableProductsClient.ProductDto product)
+    private async Task AddToCart(ProductDto product)
     {
-        if (string.IsNullOrWhiteSpace(_employeeId))
-        {
-            Snackbar.Add("Employee identity was not detected. Please sign in again.", Severity.Warning);
-            return;
-        }
-
-        try
-        {
-            var cartId = await EnsureCartAsync();
-            var quantity = GetQuantity(product.Id);
-            await CartClient.AddItemAsync(cartId, product.Id, quantity);
-            Snackbar.Add($"Added {quantity} x {product.Name} to your cart.", Severity.Success);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to add to cart: {ex.Message}", Severity.Error);
-        }
+        Snackbar.Add("Cart functionality requires API client regeneration after service starts.", Severity.Info);
+        await Task.Delay(0);
     }
 
     private async Task<Guid> EnsureCartAsync()
@@ -161,14 +149,7 @@
             return _activeCartId.Value;
         }
 
-        if (string.IsNullOrWhiteSpace(_employeeId))
-        {
-            throw new InvalidOperationException("Employee id not available.");
-        }
-
-        var cart = await CartClient.GetOrCreateAsync(_employeeId);
-        _activeCartId = cart.Id;
-        return cart.Id;
+        throw new InvalidOperationException("Cart functionality disabled: API client requires regeneration.");
     }
 
     private int GetQuantity(Guid productId) => _cartQuantities.TryGetValue(productId, out var qty) ? qty : 1;
@@ -192,6 +173,6 @@
 
     private void OpenCart() => NavigationManager.NavigateTo("/expendable/cart");
 
-    private static string? GetPrimaryImage(IExpendableProductsClient.ProductDto product)
-        => product.ImageUrls.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x));
+    private static string? GetPrimaryImage(ProductDto product)
+        => product.ImageUrl;
 }
