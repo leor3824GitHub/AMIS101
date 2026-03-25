@@ -1,7 +1,9 @@
 var builder = DistributedApplication.CreateBuilder(args);
 
 // Postgres container + database
-var postgres = builder.AddPostgres("postgres").WithDataVolume("fsh-postgres-data").AddDatabase("amis104");
+var postgres = builder.AddPostgres("postgres")
+    .WithDataVolume("fsh-postgres-data")
+    .AddDatabase("AMIS106");
 
 var redis = builder.AddRedis("redis").WithDataVolume("fsh-redis-data");
 
@@ -23,6 +25,7 @@ var api = builder.AddProject<Projects.Playground_Api>("playground-api")
 
 builder.AddProject<Projects.Playground_Blazor>("playground-blazor")
     .WithReference(api)
+    .WithEnvironment("Api__BaseUrl", api.GetEndpoint("https"))
     .WaitFor(api);
 
 await builder.Build().RunAsync();

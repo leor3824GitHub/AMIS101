@@ -46,6 +46,7 @@ public sealed class CreateProductCommandHandler : ICommandHandler<CreateProductC
 
         product.CategoryId = command.CategoryId;
         product.SupplierId = command.SupplierId;
+        product.ImageUrl = command.ImageUrl;
         product.CreatedBy = _currentUser.GetUserId().ToString();
 
         _dbContext.Products.Add(product);

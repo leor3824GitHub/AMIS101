@@ -146,9 +146,8 @@ else
 
     private void HandleSessionExpired(object? sender, EventArgs e)
     {
-        // Navigate to login with session expired message
-        // Use forceLoad to ensure a full page refresh and cookie clearing
-        InvokeAsync(() => Navigation.NavigateTo("/login?toast=session_expired", forceLoad: true));
+        // Route through server-side logout endpoint so the auth cookie is reliably cleared.
+        InvokeAsync(() => Navigation.NavigateTo("/auth/logout?toast=session_expired", forceLoad: true));
     }
 
     private void HandleThemeChanged()
@@ -192,12 +191,23 @@ else
         else if (wasAuthenticated && !_isAuthenticated)
         {
             // User logged out, reset to default
-            await TenantThemeState.ResetThemeAsync();
-            _theme = TenantThemeState.Theme;
-            _isDarkMode = false;
-            _logoUrl = null;
-            await ApplyFaviconAsync(); // reset to default
-            await InvokeAsync(StateHasChanged);
+            try
+            {
+                await TenantThemeState.ResetThemeAsync();
+                _theme = TenantThemeState.Theme;
+                _isDarkMode = false;
+                _logoUrl = null;
+                await ApplyFaviconAsync(); // reset to default
+            }
+            catch (Exception)
+            {
+                // Silently handle errors - TenantThemeState already logs them
+                // This prevents unhandled exceptions during logout from crashing the app
+            }
+            finally
+            {
+                await InvokeAsync(StateHasChanged);
+            }
         }
     }
 

@@ -30,7 +30,11 @@ public sealed class UpdateProductCommandHandler : ICommandHandler<UpdateProductC
             command.UnitPrice,
             command.MinimumStockLevel,
             command.ReorderQuantity,
+<<<<<<< HEAD
             command.ImageUrls);
+=======
+            command.ImageUrl);
+>>>>>>> March1926
 
         product.CategoryId = command.CategoryId;
         product.SupplierId = command.SupplierId;

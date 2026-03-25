@@ -27,6 +27,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\BuildingBlocks\Blazor.UI\Blazor.UI.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\Shared\Shared.csproj" />
+<<<<<<< HEAD
+=======
+    <ProjectReference Include="..\..\Modules\MasterData\Modules.MasterData.Contracts\Modules.MasterData.Contracts.csproj" />
+>>>>>>> March1926
     <ProjectReference Include="..\..\Modules\Expendable\Modules.Expendable.Contracts\Modules.Expendable.Contracts.csproj" />
   </ItemGroup>
 

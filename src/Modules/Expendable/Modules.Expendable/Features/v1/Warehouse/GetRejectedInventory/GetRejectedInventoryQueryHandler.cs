@@ -18,7 +18,7 @@ public sealed class GetRejectedInventoryQueryHandler : IQueryHandler<GetRejected
 
     public async ValueTask<PagedResponse<RejectedInventoryDto>> Handle(GetRejectedInventoryQuery query, CancellationToken cancellationToken)
     {
-        var rejected = _dbContext.RejectedInventories.AsQueryable();
+        var rejected = _dbContext.RejectedInventories.AsNoTracking();
 
         if (query.WarehouseLocationId.HasValue && query.WarehouseLocationId != Guid.Empty)
             rejected = rejected.Where(ri => ri.WarehouseLocationId == query.WarehouseLocationId);
@@ -26,26 +26,9 @@ public sealed class GetRejectedInventoryQueryHandler : IQueryHandler<GetRejected
         if (!string.IsNullOrWhiteSpace(query.Status))
             rejected = rejected.Where(ri => ri.Status.ToString() == query.Status);
 
-        var pageNumber = query.PageNumber ?? 1;
-        var pageSize = query.PageSize ?? 20;
-        var total = await rejected.CountAsync(cancellationToken);
-        var totalPages = total == 0 ? 0 : (int)Math.Ceiling((double)total / pageSize);
+        rejected = rejected.OrderByDescending(ri => ri.RejectionDate);
 
-        var items = await rejected
-            .OrderByDescending(ri => ri.RejectionDate)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-
-        var dtos = items.Select(i => i.ToRejectedInventoryDto()).ToList();
-
-        return new PagedResponse<RejectedInventoryDto>
-        {
-            Items = dtos,
-            PageNumber = pageNumber,
-            PageSize = pageSize,
-            TotalCount = total,
-            TotalPages = totalPages
-        };
+        var projected = rejected.Select(ri => ri.ToRejectedInventoryDto());
+        return await projected.ToPagedResponseAsync(query, cancellationToken).ConfigureAwait(false);
     }
 }

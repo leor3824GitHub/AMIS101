@@ -1,0 +1,20 @@
+using Mediator;
+
+namespace FSH.Modules.MasterData.Features.v1.Suppliers.GetSupplierById;
+
+public sealed record GetSupplierByIdQuery(Guid Id) : IQuery<SupplierDetailsDto>;
+
+public sealed record SupplierDetailsDto(
+    Guid Id,
+    string Code,
+    string Name,
+    string? Description,
+    string? ContactPerson,
+    string? Email,
+    string? Phone,
+    string? Address,
+    bool IsActive,
+    DateTimeOffset CreatedOnUtc,
+    string? CreatedBy,
+    DateTimeOffset? LastModifiedOnUtc,
+    string? LastModifiedBy);

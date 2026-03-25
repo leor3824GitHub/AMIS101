@@ -24,33 +24,33 @@ public sealed record EmployeeReferenceDto(
     string? DefaultUnitOfMeasureName,
     bool IsActive);
 
-public sealed record OfficeReferenceDto(Guid Id, string Code, string Name, bool IsActive);
+public sealed record OfficeReferenceDto(Guid Id, string Code, string Name, string? Description, bool IsActive);
 
-public sealed record CreateOfficeCommand(string Code, string Name, string? Description) : ICommand<OfficeReferenceDto>;
+public sealed record CreateOfficeCommand(string Code, string Name, string? Description, bool IsActive = true) : ICommand<OfficeReferenceDto>;
 
 public sealed record UpdateOfficeCommand(Guid Id, string Code, string Name, string? Description, bool IsActive) : ICommand<OfficeReferenceDto>;
 
 public sealed record DeleteOfficeCommand(Guid Id) : ICommand<Unit>;
 
-public sealed record DepartmentReferenceDto(Guid Id, string Code, string Name, bool IsActive);
+public sealed record DepartmentReferenceDto(Guid Id, string Code, string Name, string? Description, bool IsActive);
 
-public sealed record CreateDepartmentCommand(string Code, string Name, string? Description) : ICommand<DepartmentReferenceDto>;
+public sealed record CreateDepartmentCommand(string Code, string Name, string? Description, bool IsActive = true) : ICommand<DepartmentReferenceDto>;
 
 public sealed record UpdateDepartmentCommand(Guid Id, string Code, string Name, string? Description, bool IsActive) : ICommand<DepartmentReferenceDto>;
 
 public sealed record DeleteDepartmentCommand(Guid Id) : ICommand<Unit>;
 
-public sealed record PositionReferenceDto(Guid Id, string Code, string Name, bool IsActive);
+public sealed record PositionReferenceDto(Guid Id, string Code, string Name, string? Description, bool IsActive);
 
-public sealed record CreatePositionCommand(string Code, string Name, string? Description) : ICommand<PositionReferenceDto>;
+public sealed record CreatePositionCommand(string Code, string Name, string? Description, bool IsActive = true) : ICommand<PositionReferenceDto>;
 
 public sealed record UpdatePositionCommand(Guid Id, string Code, string Name, string? Description, bool IsActive) : ICommand<PositionReferenceDto>;
 
 public sealed record DeletePositionCommand(Guid Id) : ICommand<Unit>;
 
-public sealed record UnitOfMeasureReferenceDto(Guid Id, string Code, string Name, bool IsActive);
+public sealed record UnitOfMeasureReferenceDto(Guid Id, string Code, string Name, string? Description, bool IsActive);
 
-public sealed record CreateUnitOfMeasureCommand(string Code, string Name, string? Description) : ICommand<UnitOfMeasureReferenceDto>;
+public sealed record CreateUnitOfMeasureCommand(string Code, string Name, string? Description, bool IsActive = true) : ICommand<UnitOfMeasureReferenceDto>;
 
 public sealed record UpdateUnitOfMeasureCommand(Guid Id, string Code, string Name, string? Description, bool IsActive) : ICommand<UnitOfMeasureReferenceDto>;
 
@@ -65,7 +65,8 @@ public sealed record CreateEmployeeCommand(
     Guid PositionId,
     string? IdentityUserId = null,
     string? WorkEmail = null,
-    Guid? DefaultUnitOfMeasureId = null) : ICommand<EmployeeReferenceDto>;
+    Guid? DefaultUnitOfMeasureId = null,
+    bool IsActive = true) : ICommand<EmployeeReferenceDto>;
 
 public sealed record UpdateEmployeeCommand(
     Guid Id,
@@ -99,19 +100,47 @@ public sealed class SearchEmployeeReferencesQuery : IPagedQuery, IQuery<PagedRes
     public string? Sort { get; set; }
 }
 
-public sealed record ListOfficeReferencesQuery(bool IncludeInactive = false) : IQuery<IReadOnlyList<OfficeReferenceDto>>;
+public sealed class ListOfficeReferencesQuery : IPagedQuery, IQuery<PagedResponse<OfficeReferenceDto>>
+{
+    public string? Keyword { get; set; }
+    public bool? IsActive { get; set; }
+    public int? PageNumber { get; set; }
+    public int? PageSize { get; set; }
+    public string? Sort { get; set; }
+}
 
 public sealed record GetOfficeReferenceByIdQuery(Guid Id) : IQuery<OfficeReferenceDto?>;
 
-public sealed record ListDepartmentReferencesQuery(bool IncludeInactive = false) : IQuery<IReadOnlyList<DepartmentReferenceDto>>;
+public sealed class ListDepartmentReferencesQuery : IPagedQuery, IQuery<PagedResponse<DepartmentReferenceDto>>
+{
+    public string? Keyword { get; set; }
+    public bool? IsActive { get; set; }
+    public int? PageNumber { get; set; }
+    public int? PageSize { get; set; }
+    public string? Sort { get; set; }
+}
 
 public sealed record GetDepartmentReferenceByIdQuery(Guid Id) : IQuery<DepartmentReferenceDto?>;
 
-public sealed record ListPositionReferencesQuery(bool IncludeInactive = false) : IQuery<IReadOnlyList<PositionReferenceDto>>;
+public sealed class ListPositionReferencesQuery : IPagedQuery, IQuery<PagedResponse<PositionReferenceDto>>
+{
+    public string? Keyword { get; set; }
+    public bool? IsActive { get; set; }
+    public int? PageNumber { get; set; }
+    public int? PageSize { get; set; }
+    public string? Sort { get; set; }
+}
 
 public sealed record GetPositionReferenceByIdQuery(Guid Id) : IQuery<PositionReferenceDto?>;
 
-public sealed record ListUnitOfMeasureReferencesQuery(bool IncludeInactive = false) : IQuery<IReadOnlyList<UnitOfMeasureReferenceDto>>;
+public sealed class ListUnitOfMeasureReferencesQuery : IPagedQuery, IQuery<PagedResponse<UnitOfMeasureReferenceDto>>
+{
+    public string? Keyword { get; set; }
+    public bool? IsActive { get; set; }
+    public int? PageNumber { get; set; }
+    public int? PageSize { get; set; }
+    public string? Sort { get; set; }
+}
 
 public sealed record GetUnitOfMeasureReferenceByIdQuery(Guid Id) : IQuery<UnitOfMeasureReferenceDto?>;
 

@@ -126,7 +126,14 @@ internal static class SimpleBffAuth
         app.MapGet("/auth/logout", async (HttpContext httpContext) =>
         {
             await httpContext.SignOutAsync("Cookies");
-            return Results.Redirect("/login?toast=logout_success");
+
+            var toast = httpContext.Request.Query["toast"].ToString();
+            if (string.IsNullOrWhiteSpace(toast))
+            {
+                toast = "logout_success";
+            }
+
+            return Results.Redirect($"/login?toast={Uri.EscapeDataString(toast)}");
         })
         .AllowAnonymous();
     }

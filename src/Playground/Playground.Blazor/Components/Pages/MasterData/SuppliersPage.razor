@@ -1,0 +1,287 @@
+@page "/masterdata/suppliers"
+@using FSH.Framework.Blazor.UI.Components.Cards
+@using FSH.Playground.Blazor.ApiClient
+@using FSH.Playground.Blazor.Services
+@inherits ComponentBase
+@inject ISnackbar Snackbar
+@inject MasterDataService MasterDataService
+@inject ILookupClient LookupClient
+
+<FshPageHeader Title="Suppliers" Description="Manage supplier information">
+    <ActionContent>
+        <MudStack Row="true" Spacing="2" Style="width: 100%; max-width: 400px;">
+            <MudTextField @bind-Value="_searchKeyword" Label="Search" Placeholder="Search suppliers..."
+                          DebounceInterval="300" OnDebounceIntervalElapsed="@(async () => await SearchSuppliers())"
+                          Variant="Variant.Outlined" Size="Size.Small" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SearchSuppliers">
+                Search
+            </MudButton>
+        </MudStack>
+    </ActionContent>
+</FshPageHeader>
+
+<div class="mt-4">
+    <MudGrid Spacing="2">
+        <!-- Create/Edit Form -->
+        <MudItem xs="12" md="4">
+            <MudCard Class="fsh-card">
+                <MudCardContent>
+                    <MudText Typo="Typo.h6" Class="mb-3">@(EditingSupplier != null ? "Edit Supplier" : "Add Supplier")</MudText>
+                    <MudStack Spacing="3">
+                        <MudTextField @bind-Value="_form.Code" Label="Supplier Code" Placeholder="Unique code" Required="true" />
+                        <MudTextField @bind-Value="_form.Name" Label="Supplier Name" Placeholder="Company name" Required="true" />
+                        <MudTextField @bind-Value="_form.Description" Label="Description" Placeholder="Supplier description" Lines="2" />
+                        <MudTextField @bind-Value="_form.ContactPerson" Label="Contact Person" Placeholder="Name of contact" />
+                        <MudTextField @bind-Value="_form.Email" Label="Email" Placeholder="contact@example.com" />
+                        <MudTextField @bind-Value="_form.Phone" Label="Phone" Placeholder="+1234567890" />
+                        <MudTextField @bind-Value="_form.Address" Label="Address" Placeholder="Street address" Lines="2" />
+                        <MudCheckBox @bind-Value="_form.IsActive" Label="Active" T="bool" />
+
+                        <MudStack Row="true" Spacing="2" Class="mt-4">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                                       OnClick="SaveSupplier" Disabled="_isLoading">
+                                @(EditingSupplier != null ? "Update" : "Create")
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Default" FullWidth="true"
+                                       OnClick="ResetForm">
+                                Clear
+                            </MudButton>
+                        </MudStack>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Suppliers List -->
+        <MudItem xs="12" md="8">
+            <MudCard Class="fsh-card">
+                <MudCardContent>
+                    <MudText Typo="Typo.h6" Class="mb-3">Suppliers List</MudText>
+
+                    @if (_suppliers.Any())
+                    {
+                        <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Name</th>
+                                    <th>Contact</th>
+                                    <th>Email</th>
+                                    <th>Phone</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var supplier in _suppliers)
+                                {
+                                    <tr>
+                                        <td>@supplier.Code</td>
+                                        <td>@supplier.Name</td>
+                                        <td>@(supplier.ContactPerson ?? "-")</td>
+                                        <td>@(supplier.Email ?? "-")</td>
+                                        <td>@(supplier.Phone ?? "-")</td>
+                                        <td><MudChip T="string" Size="Size.Small" Color="@(supplier.IsActive ? Color.Success : Color.Error)">@(supplier.IsActive ? "Active" : "Inactive")</MudChip></td>
+                                        <td>
+                                            <MudStack Row="true" Spacing="1">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                                               Color="Color.Primary" OnClick="@(() => EditSupplier(supplier))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                                               Color="Color.Error" OnClick="@(() => DeleteSupplier(supplier.Id))" />
+                                            </MudStack>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info">No suppliers yet. Add one to get started.</MudAlert>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</div>
+
+@code {
+    private SupplierForm _form = new();
+    private SupplierDto? EditingSupplier;
+    private List<SupplierDto> _suppliers = new();
+    private bool _initialized = false;
+    private bool _isLoading = false;
+    private string _searchKeyword = string.Empty;
+
+    public class SupplierForm
+    {
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public string? ContactPerson { get; set; }
+        public string? Email { get; set; }
+        public string? Phone { get; set; }
+        public string? Address { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (_initialized) return;
+        _initialized = true;
+        await LoadSuppliers();
+    }
+
+    private async Task LoadSuppliers()
+    {
+        try
+        {
+            _isLoading = true;
+            var response = await MasterDataService.GetSuppliersAsync(pageSize: 100);
+            _suppliers = response?.Items?.ToList() ?? new();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load suppliers: {ex.Message}", Severity.Error);
+            _suppliers = new();
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SearchSuppliers()
+    {
+        try
+        {
+            _isLoading = true;
+            var response = await MasterDataService.GetSuppliersAsync(keyword: _searchKeyword, pageSize: 100);
+            var allSuppliers = response?.Items?.ToList() ?? new();
+
+            if (string.IsNullOrWhiteSpace(_searchKeyword))
+            {
+                _suppliers = allSuppliers;
+            }
+            else
+            {
+                var searchTerm = _searchKeyword.ToLower();
+                _suppliers = allSuppliers
+                    .Where(s =>
+                        s.Code.ToLower().Contains(searchTerm) ||
+                        s.Name.ToLower().Contains(searchTerm) ||
+                        (s.ContactPerson?.ToLower().Contains(searchTerm) ?? false) ||
+                        (s.Email?.ToLower().Contains(searchTerm) ?? false))
+                    .ToList();
+            }
+
+            if (_suppliers.Count == 0 && !string.IsNullOrWhiteSpace(_searchKeyword))
+            {
+                Snackbar.Add("No suppliers found matching your search", Severity.Info);
+            }
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Search failed: {ex.Message}", Severity.Error);
+            _suppliers = new();
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveSupplier()
+    {
+        if (string.IsNullOrWhiteSpace(_form.Code) || string.IsNullOrWhiteSpace(_form.Name))
+        {
+            Snackbar.Add("Code and Name are required", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            if (EditingSupplier != null)
+            {
+                var updateCmd = new UpdateSupplierCommand
+                {
+                    Id = EditingSupplier.Id,
+                    Code = _form.Code,
+                    Name = _form.Name,
+                    Description = _form.Description,
+                    ContactPerson = _form.ContactPerson,
+                    Email = _form.Email,
+                    Phone = _form.Phone,
+                    Address = _form.Address,
+                    IsActive = _form.IsActive
+                };
+
+                await MasterDataService.UpdateSupplierAsync(EditingSupplier.Id, updateCmd);
+                Snackbar.Add("Supplier updated successfully", Severity.Success);
+            }
+            else
+            {
+                var createCmd = new CreateSupplierCommand
+                {
+                    Code = _form.Code,
+                    Name = _form.Name,
+                    Description = _form.Description,
+                    ContactPerson = _form.ContactPerson,
+                    Email = _form.Email,
+                    Phone = _form.Phone,
+                    Address = _form.Address
+                };
+
+                await MasterDataService.CreateSupplierAsync(createCmd);
+                Snackbar.Add("Supplier created successfully", Severity.Success);
+            }
+
+            await LoadSuppliers();
+            ResetForm();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save supplier: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private void EditSupplier(SupplierDto supplier)
+    {
+        EditingSupplier = supplier;
+        _form = new SupplierForm
+        {
+            Code = supplier.Code,
+            Name = supplier.Name,
+            Description = supplier.Description,
+            ContactPerson = supplier.ContactPerson,
+            Email = supplier.Email,
+            Phone = supplier.Phone,
+            Address = supplier.Address,
+            IsActive = supplier.IsActive
+        };
+    }
+
+    private void ResetForm()
+    {
+        _form = new();
+        EditingSupplier = null;
+    }
+
+    private async Task DeleteSupplier(Guid id)
+    {
+        try
+        {
+            await MasterDataService.DeleteSupplierAsync(id);
+            await LoadSuppliers();
+            Snackbar.Add("Supplier deleted", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to delete supplier: {ex.Message}", Severity.Error);
+        }
+    }
+}

@@ -4,6 +4,7 @@ using FSH.Modules.MasterData.Contracts.v1.References;
 using FSH.Modules.MasterData.Data;
 using Mediator;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace FSH.Modules.MasterData.Features.v1.Lookups;
 
@@ -29,72 +30,88 @@ public sealed class GetEmployeeReferenceByIdentityUserIdQueryHandler(MasterDataD
     }
 }
 
-public sealed class SearchEmployeeReferencesQueryHandler(MasterDataDbContext dbContext)
+public sealed class SearchEmployeeReferencesQueryHandler(MasterDataDbContext dbContext, ILogger<SearchEmployeeReferencesQueryHandler> logger)
     : IQueryHandler<SearchEmployeeReferencesQuery, PagedResponse<EmployeeReferenceDto>>
 {
     public async ValueTask<PagedResponse<EmployeeReferenceDto>> Handle(SearchEmployeeReferencesQuery query, CancellationToken cancellationToken)
     {
-        var employeeQuery = MasterDataLookupQueryBuilder.BuildEmployeeReferenceQuery(dbContext);
-
-        if (!string.IsNullOrWhiteSpace(query.Keyword))
+        try
         {
-            employeeQuery = employeeQuery.Where(x =>
-                x.EmployeeNumber.Contains(query.Keyword) ||
-                x.FirstName.Contains(query.Keyword) ||
-                x.LastName.Contains(query.Keyword) ||
-                (x.WorkEmail != null && x.WorkEmail.Contains(query.Keyword)) ||
-                x.OfficeName.Contains(query.Keyword) ||
-                x.DepartmentName.Contains(query.Keyword) ||
-                x.PositionName.Contains(query.Keyword));
-        }
+            var employeeQuery = MasterDataLookupQueryBuilder.BuildEmployeeReferenceQuery(dbContext);
 
-        if (!string.IsNullOrWhiteSpace(query.IdentityUserId))
+            if (!string.IsNullOrWhiteSpace(query.Keyword))
+            {
+                employeeQuery = employeeQuery.Where(x =>
+                    x.EmployeeNumber.Contains(query.Keyword) ||
+                    x.FirstName.Contains(query.Keyword) ||
+                    x.LastName.Contains(query.Keyword) ||
+                    (x.WorkEmail != null && x.WorkEmail.Contains(query.Keyword)) ||
+                    x.OfficeName.Contains(query.Keyword) ||
+                    x.DepartmentName.Contains(query.Keyword) ||
+                    x.PositionName.Contains(query.Keyword));
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.IdentityUserId))
+            {
+                employeeQuery = employeeQuery.Where(x => x.IdentityUserId == query.IdentityUserId);
+            }
+
+            if (query.OfficeId.HasValue)
+            {
+                employeeQuery = employeeQuery.Where(x => x.OfficeId == query.OfficeId.Value);
+            }
+
+            if (query.DepartmentId.HasValue)
+            {
+                employeeQuery = employeeQuery.Where(x => x.DepartmentId == query.DepartmentId.Value);
+            }
+
+            if (query.PositionId.HasValue)
+            {
+                employeeQuery = employeeQuery.Where(x => x.PositionId == query.PositionId.Value);
+            }
+
+            if (query.IsActive.HasValue)
+            {
+                employeeQuery = employeeQuery.Where(x => x.IsActive == query.IsActive.Value);
+            }
+
+            return await employeeQuery.ToPagedResponseAsync(query, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
         {
-            employeeQuery = employeeQuery.Where(x => x.IdentityUserId == query.IdentityUserId);
+            logger.LogError(ex, "Error in SearchEmployeeReferencesQueryHandler: {ErrorMessage}. Query: Keyword={Keyword}, OfficeId={OfficeId}, DepartmentId={DepartmentId}, PositionId={PositionId}, IsActive={IsActive}",
+                ex.Message, query.Keyword, query.OfficeId, query.DepartmentId, query.PositionId, query.IsActive);
+            throw;
         }
-
-        if (query.OfficeId.HasValue)
-        {
-            employeeQuery = employeeQuery.Where(x => x.OfficeId == query.OfficeId.Value);
-        }
-
-        if (query.DepartmentId.HasValue)
-        {
-            employeeQuery = employeeQuery.Where(x => x.DepartmentId == query.DepartmentId.Value);
-        }
-
-        if (query.PositionId.HasValue)
-        {
-            employeeQuery = employeeQuery.Where(x => x.PositionId == query.PositionId.Value);
-        }
-
-        if (query.IsActive.HasValue)
-        {
-            employeeQuery = employeeQuery.Where(x => x.IsActive == query.IsActive.Value);
-        }
-
-        employeeQuery = employeeQuery.OrderBy(x => x.LastName).ThenBy(x => x.FirstName).ThenBy(x => x.EmployeeNumber);
-
-        return await employeeQuery.ToPagedResponseAsync(query, cancellationToken).ConfigureAwait(false);
     }
 }
 
 public sealed class ListOfficeReferencesQueryHandler(MasterDataDbContext dbContext)
-    : IQueryHandler<ListOfficeReferencesQuery, IReadOnlyList<OfficeReferenceDto>>
+    : IQueryHandler<ListOfficeReferencesQuery, PagedResponse<OfficeReferenceDto>>
 {
-    public async ValueTask<IReadOnlyList<OfficeReferenceDto>> Handle(ListOfficeReferencesQuery query, CancellationToken cancellationToken)
+    public async ValueTask<PagedResponse<OfficeReferenceDto>> Handle(ListOfficeReferencesQuery query, CancellationToken cancellationToken)
     {
         var officesQuery = dbContext.Offices.AsNoTracking();
 
-        if (!query.IncludeInactive)
+        if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
-            officesQuery = officesQuery.Where(x => x.IsActive);
+            officesQuery = officesQuery.Where(x =>
+                x.Code.Contains(query.Keyword) ||
+                x.Name.Contains(query.Keyword) ||
+                (x.Description != null && x.Description.Contains(query.Keyword)));
         }
 
+        if (query.IsActive.HasValue)
+        {
+            officesQuery = officesQuery.Where(x => x.IsActive == query.IsActive.Value);
+        }
+
+        officesQuery = officesQuery.OrderBy(x => x.Name).ThenBy(x => x.Code);
+
         return await officesQuery
-            .OrderBy(x => x.Name)
-            .Select(x => new OfficeReferenceDto(x.Id, x.Code, x.Name, x.IsActive))
-            .ToListAsync(cancellationToken)
+            .Select(x => new OfficeReferenceDto(x.Id, x.Code, x.Name, x.Description, x.IsActive))
+            .ToPagedResponseAsync(query, cancellationToken)
             .ConfigureAwait(false);
     }
 }
@@ -106,28 +123,37 @@ public sealed class GetOfficeReferenceByIdQueryHandler(MasterDataDbContext dbCon
     {
         return await dbContext.Offices.AsNoTracking()
             .Where(x => x.Id == query.Id)
-            .Select(x => new OfficeReferenceDto(x.Id, x.Code, x.Name, x.IsActive))
+            .Select(x => new OfficeReferenceDto(x.Id, x.Code, x.Name, x.Description, x.IsActive))
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
     }
 }
 
 public sealed class ListDepartmentReferencesQueryHandler(MasterDataDbContext dbContext)
-    : IQueryHandler<ListDepartmentReferencesQuery, IReadOnlyList<DepartmentReferenceDto>>
+    : IQueryHandler<ListDepartmentReferencesQuery, PagedResponse<DepartmentReferenceDto>>
 {
-    public async ValueTask<IReadOnlyList<DepartmentReferenceDto>> Handle(ListDepartmentReferencesQuery query, CancellationToken cancellationToken)
+    public async ValueTask<PagedResponse<DepartmentReferenceDto>> Handle(ListDepartmentReferencesQuery query, CancellationToken cancellationToken)
     {
         var departmentsQuery = dbContext.Departments.AsNoTracking();
 
-        if (!query.IncludeInactive)
+        if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
-            departmentsQuery = departmentsQuery.Where(x => x.IsActive);
+            departmentsQuery = departmentsQuery.Where(x =>
+                x.Code.Contains(query.Keyword) ||
+                x.Name.Contains(query.Keyword) ||
+                (x.Description != null && x.Description.Contains(query.Keyword)));
         }
 
+        if (query.IsActive.HasValue)
+        {
+            departmentsQuery = departmentsQuery.Where(x => x.IsActive == query.IsActive.Value);
+        }
+
+        departmentsQuery = departmentsQuery.OrderBy(x => x.Name).ThenBy(x => x.Code);
+
         return await departmentsQuery
-            .OrderBy(x => x.Name)
-            .Select(x => new DepartmentReferenceDto(x.Id, x.Code, x.Name, x.IsActive))
-            .ToListAsync(cancellationToken)
+            .Select(x => new DepartmentReferenceDto(x.Id, x.Code, x.Name, x.Description, x.IsActive))
+            .ToPagedResponseAsync(query, cancellationToken)
             .ConfigureAwait(false);
     }
 }
@@ -139,28 +165,37 @@ public sealed class GetDepartmentReferenceByIdQueryHandler(MasterDataDbContext d
     {
         return await dbContext.Departments.AsNoTracking()
             .Where(x => x.Id == query.Id)
-            .Select(x => new DepartmentReferenceDto(x.Id, x.Code, x.Name, x.IsActive))
+            .Select(x => new DepartmentReferenceDto(x.Id, x.Code, x.Name, x.Description, x.IsActive))
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
     }
 }
 
 public sealed class ListPositionReferencesQueryHandler(MasterDataDbContext dbContext)
-    : IQueryHandler<ListPositionReferencesQuery, IReadOnlyList<PositionReferenceDto>>
+    : IQueryHandler<ListPositionReferencesQuery, PagedResponse<PositionReferenceDto>>
 {
-    public async ValueTask<IReadOnlyList<PositionReferenceDto>> Handle(ListPositionReferencesQuery query, CancellationToken cancellationToken)
+    public async ValueTask<PagedResponse<PositionReferenceDto>> Handle(ListPositionReferencesQuery query, CancellationToken cancellationToken)
     {
         var positionsQuery = dbContext.Positions.AsNoTracking();
 
-        if (!query.IncludeInactive)
+        if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
-            positionsQuery = positionsQuery.Where(x => x.IsActive);
+            positionsQuery = positionsQuery.Where(x =>
+                x.Code.Contains(query.Keyword) ||
+                x.Name.Contains(query.Keyword) ||
+                (x.Description != null && x.Description.Contains(query.Keyword)));
         }
 
+        if (query.IsActive.HasValue)
+        {
+            positionsQuery = positionsQuery.Where(x => x.IsActive == query.IsActive.Value);
+        }
+
+        positionsQuery = positionsQuery.OrderBy(x => x.Name).ThenBy(x => x.Code);
+
         return await positionsQuery
-            .OrderBy(x => x.Name)
-            .Select(x => new PositionReferenceDto(x.Id, x.Code, x.Name, x.IsActive))
-            .ToListAsync(cancellationToken)
+            .Select(x => new PositionReferenceDto(x.Id, x.Code, x.Name, x.Description, x.IsActive))
+            .ToPagedResponseAsync(query, cancellationToken)
             .ConfigureAwait(false);
     }
 }
@@ -172,28 +207,37 @@ public sealed class GetPositionReferenceByIdQueryHandler(MasterDataDbContext dbC
     {
         return await dbContext.Positions.AsNoTracking()
             .Where(x => x.Id == query.Id)
-            .Select(x => new PositionReferenceDto(x.Id, x.Code, x.Name, x.IsActive))
+            .Select(x => new PositionReferenceDto(x.Id, x.Code, x.Name, x.Description, x.IsActive))
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
     }
 }
 
 public sealed class ListUnitOfMeasureReferencesQueryHandler(MasterDataDbContext dbContext)
-    : IQueryHandler<ListUnitOfMeasureReferencesQuery, IReadOnlyList<UnitOfMeasureReferenceDto>>
+    : IQueryHandler<ListUnitOfMeasureReferencesQuery, PagedResponse<UnitOfMeasureReferenceDto>>
 {
-    public async ValueTask<IReadOnlyList<UnitOfMeasureReferenceDto>> Handle(ListUnitOfMeasureReferencesQuery query, CancellationToken cancellationToken)
+    public async ValueTask<PagedResponse<UnitOfMeasureReferenceDto>> Handle(ListUnitOfMeasureReferencesQuery query, CancellationToken cancellationToken)
     {
         var uomQuery = dbContext.UnitOfMeasures.AsNoTracking();
 
-        if (!query.IncludeInactive)
+        if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
-            uomQuery = uomQuery.Where(x => x.IsActive);
+            uomQuery = uomQuery.Where(x =>
+                x.Code.Contains(query.Keyword) ||
+                x.Name.Contains(query.Keyword) ||
+                (x.Description != null && x.Description.Contains(query.Keyword)));
         }
 
+        if (query.IsActive.HasValue)
+        {
+            uomQuery = uomQuery.Where(x => x.IsActive == query.IsActive.Value);
+        }
+
+        uomQuery = uomQuery.OrderBy(x => x.Name).ThenBy(x => x.Code);
+
         return await uomQuery
-            .OrderBy(x => x.Name)
-            .Select(x => new UnitOfMeasureReferenceDto(x.Id, x.Code, x.Name, x.IsActive))
-            .ToListAsync(cancellationToken)
+            .Select(x => new UnitOfMeasureReferenceDto(x.Id, x.Code, x.Name, x.Description, x.IsActive))
+            .ToPagedResponseAsync(query, cancellationToken)
             .ConfigureAwait(false);
     }
 }
@@ -205,7 +249,7 @@ public sealed class GetUnitOfMeasureReferenceByIdQueryHandler(MasterDataDbContex
     {
         return await dbContext.UnitOfMeasures.AsNoTracking()
             .Where(x => x.Id == query.Id)
-            .Select(x => new UnitOfMeasureReferenceDto(x.Id, x.Code, x.Name, x.IsActive))
+            .Select(x => new UnitOfMeasureReferenceDto(x.Id, x.Code, x.Name, x.Description, x.IsActive))
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
     }
@@ -217,27 +261,31 @@ internal static class MasterDataLookupQueryBuilder
     {
         return
             from employee in dbContext.Employees.AsNoTracking()
-            join office in dbContext.Offices.AsNoTracking() on employee.OfficeId equals office.Id
-            join department in dbContext.Departments.AsNoTracking() on employee.DepartmentId equals department.Id
-            join position in dbContext.Positions.AsNoTracking() on employee.PositionId equals position.Id
-            join unitOfMeasure in dbContext.UnitOfMeasures.AsNoTracking() on employee.DefaultUnitOfMeasureId equals unitOfMeasure.Id into uomGroup
+            join officeRef in dbContext.Offices.AsNoTracking() on employee.OfficeId equals officeRef.Id into officeGroup
+            from office in officeGroup.DefaultIfEmpty()
+            join departmentRef in dbContext.Departments.AsNoTracking() on employee.DepartmentId equals departmentRef.Id into departmentGroup
+            from department in departmentGroup.DefaultIfEmpty()
+            join positionRef in dbContext.Positions.AsNoTracking() on employee.PositionId equals positionRef.Id into positionGroup
+            from position in positionGroup.DefaultIfEmpty()
+            join unitOfMeasureRef in dbContext.UnitOfMeasures.AsNoTracking() on employee.DefaultUnitOfMeasureId equals unitOfMeasureRef.Id into uomGroup
             from uom in uomGroup.DefaultIfEmpty()
+            orderby employee.LastName, employee.FirstName, employee.EmployeeNumber
             select new EmployeeReferenceDto(
                 employee.Id,
-                employee.EmployeeNumber,
+                employee.EmployeeNumber ?? string.Empty,
                 employee.IdentityUserId,
-                employee.FirstName,
-                employee.LastName,
+                employee.FirstName ?? string.Empty,
+                employee.LastName ?? string.Empty,
                 employee.WorkEmail,
-                office.Id,
-                office.Code,
-                office.Name,
-                department.Id,
-                department.Code,
-                department.Name,
-                position.Id,
-                position.Code,
-                position.Name,
+                office != null ? office.Id : Guid.Empty,
+                office != null ? office.Code : string.Empty,
+                office != null ? office.Name : string.Empty,
+                department != null ? department.Id : Guid.Empty,
+                department != null ? department.Code : string.Empty,
+                department != null ? department.Name : string.Empty,
+                position != null ? position.Id : Guid.Empty,
+                position != null ? position.Code : string.Empty,
+                position != null ? position.Name : string.Empty,
                 employee.DefaultUnitOfMeasureId,
                 uom != null ? uom.Code : null,
                 uom != null ? uom.Name : null,

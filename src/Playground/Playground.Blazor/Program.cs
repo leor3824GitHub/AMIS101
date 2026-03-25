@@ -5,7 +5,6 @@ using FSH.Playground.Blazor.ApiClient;
 using FSH.Playground.Blazor.Components;
 using FSH.Playground.Blazor.Services;
 using FSH.Playground.Blazor.Services.Api;
-using FSH.Playground.Blazor.Services.Api.Expendable;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server.Circuits;
@@ -82,39 +81,64 @@ builder.Services.AddScoped<IApiHealthMonitor>(sp =>
     return new ApiHealthMonitor(healthClient, logger);
 });
 
-// Shared activity timeline across Expendable feature pages
-builder.Services.AddScoped<IExpendableActivityFeed, ExpendableActivityFeed>();
-
 builder.Services.AddHttpClient();
 
 var apiBaseUrl = builder.Configuration["Api:BaseUrl"]
                  ?? throw new InvalidOperationException("Api:BaseUrl configuration is missing.");
 
+var apiUri = new Uri(apiBaseUrl);
+
+builder.Services.AddHttpClient("ThemeClient", client =>
+{
+    client.BaseAddress = apiUri;
+    client.Timeout = TimeSpan.FromSeconds(5);
+})
+.ConfigurePrimaryHttpMessageHandler(() =>
+{
+    var handler = new HttpClientHandler();
+
+    if (builder.Environment.IsDevelopment() &&
+        (string.Equals(apiUri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
+         string.Equals(apiUri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)))
+    {
+#pragma warning disable S4830
+        handler.ServerCertificateCustomValidationCallback =
+            HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+#pragma warning restore S4830
+    }
+
+    return handler;
+});
+
 // Configure HttpClient with authorization handler for API calls
 builder.Services.AddScoped(sp =>
 {
     var handler = sp.GetRequiredService<AuthorizationHeaderHandler>();
-
-    var apiUri = new Uri(apiBaseUrl);
     var innerHandler = new HttpClientHandler();
 
     if (builder.Environment.IsDevelopment() &&
         (string.Equals(apiUri.Host, "localhost", StringComparison.OrdinalIgnoreCase) ||
          string.Equals(apiUri.Host, "127.0.0.1", StringComparison.OrdinalIgnoreCase)))
     {
+#pragma warning disable S4830
         innerHandler.ServerCertificateCustomValidationCallback =
             HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+#pragma warning restore S4830
     }
 
     handler.InnerHandler = innerHandler;
 
     return new HttpClient(handler)
     {
-        BaseAddress = apiUri
+        BaseAddress = apiUri,
+        Timeout = TimeSpan.FromSeconds(30) // Reduced from default 100s to speed up failures
     };
 });
 
 builder.Services.AddApiClients(builder.Configuration, builder.Environment);
+
+// Register MasterData service for Supplier and Category operations
+builder.Services.AddScoped<MasterDataService>();
 
 // Response Compression for static assets and API responses
 builder.Services.AddResponseCompression(options =>

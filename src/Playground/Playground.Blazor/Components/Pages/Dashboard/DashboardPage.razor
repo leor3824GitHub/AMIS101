@@ -1,5 +1,7 @@
 @page "/dashboard"
 @page "/"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
 @attribute [StreamRendering(true)]
 @using System.Linq
 @using FSH.Framework.Blazor.UI.Components.Cards

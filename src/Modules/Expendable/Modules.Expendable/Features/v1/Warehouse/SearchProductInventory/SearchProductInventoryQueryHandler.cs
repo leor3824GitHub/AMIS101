@@ -18,7 +18,7 @@ public sealed class SearchProductInventoryQueryHandler : IQueryHandler<SearchPro
 
     public async ValueTask<PagedResponse<ProductInventoryDto>> Handle(SearchProductInventoryQuery query, CancellationToken cancellationToken)
     {
-        var inventories = _dbContext.ProductInventories.AsQueryable();
+        var inventories = _dbContext.ProductInventories.AsNoTracking();
 
         if (query.WarehouseLocationId.HasValue && query.WarehouseLocationId != Guid.Empty)
             inventories = inventories.Where(pi => pi.WarehouseLocationId == query.WarehouseLocationId);
@@ -29,26 +29,9 @@ public sealed class SearchProductInventoryQueryHandler : IQueryHandler<SearchPro
         if (!string.IsNullOrWhiteSpace(query.ProductName))
             inventories = inventories.Where(pi => pi.ProductName != null && pi.ProductName.Contains(query.ProductName));
 
-        var pageNumber = query.PageNumber ?? 1;
-        var pageSize = query.PageSize ?? 20;
-        var total = await inventories.CountAsync(cancellationToken);
-        var totalPages = total == 0 ? 0 : (int)Math.Ceiling((double)total / pageSize);
+        inventories = inventories.OrderBy(pi => pi.ProductCode);
 
-        var items = await inventories
-            .OrderBy(pi => pi.ProductCode)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
-
-        var dtos = items.Select(i => i.ToProductInventoryDto()).ToList();
-
-        return new PagedResponse<ProductInventoryDto>
-        {
-            Items = dtos,
-            PageNumber = pageNumber,
-            PageSize = pageSize,
-            TotalCount = total,
-            TotalPages = totalPages
-        };
+        var projected = inventories.Select(i => i.ToProductInventoryDto());
+        return await projected.ToPagedResponseAsync(query, cancellationToken).ConfigureAwait(false);
     }
 }

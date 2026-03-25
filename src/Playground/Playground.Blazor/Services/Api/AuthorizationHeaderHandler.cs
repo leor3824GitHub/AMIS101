@@ -29,9 +29,11 @@ internal sealed class AuthorizationHeaderHandler : DelegatingHandler
     /// </summary>
     private bool _signOutInitiated;
 
+    /// <summary>
+    /// Session expired cooldown state (per-circuit to avoid cross-circuit logout).
+    /// </summary>
     private static readonly TimeSpan SessionExpiredCooldown = TimeSpan.FromSeconds(45);
-    private static readonly object SessionExpiredLock = new();
-    private static DateTime _lastSessionExpiredAtUtc = DateTime.MinValue;
+    private DateTime _lastSessionExpiredAtUtc = DateTime.MinValue;
 
     public AuthorizationHeaderHandler(
         IHttpContextAccessor httpContextAccessor,
@@ -160,20 +162,14 @@ internal sealed class AuthorizationHeaderHandler : DelegatingHandler
         }
     }
 
-    private static bool IsSessionExpiredCoolingDown()
+    private bool IsSessionExpiredCoolingDown()
     {
-        lock (SessionExpiredLock)
-        {
-            return DateTime.UtcNow - _lastSessionExpiredAtUtc < SessionExpiredCooldown;
-        }
+        return DateTime.UtcNow - _lastSessionExpiredAtUtc < SessionExpiredCooldown;
     }
 
-    private static void MarkSessionExpired()
+    private void MarkSessionExpired()
     {
-        lock (SessionExpiredLock)
-        {
-            _lastSessionExpiredAtUtc = DateTime.UtcNow;
-        }
+        _lastSessionExpiredAtUtc = DateTime.UtcNow;
     }
 
     private static HttpResponseMessage CreateSyntheticUnauthorizedResponse(HttpRequestMessage request)

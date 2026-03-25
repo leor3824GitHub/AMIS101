@@ -18,7 +18,11 @@ internal static class ProductMapper
             product.Status.ToString(),
             product.CategoryId,
             product.SupplierId,
+<<<<<<< HEAD
             product.Images.Select(i => i.Url).ToList(),
+=======
+            product.ImageUrl,
+>>>>>>> March1926
             product.CreatedOnUtc,
             product.CreatedBy,
             product.LastModifiedOnUtc,

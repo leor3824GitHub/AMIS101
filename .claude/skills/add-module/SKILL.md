@@ -1,176 +1,332 @@
 ---
 name: add-module
-description: Create a new module (bounded context) with proper project structure, permissions, DbContext, and registration. Use when adding a new business domain that needs its own entities and endpoints.
-argument-hint: [ModuleName]
+description: Create a new module (bounded context) using this repo's actual module structure, host wiring, permissions, contracts, and DbContext patterns.
+argument-hint: "[ModuleName]"
 ---
 
 # Add Module
 
-Create a new bounded context with full project structure.
+Create a new bounded context with the same structure and host integration used by the existing repo modules.
 
-## When to Create a New Module
+## When To Create A New Module
 
-- Has its own domain entities
-- Could be deployed independently
-- Represents a distinct business domain
+- Has its own domain entities or aggregates
+- Represents a distinct bounded context
+- Needs its own contracts surface or persistence boundary
 
-If it's just a feature in an existing domain, use `add-feature` instead.
+If it is just another use case inside an existing domain, use `add-feature` instead.
+
+This repo is a modular monolith. Modules do not deploy independently; they load into the shared host through the module pipeline.
+
+## Use These As The Baseline
+
+- `src/Modules/MasterData/Modules.MasterData`
+- `src/Modules/Expendable/Modules.Expendable`
+- `src/Playground/Playground.Api/Program.cs`
+- `src/Playground/Playground.Api/Playground.Api.csproj`
 
 ## Project Structure
 
-```
+```text
 src/Modules/{Name}/
-├── Modules.{Name}/
-│   ├── Modules.{Name}.csproj
-│   ├── {Name}Module.cs
-│   ├── {Name}PermissionConstants.cs
-│   ├── {Name}DbContext.cs
-│   ├── Domain/
-│   │   └── {Entity}.cs
-│   └── Features/v1/
-│       └── {Feature}/
-└── Modules.{Name}.Contracts/
-    ├── Modules.{Name}.Contracts.csproj
-    └── DTOs/
+├── Modules.{Name}.Contracts/
+│   ├── Modules.{Name}.Contracts.csproj
+│   ├── {Name}ContractsMarker.cs
+│   └── v1/{Area}/
+│       └── DTOs, contracts, commands, queries, events
+└── Modules.{Name}/
+        ├── Modules.{Name}.csproj
+        ├── {Name}Module.cs
+        ├── {Name}ModuleConstants.cs
+        ├── Data/
+        │   ├── {Name}DbContext.cs
+        │   ├── {Name}DbContextFactory.cs
+        │   ├── {Name}DbInitializer.cs
+        │   └── Configurations/
+        ├── Domain/
+        │   └── entities or subdomain folders
+        ├── Features/v1/{Area}/{UseCase}/
+        └── Provisioning/            # optional
 ```
 
 ## Step 1: Create Projects
 
 ### Main Module Project
-`src/Modules/{Name}/Modules.{Name}/Modules.{Name}.csproj`:
+
+`src/Modules/{Name}/Modules.{Name}/Modules.{Name}.csproj`
+
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-  </PropertyGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\..\BuildingBlocks\Core\Core.csproj" />
-    <ProjectReference Include="..\..\BuildingBlocks\Persistence\Persistence.csproj" />
-    <ProjectReference Include="..\..\BuildingBlocks\Web\Web.csproj" />
-    <ProjectReference Include="..\Modules.{Name}.Contracts\Modules.{Name}.Contracts.csproj" />
-  </ItemGroup>
+    <PropertyGroup>
+        <RootNamespace>FSH.Modules.{Name}</RootNamespace>
+        <AssemblyName>FSH.Modules.{Name}</AssemblyName>
+        <PackageId>FullStackHero.Modules.{Name}</PackageId>
+        <NoWarn>$(NoWarn);CA1031;CA1812;CA2208;S3267;S3928;CA1062;CA1304;CA1308;CA1311;CA1862;CA2227</NoWarn>
+    </PropertyGroup>
+    <ItemGroup>
+        <FrameworkReference Include="Microsoft.AspNetCore.App" />
+    </ItemGroup>
+    <ItemGroup>
+        <PackageReference Include="Mediator.Abstractions" />
+        <PackageReference Include="FluentValidation" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\..\..\BuildingBlocks\Caching\Caching.csproj" />
+        <ProjectReference Include="..\..\..\BuildingBlocks\Persistence\Persistence.csproj" />
+        <ProjectReference Include="..\..\..\BuildingBlocks\Web\Web.csproj" />
+        <ProjectReference Include="..\Modules.{Name}.Contracts\Modules.{Name}.Contracts.csproj" />
+        <!-- Add only when required by the domain -->
+        <!-- <ProjectReference Include="..\..\..\BuildingBlocks\Eventing\Eventing.csproj" /> -->
+        <!-- <ProjectReference Include="..\..\Identity\Modules.Identity.Contracts\Modules.Identity.Contracts.csproj" /> -->
+    </ItemGroup>
 </Project>
 ```
 
 ### Contracts Project
-`src/Modules/{Name}/Modules.{Name}.Contracts/Modules.{Name}.Contracts.csproj`:
+
+`src/Modules/{Name}/Modules.{Name}.Contracts/Modules.{Name}.Contracts.csproj`
+
 ```xml
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
-  </PropertyGroup>
+    <PropertyGroup>
+        <RootNamespace>FSH.Modules.{Name}.Contracts</RootNamespace>
+        <AssemblyName>FSH.Modules.{Name}.Contracts</AssemblyName>
+        <PackageId>FullStackHero.Modules.{Name}.Contracts</PackageId>
+        <NoWarn>$(NoWarn);CA1002;CA1056;CS1572;S2094</NoWarn>
+    </PropertyGroup>
+    <ItemGroup>
+        <PackageReference Include="Mediator.Abstractions" />
+    </ItemGroup>
+    <ItemGroup>
+        <ProjectReference Include="..\..\..\BuildingBlocks\Eventing.Abstractions\Eventing.Abstractions.csproj" />
+        <ProjectReference Include="..\..\..\BuildingBlocks\Shared\Shared.csproj" />
+    </ItemGroup>
 </Project>
 ```
 
-## Step 2: Implement IModule
+## Step 2: Add Contracts Marker
 
 ```csharp
-public sealed class {Name}Module : IModule
+namespace FSH.Modules.{Name}.Contracts;
+
+public sealed class {Name}ContractsMarker;
+```
+
+## Step 3: Implement IModule
+
+```csharp
+using Asp.Versioning;
+using FSH.Framework.Persistence;
+using FSH.Framework.Shared.Constants;
+using FSH.Framework.Web.Modules;
+
+public class {Name}Module : IModule
 {
-    public void ConfigureServices(IHostApplicationBuilder builder)
-    {
-        // Register DbContext
-        builder.Services.AddDbContext<{Name}DbContext>((sp, options) =>
+        private static readonly IReadOnlyList<FshPermission> RegisteredPermissions =
+        [
+                new("View {Entities}", "View", "{Name}.{Entity}", IsBasic: true),
+                new("Create {Entities}", "Create", "{Name}.{Entity}"),
+                new("Update {Entities}", "Update", "{Name}.{Entity}"),
+                new("Delete {Entities}", "Delete", "{Name}.{Entity}")
+        ];
+
+        public void ConfigureServices(IHostApplicationBuilder builder)
         {
-            var dbOptions = sp.GetRequiredService<IOptions<DatabaseOptions>>().Value;
-            options.UseNpgsql(dbOptions.ConnectionString);
-        });
+                ArgumentNullException.ThrowIfNull(builder);
 
-        // Register repositories
-        builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
-        builder.Services.AddScoped(typeof(IReadRepository<>), typeof(Repository<>));
-    }
+                PermissionConstants.Register(RegisteredPermissions);
+                builder.Services.AddHeroDbContext<{Name}DbContext>();
+                builder.Services.AddScoped<IDbInitializer, {Name}DbInitializer>();
 
-    public void MapEndpoints(IEndpointRouteBuilder endpoints)
-    {
-        var group = endpoints.MapGroup("/api/v1/{name}");
-        // Map feature endpoints here
-    }
+                // Optional only when the module needs startup provisioning.
+                // builder.Services.AddHostedService<{Name}DbInitializerHostedService>();
+        }
+
+        public void MapEndpoints(IEndpointRouteBuilder endpoints)
+        {
+                ArgumentNullException.ThrowIfNull(endpoints);
+
+                var apiVersionSet = endpoints.NewApiVersionSet()
+                        .HasApiVersion(new ApiVersion(1))
+                        .ReportApiVersions()
+                        .Build();
+
+                var moduleGroup = endpoints
+                        .MapGroup("api/v{version:apiVersion}/{route-segment}")
+                        .WithTags("{Name}")
+                        .WithApiVersionSet(apiVersionSet);
+
+                var resourceGroup = moduleGroup.MapGroup("/{resource-route}");
+
+                // Map feature endpoints here.
+        }
 }
 ```
 
-## Step 3: Add Permission Constants
+Do not use the old `Add{Module}Module()` and `Map{Module}Endpoints()` extension pattern as the primary integration mechanism.
+
+## Step 4: Add Module Constants
 
 ```csharp
-public static class {Name}PermissionConstants
+public static class {Name}ModuleConstants
 {
-    public static class {Entities}
-    {
-        public const string View = "{Entities}.View";
-        public const string Create = "{Entities}.Create";
-        public const string Update = "{Entities}.Update";
-        public const string Delete = "{Entities}.Delete";
-    }
+        public const string SchemaName = "{schema}";
+
+        public static class Permissions
+        {
+                public static class {Entities}
+                {
+                        public const string View = "Permissions.{Name}.{Entities}.View";
+                        public const string Create = "Permissions.{Name}.{Entities}.Create";
+                        public const string Update = "Permissions.{Name}.{Entities}.Update";
+                        public const string Delete = "Permissions.{Name}.{Entities}.Delete";
+                }
+        }
 }
 ```
 
-## Step 4: Create DbContext
+Add `MigrationsTable`, top-level permission constants, or `Features` only if the module actually needs them.
+
+## Step 5: Create DbContext
 
 ```csharp
-public sealed class {Name}DbContext : DbContext
+public class {Name}DbContext : BaseDbContext
 {
-    public {Name}DbContext(DbContextOptions<{Name}DbContext> options) : base(options) { }
+        public DbSet<{Entity}> {Entities} => Set<{Entity}>();
 
-    public DbSet<{Entity}> {Entities} => Set<{Entity}>();
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        modelBuilder.HasDefaultSchema("{name}");
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof({Name}DbContext).Assembly);
-    }
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+                base.OnModelCreating(modelBuilder);
+                modelBuilder.ApplyConfigurationsFromAssembly(typeof({Name}DbContext).Assembly);
+        }
 }
 ```
 
-## Step 5: Register in Program.cs
+Use `BaseDbContext` and `AddHeroDbContext<T>()`, not raw `DbContext` plus `AddDbContext<T>()`.
+
+## Step 6: Create DbContext Factory
+
+Add `{Name}DbContextFactory` under `Data/` for design-time EF operations.
+
+## Step 7: Create DbInitializer
 
 ```csharp
-// Add to moduleAssemblies array
-var moduleAssemblies = new Assembly[]
+internal sealed class {Name}DbInitializer : IDbInitializer
 {
-    typeof(IdentityModule).Assembly,
-    typeof(MultitenancyModule).Assembly,
-    typeof(AuditingModule).Assembly,
-    typeof({Name}Module).Assembly,  // Add here
-};
+        public Task MigrateAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+        public Task SeedAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}
+```
 
-// Add Mediator assemblies if module has commands/queries
+The interface in this repo uses `MigrateAsync` and `SeedAsync`.
+
+## Step 8: Create Domain Entities
+
+Put entities under `Domain/`.
+
+Typical shape:
+
+```csharp
+public class {Entity} : BaseEntity, IAuditable, IMustHaveTenant
+{
+        public string Name { get; private set; } = default!;
+        public Guid TenantId { get; set; }
+}
+```
+
+## Step 9: Add Entity Configurations
+
+Add `IEntityTypeConfiguration<T>` classes under `Data/Configurations/`.
+
+## Step 10: Add Features
+
+Use the repo's vertical-slice structure:
+
+```text
+Features/v1/{Area}/{UseCase}/
+├── {UseCase}Command.cs or {UseCase}Query.cs
+├── {UseCase}CommandHandler.cs or {UseCase}QueryHandler.cs
+├── {UseCase}CommandValidator.cs when applicable
+└── {UseCase}Endpoint.cs
+```
+
+## Step 11: Register In Program.cs
+
+```csharp
 builder.Services.AddMediator(o =>
 {
-    o.Assemblies = [
-        // ... existing
-        typeof({Name}Module).Assembly,
-    ];
+        o.ServiceLifetime = ServiceLifetime.Scoped;
+        o.Assemblies = [
+                // existing entries,
+                typeof({Name}Module),
+                typeof({Name}ContractsMarker),
+                typeof({RepresentativeFeatureType})
+        ];
 });
+
+var moduleAssemblies = new Assembly[]
+{
+        typeof(IdentityModule).Assembly,
+        typeof(MultitenancyModule).Assembly,
+        typeof(AuditingModule).Assembly,
+        typeof({Name}Module).Assembly,
+};
 ```
 
-## Step 6: Add to Solution
+Keep using the host pipeline that already exists:
+
+- `builder.AddHeroPlatform(...)`
+- `builder.AddModules(moduleAssemblies)`
+- `app.UseHeroMultiTenantDatabases()`
+- `app.UseHeroPlatform(p => p.MapModules = true)`
+
+## Step 12: Add To Solution
 
 ```bash
 dotnet sln src/FSH.Framework.slnx add src/Modules/{Name}/Modules.{Name}/Modules.{Name}.csproj
 dotnet sln src/FSH.Framework.slnx add src/Modules/{Name}/Modules.{Name}.Contracts/Modules.{Name}.Contracts.csproj
 ```
 
-## Step 7: Reference from API
+## Step 13: Reference From API
 
 In `src/Playground/Playground.Api/Playground.Api.csproj`:
+
 ```xml
+<ProjectReference Include="..\..\Modules\{Name}\Modules.{Name}.Contracts\Modules.{Name}.Contracts.csproj" />
 <ProjectReference Include="..\..\Modules\{Name}\Modules.{Name}\Modules.{Name}.csproj" />
 ```
 
-## Step 8: Verify
+## Step 14: Verify
 
 ```bash
-dotnet build src/FSH.Framework.slnx  # Must be 0 warnings
+dotnet build src/FSH.Framework.slnx
 dotnet test src/FSH.Framework.slnx
 ```
 
 ## Checklist
 
-- [ ] Both projects created (main + contracts)
-- [ ] IModule implemented with ConfigureServices and MapEndpoints
-- [ ] Permission constants defined
-- [ ] DbContext created with proper schema
-- [ ] Registered in Program.cs moduleAssemblies
-- [ ] Added to solution file
-- [ ] Referenced from Playground.Api
-- [ ] Build passes with 0 warnings
+- [ ] Both projects created
+- [ ] Contracts marker created
+- [ ] `IModule` implemented
+- [ ] `ModuleConstants` added
+- [ ] `BaseDbContext` used
+- [ ] `DbContextFactory` created
+- [ ] `IDbInitializer` implemented with `MigrateAsync` and `SeedAsync`
+- [ ] Domain entities added under `Domain/`
+- [ ] Entity configuration classes added under `Data/Configurations/`
+- [ ] Features added under `Features/v1/...`
+- [ ] Mediator assembly list updated in `Program.cs`
+- [ ] `moduleAssemblies` updated in `Program.cs`
+- [ ] API project references added
+- [ ] Solution updated
+- [ ] Build passes with zero warnings
+
+## Practical Guidance
+
+- Use MasterData as the lean baseline.
+- Use Expendable as the richer example with subdomains and optional provisioning.
+- Prefer actual repo modules over older generic examples if they disagree.

@@ -23,6 +23,16 @@ using FSH.Modules.MasterData.Features.v1.UnitOfMeasures.DeleteUnitOfMeasure;
 using FSH.Modules.MasterData.Features.v1.UnitOfMeasures.GetUnitOfMeasureById;
 using FSH.Modules.MasterData.Features.v1.UnitOfMeasures.UpdateUnitOfMeasure;
 using FSH.Modules.MasterData.Features.v1.Departments.GetDepartmentById;
+using FSH.Modules.MasterData.Features.v1.Suppliers.CreateSupplier;
+using FSH.Modules.MasterData.Features.v1.Suppliers.DeleteSupplier;
+using FSH.Modules.MasterData.Features.v1.Suppliers.GetSuppliers;
+using FSH.Modules.MasterData.Features.v1.Suppliers.GetSupplierById;
+using FSH.Modules.MasterData.Features.v1.Suppliers.UpdateSupplier;
+using FSH.Modules.MasterData.Features.v1.Categories.CreateCategory;
+using FSH.Modules.MasterData.Features.v1.Categories.DeleteCategory;
+using FSH.Modules.MasterData.Features.v1.Categories.GetCategories;
+using FSH.Modules.MasterData.Features.v1.Categories.GetCategoryById;
+using FSH.Modules.MasterData.Features.v1.Categories.UpdateCategory;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -60,7 +70,17 @@ public class MasterDataModule : IModule
         new("View Unit Of Measures", "View", "MasterData.UnitOfMeasures"),
         new("Create Unit Of Measures", "Create", "MasterData.UnitOfMeasures"),
         new("Update Unit Of Measures", "Update", "MasterData.UnitOfMeasures"),
-        new("Delete Unit Of Measures", "Delete", "MasterData.UnitOfMeasures")
+        new("Delete Unit Of Measures", "Delete", "MasterData.UnitOfMeasures"),
+
+        new("View Suppliers", "View", "MasterData.Suppliers"),
+        new("Create Suppliers", "Create", "MasterData.Suppliers"),
+        new("Update Suppliers", "Update", "MasterData.Suppliers"),
+        new("Delete Suppliers", "Delete", "MasterData.Suppliers"),
+
+        new("View Categories", "View", "MasterData.Categories"),
+        new("Create Categories", "Create", "MasterData.Categories"),
+        new("Update Categories", "Update", "MasterData.Categories"),
+        new("Delete Categories", "Delete", "MasterData.Categories")
     ];
 
     public void ConfigureServices(IHostApplicationBuilder builder)
@@ -94,6 +114,8 @@ public class MasterDataModule : IModule
         var departmentsGroup = moduleGroup.MapGroup("/departments");
         var positionsGroup = moduleGroup.MapGroup("/positions");
         var unitOfMeasuresGroup = moduleGroup.MapGroup("/unit-of-measures");
+        var suppliersGroup = moduleGroup.MapGroup("/suppliers");
+        var categoriesGroup = moduleGroup.MapGroup("/categories");
 
         MasterDataLookupEndpoint.Map(lookupGroup);
         CreateEmployeeEndpoint.Map(employeesGroup);
@@ -115,6 +137,16 @@ public class MasterDataModule : IModule
         GetUnitOfMeasureByIdEndpoint.Map(unitOfMeasuresGroup);
         UpdateUnitOfMeasureEndpoint.Map(unitOfMeasuresGroup);
         DeleteUnitOfMeasureEndpoint.Map(unitOfMeasuresGroup);
+        CreateSupplierEndpoint.Map(suppliersGroup);
+        GetSuppliersEndpoint.Map(suppliersGroup);
+        GetSupplierByIdEndpoint.Map(suppliersGroup);
+        UpdateSupplierEndpoint.Map(suppliersGroup);
+        DeleteSupplierEndpoint.Map(suppliersGroup);
+        CreateCategoryEndpoint.Map(categoriesGroup);
+        GetCategoriesEndpoint.Map(categoriesGroup);
+        GetCategoryByIdEndpoint.Map(categoriesGroup);
+        UpdateCategoryEndpoint.Map(categoriesGroup);
+        DeleteCategoryEndpoint.Map(categoriesGroup);
     }
 }
 

@@ -35,6 +35,13 @@ public sealed class TenantAutoProvisioningHostedService : IHostedService
 
         if (!JobStorageAvailable())
         {
+            if (_options.RunTenantMigrationsOnStartup)
+            {
+                _logger.LogWarning("Hangfire storage not initialized; running startup provisioning inline because RunTenantMigrationsOnStartup is enabled.");
+                await ProvisionTenantsAsync(cancellationToken);
+                return;
+            }
+
             _logger.LogWarning("Hangfire storage not initialized; skipping auto-provisioning enqueue.");
             return;
         }

@@ -50,12 +50,44 @@ public sealed class IdentityService : IIdentityService
     public async Task<(string Subject, IEnumerable<Claim> Claims)?>
         ValidateRefreshTokenAsync(string refreshToken, CancellationToken ct = default)
     {
-        var tenant = GetValidatedTenant();
-        var user = await FindUserByRefreshTokenAsync(refreshToken, tenant.Id, ct);
+        if (string.IsNullOrWhiteSpace(refreshToken))
+        {
+            return null;
+        }
 
-        ValidateRefreshTokenExpiry(user);
-        ValidateUserStatus(user);
-        ValidateTenantStatus(tenant);
+        AppTenantInfo tenant;
+        try
+        {
+            tenant = GetValidatedTenant();
+        }
+        catch (UnauthorizedException ex)
+        {
+            _logger.LogDebug(ex, "Refresh token validation failed: tenant context is missing or invalid");
+            return null;
+        }
+
+        var user = await FindUserByRefreshTokenAsync(refreshToken, tenant.Id, ct);
+        if (user is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            ValidateRefreshTokenExpiry(user);
+            ValidateUserStatus(user);
+            ValidateTenantStatus(tenant);
+        }
+        catch (UnauthorizedException ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Refresh token validation failed for user {UserId} in tenant {TenantId}: {Reason}",
+                user.Id,
+                tenant.Id,
+                ex.Message);
+            return null;
+        }
 
         var claims = await BuildUserClaimsAsync(user, tenant.Id, ct);
         return (user.Id, claims);
@@ -108,7 +140,7 @@ public sealed class IdentityService : IIdentityService
         return user;
     }
 
-    private async Task<FshUser> FindUserByRefreshTokenAsync(string refreshToken, string tenantId, CancellationToken ct)
+    private async Task<FshUser?> FindUserByRefreshTokenAsync(string refreshToken, string tenantId, CancellationToken ct)
     {
         var hashedToken = HashToken(refreshToken);
 
@@ -122,7 +154,7 @@ public sealed class IdentityService : IIdentityService
         if (user is null)
         {
             _logger.LogDebug("No user found with matching refresh token hash for tenant {TenantId}", tenantId);
-            throw new UnauthorizedException("refresh token is invalid or expired");
+            return null;
         }
 
         return user;

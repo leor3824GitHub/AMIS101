@@ -1,0 +1,332 @@
+@page "/masterdata/categories"
+@using FSH.Framework.Blazor.UI.Components.Cards
+@using FSH.Playground.Blazor.ApiClient
+@using FSH.Playground.Blazor.Services
+@inherits ComponentBase
+@inject ISnackbar Snackbar
+@inject MasterDataService MasterDataService
+
+<FshPageHeader Title="Categories" Description="Manage product categories">
+    <ActionContent>
+        <MudStack Row="true" Spacing="2" Style="width: 100%; max-width: 400px;">
+            <MudTextField @bind-Value="_searchKeyword" Label="Search" Placeholder="Search categories..."
+                          DebounceInterval="300" OnDebounceIntervalElapsed="@(async () => await SearchCategories())"
+                          Variant="Variant.Outlined" Size="Size.Small" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SearchCategories">
+                Search
+            </MudButton>
+        </MudStack>
+    </ActionContent>
+</FshPageHeader>
+
+<div class="mt-4">
+    <MudGrid Spacing="2">
+        <!-- Create/Edit Form -->
+        <MudItem xs="12" md="4">
+            <MudCard Class="fsh-card">
+                <MudCardContent>
+                    <MudText Typo="Typo.h6" Class="mb-3">@(EditingCategory != null ? "Edit Category" : "Add Category")</MudText>
+                    <MudStack Spacing="3">
+                        <MudTextField @bind-Value="_form.Code" Label="Category Code" Placeholder="Unique code" Required="true" />
+                        <MudTextField @bind-Value="_form.Name" Label="Category Name" Placeholder="Category name" Required="true" />
+                        <MudTextField @bind-Value="_form.Description" Label="Description" Placeholder="Category description" Lines="3" />
+                        <MudCheckBox @bind-Value="_form.IsActive" Label="Active" T="bool" />
+
+                        <MudStack Row="true" Spacing="2" Class="mt-4">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                                       OnClick="SaveCategory" Disabled="_isLoading">
+                                @(EditingCategory != null ? "Update" : "Create")
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined" Color="Color.Default" FullWidth="true"
+                                       OnClick="ResetForm">
+                                Clear
+                            </MudButton>
+                        </MudStack>
+                    </MudStack>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- Categories List -->
+        <MudItem xs="12" md="8">
+            <MudCard Class="fsh-card">
+                <MudCardContent>
+                    <MudText Typo="Typo.h6" Class="mb-3">Categories List</MudText>
+
+                    @if (_categories.Any())
+                    {
+                        <MudSimpleTable Dense="true" Hover="true" Striped="true">
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Name</th>
+                                    <th>Description</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var category in _categories)
+                                {
+                                    <tr>
+                                        <td>@category.Code</td>
+                                        <td>@category.Name</td>
+                                        <td>@(category.Description ?? "-")</td>
+                                        <td><MudChip T="string" Size="Size.Small" Color="@(category.IsActive ? Color.Success : Color.Error)">@(category.IsActive ? "Active" : "Inactive")</MudChip></td>
+                                        <td>
+                                            <MudStack Row="true" Spacing="1">
+                                                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small"
+                                                               Color="Color.Primary" OnClick="@(() => EditCategory(category))" />
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small"
+                                                               Color="Color.Error" OnClick="@(() => DeleteCategory(category.Id))" />
+                                            </MudStack>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </MudSimpleTable>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Info">No categories yet. Create one to get started.</MudAlert>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</div>
+
+@code {
+    private CategoryForm _form = new();
+    private CategoryDto? EditingCategory;
+    private List<CategoryDto> _categories = new();
+    private bool _initialized = false;
+    private bool _isLoading = false;
+    private string _searchKeyword = string.Empty;
+
+    public class CategoryForm
+    {
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public bool IsActive { get; set; } = true;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (_initialized) return;
+        _initialized = true;
+        await LoadCategories();
+    }
+
+    private async Task LoadCategories()
+    {
+        try
+        {
+            _isLoading = true;
+            var response = await MasterDataService.GetCategoriesAsync(pageSize: 100);
+            _categories = response?.Items?.ToList() ?? new();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to load categories: {ex.Message}", Severity.Error);
+            _categories = new();
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SearchCategories()
+    {
+        try
+        {
+            _isLoading = true;
+            var response = await MasterDataService.GetCategoriesAsync(keyword: _searchKeyword, pageSize: 100);
+            var allCategories = response?.Items?.ToList() ?? new();
+
+            if (string.IsNullOrWhiteSpace(_searchKeyword))
+            {
+                _categories = allCategories;
+            }
+            else
+            {
+                var searchTerm = _searchKeyword.ToLower();
+                _categories = allCategories
+                    .Where(c =>
+                        c.Code.ToLower().Contains(searchTerm) ||
+                        c.Name.ToLower().Contains(searchTerm) ||
+                        (c.Description?.ToLower().Contains(searchTerm) ?? false))
+                    .ToList();
+            }
+
+            if (_categories.Count == 0 && !string.IsNullOrWhiteSpace(_searchKeyword))
+            {
+                Snackbar.Add("No categories found matching your search", Severity.Info);
+            }
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Search failed: {ex.Message}", Severity.Error);
+            _categories = new();
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveCategory()
+    {
+        var normalizedCode = _form.Code?.Trim() ?? string.Empty;
+        var normalizedName = _form.Name?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(normalizedCode) || string.IsNullOrWhiteSpace(normalizedName))
+        {
+            Snackbar.Add("Code and Name are required", Severity.Warning);
+            return;
+        }
+
+        var duplicateCodeExists = _categories.Any(c =>
+            !string.IsNullOrWhiteSpace(c.Code) &&
+            string.Equals(c.Code.Trim(), normalizedCode, StringComparison.OrdinalIgnoreCase) &&
+            (EditingCategory is null || c.Id != EditingCategory.Id));
+
+        if (duplicateCodeExists)
+        {
+            Snackbar.Add("A category with this code already exists.", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            if (EditingCategory != null)
+            {
+                var updateCmd = new UpdateCategoryCommand
+                {
+                    Id = EditingCategory.Id,
+                    Code = normalizedCode,
+                    Name = normalizedName,
+                    Description = _form.Description,
+                    IsActive = _form.IsActive
+                };
+
+                await MasterDataService.UpdateCategoryAsync(EditingCategory.Id, updateCmd);
+                Snackbar.Add("Category updated successfully", Severity.Success);
+            }
+            else
+            {
+                var createCmd = new CreateCategoryCommand
+                {
+                    Code = normalizedCode,
+                    Name = normalizedName,
+                    Description = _form.Description
+                };
+
+                await MasterDataService.CreateCategoryAsync(createCmd);
+                Snackbar.Add("Category created successfully", Severity.Success);
+            }
+
+            await LoadCategories();
+            ResetForm();
+        }
+        catch (ApiException apiEx) when (apiEx.StatusCode == StatusCodes.Status400BadRequest)
+        {
+            var validationMessages = ExtractValidationMessages(apiEx.Response);
+            if (validationMessages.Count > 0)
+            {
+                foreach (var message in validationMessages)
+                {
+                    Snackbar.Add(message, Severity.Warning);
+                }
+            }
+            else
+            {
+                Snackbar.Add("Validation failed. Please check your inputs and try again.", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to save category: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private static List<string> ExtractValidationMessages(string? response)
+    {
+        if (string.IsNullOrWhiteSpace(response))
+        {
+            return new List<string>();
+        }
+
+        try
+        {
+            using var json = System.Text.Json.JsonDocument.Parse(response);
+            if (!json.RootElement.TryGetProperty("errors", out var errorsElement) ||
+                errorsElement.ValueKind != System.Text.Json.JsonValueKind.Object)
+            {
+                return new List<string>();
+            }
+
+            var messages = new List<string>();
+            foreach (var property in errorsElement.EnumerateObject())
+            {
+                if (property.Value.ValueKind != System.Text.Json.JsonValueKind.Array)
+                {
+                    continue;
+                }
+
+                foreach (var errorItem in property.Value.EnumerateArray())
+                {
+                    var message = errorItem.GetString();
+                    if (!string.IsNullOrWhiteSpace(message))
+                    {
+                        messages.Add(message);
+                    }
+                }
+            }
+
+            return messages;
+        }
+        catch
+        {
+            return new List<string>();
+        }
+    }
+
+    private void EditCategory(CategoryDto category)
+    {
+        EditingCategory = category;
+        _form = new CategoryForm
+        {
+            Code = category.Code,
+            Name = category.Name,
+            Description = category.Description,
+            IsActive = category.IsActive
+        };
+    }
+
+    private void ResetForm()
+    {
+        _form = new();
+        EditingCategory = null;
+    }
+
+    private async Task DeleteCategory(Guid id)
+    {
+        try
+        {
+            await MasterDataService.DeleteCategoryAsync(id);
+            await LoadCategories();
+            Snackbar.Add("Category deleted", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Failed to delete category: {ex.Message}", Severity.Error);
+        }
+    }
+}
