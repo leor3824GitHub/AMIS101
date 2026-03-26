@@ -58,9 +58,9 @@ public sealed class CreateGroupCommandHandler : ICommandHandler<CreateGroupComma
             createdBy: _currentUser.GetUserId().ToString());
 
         // Add role assignments
-        foreach (var role in resolvedRoles)
+        foreach (var (id, _) in resolvedRoles)
         {
-            _dbContext.GroupRoles.Add(GroupRole.Create(group.Id, role.Item1));
+            _dbContext.GroupRoles.Add(GroupRole.Create(group.Id, id));
         }
 
         _dbContext.Groups.Add(group);
