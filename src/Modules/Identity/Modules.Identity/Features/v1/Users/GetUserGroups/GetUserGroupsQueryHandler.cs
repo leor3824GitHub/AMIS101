@@ -29,6 +29,7 @@ public sealed class GetUserGroupsQueryHandler : IQueryHandler<GetUserGroupsQuery
 
         // Get user's groups
         var groupIds = await _dbContext.UserGroups
+            .AsNoTracking()
             .Where(ug => ug.UserId == query.UserId)
             .Select(ug => ug.GroupId)
             .ToListAsync(cancellationToken);
@@ -39,6 +40,7 @@ public sealed class GetUserGroupsQueryHandler : IQueryHandler<GetUserGroupsQuery
         }
 
         var groups = await _dbContext.Groups
+            .AsNoTracking()
             .Include(g => g.GroupRoles)
             .Where(g => groupIds.Contains(g.Id))
             .ToListAsync(cancellationToken);
@@ -75,7 +77,7 @@ public sealed class GetUserGroupsQueryHandler : IQueryHandler<GetUserGroupsQuery
                 .Select(gr => roleNames.GetValueOrDefault(gr.RoleId, gr.RoleId))
                 .ToList()
                 .AsReadOnly(),
-            CreatedAt = g.CreatedAt
+            CreatedAt = g.CreatedOnUtc
         });
     }
 }

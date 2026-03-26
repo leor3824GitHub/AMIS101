@@ -33,15 +33,17 @@ public sealed class CreateGroupCommandHandler : ICommandHandler<CreateGroupComma
             throw new CustomException($"Group with name '{command.Name}' already exists.", (IEnumerable<string>?)null, System.Net.HttpStatusCode.Conflict);
         }
 
-        // Validate role IDs exist
+        // Validate role IDs exist — fetch Id+Name in a single query to avoid a second roundtrip later
+        List<(string Id, string Name)> resolvedRoles = [];
         if (command.RoleIds is { Count: > 0 })
         {
-            var existingRoleIds = await _dbContext.Roles
+            var rawRoles = await _dbContext.Roles
                 .Where(r => command.RoleIds.Contains(r.Id))
-                .Select(r => r.Id)
+                .Select(r => new { r.Id, r.Name })
                 .ToListAsync(cancellationToken);
+            resolvedRoles = rawRoles.Select(r => (r.Id, r.Name!)).ToList();
 
-            var invalidRoleIds = command.RoleIds.Except(existingRoleIds).ToList();
+            var invalidRoleIds = command.RoleIds.Except(resolvedRoles.Select(r => r.Id)).ToList();
             if (invalidRoleIds.Count > 0)
             {
                 throw new NotFoundException($"Roles not found: {string.Join(", ", invalidRoleIds)}");
@@ -56,24 +58,13 @@ public sealed class CreateGroupCommandHandler : ICommandHandler<CreateGroupComma
             createdBy: _currentUser.GetUserId().ToString());
 
         // Add role assignments
-        if (command.RoleIds is { Count: > 0 })
+        foreach (var role in resolvedRoles)
         {
-            foreach (var roleId in command.RoleIds)
-            {
-                _dbContext.GroupRoles.Add(GroupRole.Create(group.Id, roleId));
-            }
+            _dbContext.GroupRoles.Add(GroupRole.Create(group.Id, role.Item1));
         }
 
         _dbContext.Groups.Add(group);
         await _dbContext.SaveChangesAsync(cancellationToken);
-
-        // Get role names for response
-        var roleNames = command.RoleIds is { Count: > 0 }
-            ? await _dbContext.Roles
-                .Where(r => command.RoleIds.Contains(r.Id))
-                .Select(r => r.Name!)
-                .ToListAsync(cancellationToken)
-            : [];
 
         return new GroupDto
         {
@@ -83,9 +74,9 @@ public sealed class CreateGroupCommandHandler : ICommandHandler<CreateGroupComma
             IsDefault = group.IsDefault,
             IsSystemGroup = group.IsSystemGroup,
             MemberCount = 0,
-            RoleIds = command.RoleIds?.AsReadOnly(),
-            RoleNames = roleNames.AsReadOnly(),
-            CreatedAt = group.CreatedAt
+            RoleIds = resolvedRoles.Select(r => r.Id).ToList().AsReadOnly(),
+            RoleNames = resolvedRoles.Select(r => r.Name).ToList().AsReadOnly(),
+            CreatedAt = group.CreatedOnUtc
         };
     }
 }
