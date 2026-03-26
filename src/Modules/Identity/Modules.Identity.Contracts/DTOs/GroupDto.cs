@@ -10,9 +10,5 @@ public class GroupDto
     public int MemberCount { get; set; }
     public IReadOnlyCollection<string>? RoleIds { get; set; }
     public IReadOnlyCollection<string>? RoleNames { get; set; }
-<<<<<<< HEAD
-    public DateTime CreatedAt { get; set; }
-=======
     public DateTimeOffset CreatedAt { get; set; }
->>>>>>> d964bcda (fix(identity): align Group entity with IAuditableEntity and encapsulate soft-delete)
 }
