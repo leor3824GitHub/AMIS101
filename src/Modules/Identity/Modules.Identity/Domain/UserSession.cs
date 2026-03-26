@@ -5,7 +5,7 @@ namespace FSH.Modules.Identity.Domain;
 
 public class UserSession : IHasDomainEvents
 {
-    private readonly List<IDomainEvent> _domainEvents = [];
+    private readonly List<IDomainEvent> _domainEvents = new List<IDomainEvent>();
 
     public Guid Id { get; private set; }
     public string UserId { get; private set; } = default!;

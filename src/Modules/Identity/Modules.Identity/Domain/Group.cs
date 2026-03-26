@@ -2,17 +2,19 @@ using FSH.Framework.Core.Domain;
 
 namespace FSH.Modules.Identity.Domain;
 
-public class Group : ISoftDeletable
+public class Group : ISoftDeletable, IAuditableEntity
 {
     public Guid Id { get; private set; }
     public string Name { get; private set; } = default!;
     public string? Description { get; private set; }
     public bool IsDefault { get; private set; }
     public bool IsSystemGroup { get; private set; }
-    public DateTime CreatedAt { get; private set; }
+
+    // IAuditableEntity
+    public DateTimeOffset CreatedOnUtc { get; private set; }
     public string? CreatedBy { get; private set; }
-    public DateTime? ModifiedAt { get; private set; }
-    public string? ModifiedBy { get; private set; }
+    public DateTimeOffset? LastModifiedOnUtc { get; private set; }
+    public string? LastModifiedBy { get; private set; }
 
     // ISoftDeletable implementation
     public bool IsDeleted { get; set; }
@@ -20,8 +22,8 @@ public class Group : ISoftDeletable
     public string? DeletedBy { get; set; }
 
     // Navigation properties
-    public virtual ICollection<GroupRole> GroupRoles { get; private set; } = [];
-    public virtual ICollection<UserGroup> UserGroups { get; private set; } = [];
+    public virtual ICollection<GroupRole> GroupRoles { get; private set; } = new List<GroupRole>();
+    public virtual ICollection<UserGroup> UserGroups { get; private set; } = new List<UserGroup>();
 
     private Group() { } // EF Core
 
@@ -34,11 +36,7 @@ public class Group : ISoftDeletable
             Description = description,
             IsDefault = isDefault,
             IsSystemGroup = isSystemGroup,
-<<<<<<< HEAD
-            CreatedAt = DateTime.UtcNow,
-=======
             CreatedOnUtc = TimeProvider.System.GetUtcNow(),
->>>>>>> d964bcda (fix(identity): align Group entity with IAuditableEntity and encapsulate soft-delete)
             CreatedBy = createdBy
         };
     }
@@ -47,22 +45,13 @@ public class Group : ISoftDeletable
     {
         Name = name;
         Description = description;
-<<<<<<< HEAD
-        ModifiedAt = DateTime.UtcNow;
-        ModifiedBy = modifiedBy;
-=======
         LastModifiedOnUtc = TimeProvider.System.GetUtcNow();
         LastModifiedBy = modifiedBy;
->>>>>>> d964bcda (fix(identity): align Group entity with IAuditableEntity and encapsulate soft-delete)
     }
 
     public void SetAsDefault(bool isDefault, string? modifiedBy = null)
     {
         IsDefault = isDefault;
-<<<<<<< HEAD
-        ModifiedAt = DateTime.UtcNow;
-        ModifiedBy = modifiedBy;
-=======
         LastModifiedOnUtc = TimeProvider.System.GetUtcNow();
         LastModifiedBy = modifiedBy;
     }
@@ -72,6 +61,5 @@ public class Group : ISoftDeletable
         IsDeleted = true;
         DeletedOnUtc = TimeProvider.System.GetUtcNow();
         DeletedBy = deletedBy;
->>>>>>> d964bcda (fix(identity): align Group entity with IAuditableEntity and encapsulate soft-delete)
     }
 }

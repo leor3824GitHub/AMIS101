@@ -6,7 +6,7 @@ namespace FSH.Modules.Identity.Domain;
 
 public class FshUser : IdentityUser, IHasDomainEvents
 {
-    private readonly List<IDomainEvent> _domainEvents = [];
+    private readonly List<IDomainEvent> _domainEvents = new List<IDomainEvent>();
 
     public string? FirstName { get; set; }
     public string? LastName { get; set; }

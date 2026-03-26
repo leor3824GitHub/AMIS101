@@ -79,7 +79,7 @@ public sealed class UpdateGroupCommandHandler : ICommandHandler<UpdateGroupComma
     private static HashSet<string> UpdateRoleAssignments(Group group, IReadOnlyList<string>? roleIds)
     {
         var currentRoleIds = group.GroupRoles.Select(gr => gr.RoleId).ToHashSet();
-        var newRoleIds = roleIds?.ToHashSet() ?? [];
+        var newRoleIds = roleIds?.ToHashSet() ?? new HashSet<string>();
 
         var rolesToRemove = group.GroupRoles.Where(gr => !newRoleIds.Contains(gr.RoleId)).ToList();
         foreach (var role in rolesToRemove)
@@ -105,7 +105,7 @@ public sealed class UpdateGroupCommandHandler : ICommandHandler<UpdateGroupComma
                 .Where(r => roleIds.Contains(r.Id))
                 .Select(r => r.Name!)
                 .ToListAsync(cancellationToken)
-            : [];
+            : new List<string>();
 
         return new GroupDto
         {
@@ -117,11 +117,7 @@ public sealed class UpdateGroupCommandHandler : ICommandHandler<UpdateGroupComma
             MemberCount = memberCount,
             RoleIds = roleIds.ToList().AsReadOnly(),
             RoleNames = roleNames.AsReadOnly(),
-<<<<<<< HEAD
-            CreatedAt = group.CreatedAt
-=======
             CreatedAt = group.CreatedOnUtc
->>>>>>> d964bcda (fix(identity): align Group entity with IAuditableEntity and encapsulate soft-delete)
         };
     }
 }

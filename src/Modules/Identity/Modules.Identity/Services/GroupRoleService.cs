@@ -25,7 +25,7 @@ public sealed class GroupRoleService : IGroupRoleService
 
         if (userGroupIds.Count == 0)
         {
-            return [];
+            return Array.Empty<string>();
         }
 
         // Get all distinct role names from those groups

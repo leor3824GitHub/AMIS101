@@ -12,5 +12,5 @@ public class UpdatePermissionsCommand : ICommand<string>
     /// <summary>
     /// The list of permissions to assign to the role.
     /// </summary>
-    public List<string> Permissions { get; init; } = [];
+    public List<string> Permissions { get; init; } = new List<string>();
 }
