@@ -32,7 +32,7 @@ public sealed class GetGroupByIdQueryHandler : IQueryHandler<GetGroupByIdQuery, 
                 .Where(r => roleIds.Contains(r.Id))
                 .Select(r => r.Name!)
                 .ToListAsync(cancellationToken)
-            : [];
+            : new List<string>();
 
         return new GroupDto
         {

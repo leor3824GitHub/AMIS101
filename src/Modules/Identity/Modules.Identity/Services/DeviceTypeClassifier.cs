@@ -10,8 +10,8 @@ public static class DeviceTypeClassifier
     private const string Mobile = "Mobile";
     private const string Tablet = "Tablet";
 
-    private static readonly string[] MobileKeywords = ["mobile", "phone", "iphone", "android"];
-    private static readonly string[] TabletKeywords = ["tablet", "ipad"];
+    private static readonly string[] MobileKeywords = new[] { "mobile", "phone", "iphone", "android" };
+    private static readonly string[] TabletKeywords = new[] { "tablet", "ipad" };
 
     /// <summary>
     /// Determines the device type from a user agent device family string.
