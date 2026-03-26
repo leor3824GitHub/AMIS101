@@ -117,11 +117,7 @@ public sealed class UpdateGroupCommandHandler : ICommandHandler<UpdateGroupComma
             MemberCount = memberCount,
             RoleIds = roleIds.ToList().AsReadOnly(),
             RoleNames = roleNames.AsReadOnly(),
-<<<<<<< HEAD
-            CreatedAt = group.CreatedAt
-=======
             CreatedAt = group.CreatedOnUtc
->>>>>>> d964bcda (fix(identity): align Group entity with IAuditableEntity and encapsulate soft-delete)
         };
     }
 }
