@@ -19,6 +19,7 @@ public sealed class GetGroupByIdQueryHandler : IQueryHandler<GetGroupByIdQuery, 
     public async ValueTask<GroupDto> Handle(GetGroupByIdQuery query, CancellationToken cancellationToken)
     {
         var group = await _dbContext.Groups
+            .AsNoTracking()
             .Include(g => g.GroupRoles)
             .FirstOrDefaultAsync(g => g.Id == query.Id, cancellationToken)
             ?? throw new NotFoundException($"Group with ID '{query.Id}' not found.");
@@ -44,7 +45,7 @@ public sealed class GetGroupByIdQueryHandler : IQueryHandler<GetGroupByIdQuery, 
             MemberCount = memberCount,
             RoleIds = roleIds.AsReadOnly(),
             RoleNames = roleNames.AsReadOnly(),
-            CreatedAt = group.CreatedAt
+            CreatedAt = group.CreatedOnUtc
         };
     }
 }
