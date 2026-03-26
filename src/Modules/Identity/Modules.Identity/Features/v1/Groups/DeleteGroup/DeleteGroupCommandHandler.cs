@@ -32,9 +32,7 @@ public sealed class DeleteGroupCommandHandler : ICommandHandler<DeleteGroupComma
         }
 
         // Soft delete
-        group.IsDeleted = true;
-        group.DeletedOnUtc = DateTimeOffset.UtcNow;
-        group.DeletedBy = _currentUser.GetUserId().ToString();
+        group.Delete(_currentUser.GetUserId().ToString());
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 

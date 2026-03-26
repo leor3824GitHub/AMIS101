@@ -33,19 +33,17 @@ public sealed class CreateGroupCommandHandler : ICommandHandler<CreateGroupComma
             throw new CustomException($"Group with name '{command.Name}' already exists.", (IEnumerable<string>?)null, System.Net.HttpStatusCode.Conflict);
         }
 
-        // Validate role IDs exist
+        // Validate role IDs exist and resolve role names in one query
+        var existingRoles = command.RoleIds is { Count: > 0 }
+            ? await _dbContext.Roles
+                .Where(r => command.RoleIds.Contains(r.Id))
+                .Select(r => new { r.Id, r.Name })
+                .ToListAsync(cancellationToken)
+            : [];
+
         if (command.RoleIds is { Count: > 0 })
         {
-            var existingRoleIds = await _dbContext.Roles
-                .Where(r => command.RoleIds.Contains(r.Id))
-                .Select(r => r.Id)
-                .ToListAsync(cancellationToken);
-
-<<<<<<< HEAD
-            var invalidRoleIds = command.RoleIds.Except(existingRoleIds).ToList();
-=======
-            var invalidRoleIds = command.RoleIds.Except(resolvedRoles.Select(r => r.Id)).ToList();
->>>>>>> d964bcda (fix(identity): align Group entity with IAuditableEntity and encapsulate soft-delete)
+            var invalidRoleIds = command.RoleIds.Except(existingRoles.Select(r => r.Id)).ToList();
             if (invalidRoleIds.Count > 0)
             {
                 throw new NotFoundException($"Roles not found: {string.Join(", ", invalidRoleIds)}");
@@ -71,14 +69,6 @@ public sealed class CreateGroupCommandHandler : ICommandHandler<CreateGroupComma
         _dbContext.Groups.Add(group);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        // Get role names for response
-        var roleNames = command.RoleIds is { Count: > 0 }
-            ? await _dbContext.Roles
-                .Where(r => command.RoleIds.Contains(r.Id))
-                .Select(r => r.Name!)
-                .ToListAsync(cancellationToken)
-            : [];
-
         return new GroupDto
         {
             Id = group.Id,
@@ -87,15 +77,9 @@ public sealed class CreateGroupCommandHandler : ICommandHandler<CreateGroupComma
             IsDefault = group.IsDefault,
             IsSystemGroup = group.IsSystemGroup,
             MemberCount = 0,
-<<<<<<< HEAD
-            RoleIds = command.RoleIds?.AsReadOnly(),
-            RoleNames = roleNames.AsReadOnly(),
-            CreatedAt = group.CreatedAt
-=======
-            RoleIds = resolvedRoles.Select(r => r.Id).ToList().AsReadOnly(),
-            RoleNames = resolvedRoles.Select(r => r.Name).ToList().AsReadOnly(),
+            RoleIds = existingRoles.Select(r => r.Id).ToList().AsReadOnly(),
+            RoleNames = existingRoles.Select(r => r.Name!).ToList().AsReadOnly(),
             CreatedAt = group.CreatedOnUtc
->>>>>>> d964bcda (fix(identity): align Group entity with IAuditableEntity and encapsulate soft-delete)
         };
     }
 }

@@ -30,17 +30,26 @@ public class GroupConfiguration : IEntityTypeConfiguration<Group>
             .Property(g => g.CreatedBy)
             .HasMaxLength(450);
 
+        // Map renamed property back to existing DB column to avoid migration
         builder
-            .Property(g => g.ModifiedBy)
+            .Property(g => g.LastModifiedBy)
+            .HasColumnName("ModifiedBy")
             .HasMaxLength(450);
 
         builder
             .Property(g => g.DeletedBy)
             .HasMaxLength(450);
 
+        // Map renamed property back to existing DB column to avoid migration
         builder
-            .Property(g => g.CreatedAt)
+            .Property(g => g.CreatedOnUtc)
+            .HasColumnName("CreatedAt")
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+        // Map renamed property back to existing DB column to avoid migration
+        builder
+            .Property(g => g.LastModifiedOnUtc)
+            .HasColumnName("ModifiedAt");
 
         // Indexes
         builder.HasIndex(g => g.Name);
