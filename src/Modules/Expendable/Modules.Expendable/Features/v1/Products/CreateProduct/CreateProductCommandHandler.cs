@@ -33,20 +33,60 @@ public sealed class CreateProductCommandHandler : ICommandHandler<CreateProductC
             ]);
         }
 
-        var product = Product.Create(
-            _currentUser.GetTenant() ?? throw new InvalidOperationException("Tenant ID required"),
-            command.SKU,
-            command.Name,
-            command.Description,
-            command.UnitPrice,
-            command.UnitOfMeasure,
-            command.MinimumStockLevel,
-            command.ReorderQuantity);
+        Product product;
 
-        product.CategoryId = command.CategoryId;
-        product.SupplierId = command.SupplierId;
-        product.ImageUrl = command.ImageUrl;
-        product.CreatedBy = _currentUser.GetUserId().ToString();
+        if (command.ParentProductId is not null)
+        {
+            var parent = await _dbContext.Products
+                .FirstOrDefaultAsync(p => p.Id == command.ParentProductId && p.TenantId == (_currentUser.GetTenant() ?? string.Empty), cancellationToken)
+                .ConfigureAwait(false);
+
+            if (parent is null)
+            {
+                throw new FluentValidation.ValidationException(
+                [
+                    new FluentValidation.Results.ValidationFailure(nameof(command.ParentProductId), "Parent product not found for this tenant.")
+                ]);
+            }
+
+            if (string.IsNullOrWhiteSpace(command.VariantName))
+            {
+                throw new FluentValidation.ValidationException(
+                [
+                    new FluentValidation.Results.ValidationFailure(nameof(command.VariantName), "VariantName is required when ParentProductId is provided.")
+                ]);
+            }
+
+            product = parent.CreateVariant(
+                command.SKU,
+                command.VariantName!,
+                command.UnitPrice,
+                command.UnitOfMeasure,
+                command.MinimumStockLevel,
+                command.ReorderQuantity);
+
+            product.CategoryId = parent.CategoryId;
+            product.SupplierId = parent.SupplierId;
+            product.ImageUrl = parent.ImageUrl;
+            product.CreatedBy = _currentUser.GetUserId().ToString();
+        }
+        else
+        {
+            product = Product.Create(
+                _currentUser.GetTenant() ?? throw new InvalidOperationException("Tenant ID required"),
+                command.SKU,
+                command.Name,
+                command.Description,
+                command.UnitPrice,
+                command.UnitOfMeasure,
+                command.MinimumStockLevel,
+                command.ReorderQuantity);
+
+            product.CategoryId = command.CategoryId;
+            product.SupplierId = command.SupplierId;
+            product.ImageUrl = command.ImageUrl;
+            product.CreatedBy = _currentUser.GetUserId().ToString();
+        }
 
         _dbContext.Products.Add(product);
 

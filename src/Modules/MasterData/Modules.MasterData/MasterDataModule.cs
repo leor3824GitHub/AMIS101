@@ -92,6 +92,7 @@ public class MasterDataModule : IModule
 
         services.AddHeroDbContext<MasterDataDbContext>();
         services.AddScoped<IDbInitializer, MasterDataDbInitializer>();
+        services.AddHostedService<FSH.Modules.MasterData.Provisioning.MasterDataDbInitializerHostedService>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder endpoints)

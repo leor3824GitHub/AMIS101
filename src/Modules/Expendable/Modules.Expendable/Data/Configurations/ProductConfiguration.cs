@@ -46,7 +46,13 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
             .HasConversion<int>();
 
         builder.Property(p => p.Version)
-            .IsConcurrencyToken();
+            .IsRowVersion();
+
+        // Self-reference: a product may have a parent product and many variants
+        builder.HasOne(p => p.ParentProduct)
+            .WithMany(p => p.Variants)
+            .HasForeignKey(p => p.ParentProductId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // Indexes
         builder.HasIndex(p => new { p.TenantId, p.SKU })

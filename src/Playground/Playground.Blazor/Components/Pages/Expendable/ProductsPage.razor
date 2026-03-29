@@ -65,6 +65,19 @@
                                          ToStringFunc="@(s => s != null ? s.Name : "")"
                                          Placeholder="Search or select supplier..." />
                         
+                        <MudAutocomplete T="ProductDto"
+                                         @bind-Value="_selectedParentProduct"
+                                         SearchFunc="SearchParentProducts"
+                                         Label="Parent Product"
+                                         CoerceValue="true"
+                                         Clearable="true"
+                                         ToStringFunc="@(p => p != null ? p.Name : "")"
+                                         Placeholder="Select a base product to create a variant of..." />
+
+                        <MudTextField @bind-Value="_form.VariantName" Label="Variant Name"
+                                      Placeholder="e.g., Red / Large"
+                                      Helpertext="Required when selecting a parent product" />
+                        
                         <!-- Image Upload Section -->
                         <MudDivider Class="my-3" />
                         <MudText Typo="Typo.subtitle2" Color="Color.Primary">Product Image</MudText>
@@ -125,6 +138,8 @@
                                     <th>Price</th>
                                      <th>UoM</th>
                                     <th>Min Stock</th>
+                                    <th>Variant</th>
+                                    <th>Parent</th>
                                     <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
@@ -149,6 +164,8 @@
                                         <td>@product.UnitPrice.ToString("C")</td>
                                         <td>@product.UnitOfMeasure</td>
                                         <td>@product.MinimumStockLevel</td>
+                                        <td>@product.VariantName</td>
+                                        <td>@(_products.FirstOrDefault(p => p.Id == product.ParentProductId)?.Name)</td>
                                         <td><MudChip T="string" Size="Size.Small">@product.Status</MudChip></td>
                                         <td>
                                             <MudStack Row="true" Spacing="1">
@@ -181,9 +198,11 @@
     private List<UnitOfMeasureReferenceDto> _unitOfMeasures = new();
     private List<CategoryDto> _categories = new();
     private List<SupplierDto> _suppliers = new();
+    private List<ProductDto> _parentProducts = new();
     private UnitOfMeasureReferenceDto? _selectedUnitOfMeasure;
     private CategoryDto? _selectedCategory;
     private SupplierDto? _selectedSupplier;
+    private ProductDto? _selectedParentProduct;
     private bool _initialized = false;
     private bool _isLoading = false;
     private string _searchKeyword = string.Empty;
@@ -201,6 +220,8 @@
         public string? SupplierId { get; set; }
         public string? ImageUrl { get; set; }
         public string? ImagePreview { get; set; }
+        public Guid? ParentProductId { get; set; }
+        public string? VariantName { get; set; }
     }
 
     protected override async Task OnInitializedAsync()
@@ -294,6 +315,18 @@
             .ToList();
     }
 
+    private async Task<IEnumerable<ProductDto>> SearchParentProducts(string searchText, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(searchText))
+            return _parentProducts;
+
+        var search = searchText.ToLower();
+        return _parentProducts
+            .Where(x => (x.Name?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                       (x.Sku?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false))
+            .ToList();
+    }
+
     private async Task LoadProducts()
     {
         try
@@ -301,6 +334,8 @@
             _isLoading = true;
             var response = await ExpendableClient.ProductsGetAsync(pageSize: 100);
             _products = response?.Items?.ToList() ?? new();
+            // Build parent products list (base products without ParentProductId)
+            _parentProducts = _products.Where(p => p.ParentProductId == null).ToList();
             StateHasChanged();
         }
         catch (HttpRequestException ex) when (
@@ -417,6 +452,16 @@
             _form.SupplierId = _selectedSupplier.Id.ToString();
         }
 
+        // Update parent product selection
+        _form.ParentProductId = _selectedParentProduct?.Id;
+
+        // If creating/updating a variant, VariantName is required
+        if (_form.ParentProductId != null && string.IsNullOrWhiteSpace(_form.VariantName))
+        {
+            Snackbar.Add("Variant Name is required when a Parent Product is selected", Severity.Warning);
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(_form.Name) || string.IsNullOrWhiteSpace(_form.SKU))
         {
             Snackbar.Add("Name and SKU are required", Severity.Warning);
@@ -448,7 +493,8 @@
                     ReorderQuantity = _form.ReorderQuantity,
                     CategoryId = _form.CategoryId,
                     SupplierId = _form.SupplierId,
-                    ImageUrl = _form.ImageUrl
+                    ImageUrl = _form.ImageUrl,
+                    VariantName = _form.VariantName
                 };
 
                 await ExpendableClient.ProductsPutAsync(EditingProduct.Id, updateCmd);
@@ -467,7 +513,9 @@
                     ReorderQuantity = _form.ReorderQuantity,
                     CategoryId = _form.CategoryId,
                     SupplierId = _form.SupplierId,
-                    ImageUrl = _form.ImageUrl
+                    ImageUrl = _form.ImageUrl,
+                    ParentProductId = _form.ParentProductId,
+                    VariantName = _form.VariantName
                 };
 
                 await ExpendableClient.ProductsPostAsync(createCmd);
@@ -521,7 +569,14 @@
             SupplierId = product.SupplierId,
             ImageUrl = product.ImageUrl,
             ImagePreview = product.ImageUrl
+            ,ParentProductId = product.ParentProductId
+            ,VariantName = product.VariantName
         };
+
+        if (product.ParentProductId != null)
+        {
+            _selectedParentProduct = _parentProducts.FirstOrDefault(p => p.Id == product.ParentProductId);
+        }
     }
 
     private void ResetForm()
@@ -530,6 +585,7 @@
         _selectedUnitOfMeasure = null;
         _selectedCategory = null;
         _selectedSupplier = null;
+        _selectedParentProduct = null;
         EditingProduct = null;
         ShowCreateModal = false;
     }

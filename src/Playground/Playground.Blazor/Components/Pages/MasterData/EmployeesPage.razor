@@ -36,27 +36,41 @@
                         <MudTextField @bind-Value="_form.WorkEmail" Label="Work Email" InputType="InputType.Email"
                                       Placeholder="work@example.com" />
                         
-                        <!-- Lookups -->
-                        <MudSelect @bind-Value="_form.OfficeId" Label="Office" Placeholder="Select office" Required="true">
-                            @foreach (var office in _offices)
-                            {
-                                <MudSelectItem Value="office.Id">@office.Name</MudSelectItem>
-                            }
-                        </MudSelect>
-                        
-                        <MudSelect @bind-Value="_form.DepartmentId" Label="Department" Placeholder="Select department" Required="true">
-                            @foreach (var dept in _departments)
-                            {
-                                <MudSelectItem Value="dept.Id">@dept.Name</MudSelectItem>
-                            }
-                        </MudSelect>
-                        
-                        <MudSelect @bind-Value="_form.PositionId" Label="Position" Placeholder="Select position" Required="true">
-                            @foreach (var pos in _positions)
-                            {
-                                <MudSelectItem Value="pos.Id">@pos.Name</MudSelectItem>
-                            }
-                        </MudSelect>
+                        <!-- Office Autocomplete -->
+                        <MudAutocomplete T="OfficeReferenceDto" 
+                                         Label="Office" 
+                                         @bind-Value="_form.Office" 
+                                         SearchFunc="@SearchOffices"
+                                         ToStringFunc="@(o => o?.Name)" 
+                                         ResetValueOnEmptyText="true"
+                                         CoerceText="true" CoerceValue="true"
+                                         Required="true"
+                                         Placeholder="Search office..."
+                                         Clearable="true" />
+
+                        <!-- Department Autocomplete -->
+                        <MudAutocomplete T="DepartmentReferenceDto" 
+                                         Label="Department" 
+                                         @bind-Value="_form.Department" 
+                                         SearchFunc="@SearchDepartments"
+                                         ToStringFunc="@(d => d?.Name)" 
+                                         ResetValueOnEmptyText="true"
+                                         CoerceText="true" CoerceValue="true"
+                                         Required="true"
+                                         Placeholder="Search department..."
+                                         Clearable="true" />
+
+                        <!-- Position Autocomplete -->
+                        <MudAutocomplete T="PositionReferenceDto" 
+                                         Label="Position" 
+                                         @bind-Value="_form.Position" 
+                                         SearchFunc="@SearchPositions"
+                                         ToStringFunc="@(p => p?.Name)" 
+                                         ResetValueOnEmptyText="true"
+                                         CoerceText="true" CoerceValue="true"
+                                         Required="true"
+                                         Placeholder="Search position..."
+                                         Clearable="true" />
                         
                         <MudCheckBox @bind-Value="_form.IsActive" Label="Active" />
 
@@ -147,10 +161,32 @@
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string? WorkEmail { get; set; }
-        public Guid OfficeId { get; set; }
-        public Guid DepartmentId { get; set; }
-        public Guid PositionId { get; set; }
+        
+        // These hold the object references for the Autocomplete
+        public OfficeReferenceDto? Office { get; set; }
+        public DepartmentReferenceDto? Department { get; set; }
+        public PositionReferenceDto? Position { get; set; }
+        
         public bool IsActive { get; set; } = true;
+    }
+
+    // Search Functions for Autocompletes
+    private async Task<IEnumerable<OfficeReferenceDto>> SearchOffices(string value, CancellationToken token)
+    {
+        if (string.IsNullOrEmpty(value)) return _offices;
+        return _offices.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private async Task<IEnumerable<DepartmentReferenceDto>> SearchDepartments(string value, CancellationToken token)
+    {
+        if (string.IsNullOrEmpty(value)) return _departments;
+        return _departments.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private async Task<IEnumerable<PositionReferenceDto>> SearchPositions(string value, CancellationToken token)
+    {
+        if (string.IsNullOrEmpty(value)) return _positions;
+        return _positions.Where(x => x.Name.Contains(value, StringComparison.InvariantCultureIgnoreCase));
     }
 
     protected override async Task OnInitializedAsync()
@@ -158,7 +194,6 @@
         if (_initialized) return;
         _initialized = true;
         
-        // Load lookups first
         await Task.WhenAll(
             LoadOffices(),
             LoadDepartments(),
@@ -175,54 +210,14 @@
             _isLoading = true;
             var response = await LookupClient.EmployeesGetAsync(pageSize: 100);
             _employees = response?.Items?.ToList() ?? new();
-            StateHasChanged();
-        }
-        catch (HttpRequestException ex) when (
-            ex.Message.Contains("StatusCode=401", StringComparison.OrdinalIgnoreCase) ||
-            ex.Message.Contains("401 (Unauthorized)", StringComparison.OrdinalIgnoreCase) ||
-            (ex.InnerException?.Message?.Contains("401", StringComparison.OrdinalIgnoreCase) ?? false))
-        {
-            Snackbar.Add("Authenticating...", Severity.Info);
-            await Task.Delay(500);
-            await LoadEmployeesInternal(retryCount: 1);
-            return;
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Failed to load employees: {ex.Message}", Severity.Error);
-            _employees = new();
         }
         finally
         {
             _isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task LoadEmployeesInternal(int retryCount = 0, int maxRetries = 3)
-    {
-        try
-        {
-            var response = await LookupClient.EmployeesGetAsync(pageSize: 100);
-            _employees = response?.Items?.ToList() ?? new();
-            StateHasChanged();
-        }
-        catch (HttpRequestException ex) when (
-            (ex.Message.Contains("StatusCode=401", StringComparison.OrdinalIgnoreCase) ||
-             ex.Message.Contains("401 (Unauthorized)", StringComparison.OrdinalIgnoreCase) ||
-             (ex.InnerException?.Message?.Contains("401", StringComparison.OrdinalIgnoreCase) ?? false)) &&
-            retryCount < maxRetries)
-        {
-            await Task.Delay(300 * (retryCount + 1));
-            await LoadEmployeesInternal(retryCount + 1, maxRetries);
-        }
-        catch (Exception ex)
-        {
-            if (retryCount == 0)
-            {
-                Snackbar.Add($"Failed to load employees: {ex.Message}", Severity.Error);
-            }
-            _employees = new();
             StateHasChanged();
         }
     }
@@ -234,11 +229,7 @@
             var response = await LookupClient.OfficesAsync(pageSize: 1000, isActive: true);
             _offices = response?.Items?.ToList() ?? new();
         }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to load offices: {ex.Message}", Severity.Error);
-            _offices = new();
-        }
+        catch (Exception ex) { Snackbar.Add($"Error: {ex.Message}", Severity.Error); }
     }
 
     private async Task LoadDepartments()
@@ -248,11 +239,7 @@
             var response = await LookupClient.DepartmentsAsync(pageSize: 1000, isActive: true);
             _departments = response?.Items?.ToList() ?? new();
         }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to load departments: {ex.Message}", Severity.Error);
-            _departments = new();
-        }
+        catch (Exception ex) { Snackbar.Add($"Error: {ex.Message}", Severity.Error); }
     }
 
     private async Task LoadPositions()
@@ -262,11 +249,7 @@
             var response = await LookupClient.PositionsAsync(pageSize: 1000, isActive: true);
             _positions = response?.Items?.ToList() ?? new();
         }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to load positions: {ex.Message}", Severity.Error);
-            _positions = new();
-        }
+        catch (Exception ex) { Snackbar.Add($"Error: {ex.Message}", Severity.Error); }
     }
 
     private async Task SearchEmployees()
@@ -275,34 +258,7 @@
         {
             _isLoading = true;
             var response = await LookupClient.EmployeesGetAsync(keyword: _searchKeyword, pageSize: 100);
-            var allEmployees = response?.Items?.ToList() ?? new();
-            
-            if (string.IsNullOrWhiteSpace(_searchKeyword))
-            {
-                _employees = allEmployees;
-            }
-            else
-            {
-                var searchTerm = _searchKeyword.ToLower();
-                _employees = allEmployees
-                    .Where(e => 
-                        e.EmployeeNumber.ToLower().Contains(searchTerm) ||
-                        e.FirstName.ToLower().Contains(searchTerm) ||
-                        e.LastName.ToLower().Contains(searchTerm) ||
-                        (e.WorkEmail?.ToLower().Contains(searchTerm) ?? false))
-                    .ToList();
-            }
-            
-            if (_employees.Count == 0 && !string.IsNullOrWhiteSpace(_searchKeyword))
-            {
-                Snackbar.Add("No employees found matching your search", Severity.Info);
-            }
-            StateHasChanged();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Search failed: {ex.Message}", Severity.Error);
-            _employees = new();
+            _employees = response?.Items?.ToList() ?? new();
         }
         finally
         {
@@ -314,13 +270,11 @@
     private async Task SaveEmployee()
     {
         if (string.IsNullOrWhiteSpace(_form.EmployeeNumber) || 
-            string.IsNullOrWhiteSpace(_form.FirstName) || 
-            string.IsNullOrWhiteSpace(_form.LastName) ||
-            _form.OfficeId == Guid.Empty ||
-            _form.DepartmentId == Guid.Empty ||
-            _form.PositionId == Guid.Empty)
+            _form.Office == null || 
+            _form.Department == null || 
+            _form.Position == null)
         {
-            Snackbar.Add("All required fields must be filled", Severity.Warning);
+            Snackbar.Add("Please fill in all required fields", Severity.Warning);
             return;
         }
 
@@ -335,14 +289,13 @@
                     FirstName = _form.FirstName,
                     LastName = _form.LastName,
                     WorkEmail = _form.WorkEmail,
-                    OfficeId = _form.OfficeId,
-                    DepartmentId = _form.DepartmentId,
-                    PositionId = _form.PositionId,
+                    OfficeId = _form.Office.Id,
+                    DepartmentId = _form.Department.Id,
+                    PositionId = _form.Position.Id,
                     IsActive = _form.IsActive
                 };
-
                 await MasterDataClient.EmployeesPutAsync(EditingEmployee.Id, updateCmd);
-                Snackbar.Add("Employee updated successfully", Severity.Success);
+                Snackbar.Add("Employee updated", Severity.Success);
             }
             else
             {
@@ -352,23 +305,19 @@
                     FirstName = _form.FirstName,
                     LastName = _form.LastName,
                     WorkEmail = _form.WorkEmail,
-                    OfficeId = _form.OfficeId,
-                    DepartmentId = _form.DepartmentId,
-                    PositionId = _form.PositionId,
+                    OfficeId = _form.Office.Id,
+                    DepartmentId = _form.Department.Id,
+                    PositionId = _form.Position.Id,
                     IsActive = _form.IsActive
                 };
-
                 await MasterDataClient.EmployeesPostAsync(createCmd);
-                Snackbar.Add("Employee created successfully", Severity.Success);
+                Snackbar.Add("Employee created", Severity.Success);
             }
 
             await LoadEmployees();
             ResetForm();
         }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to save employee: {ex.Message}", Severity.Error);
-        }
+        catch (Exception ex) { Snackbar.Add($"Error: {ex.Message}", Severity.Error); }
     }
 
     private void EditEmployee(EmployeeReferenceDto employee)
@@ -380,18 +329,20 @@
             FirstName = employee.FirstName,
             LastName = employee.LastName,
             WorkEmail = employee.WorkEmail,
-            OfficeId = employee.OfficeId,
-            DepartmentId = employee.DepartmentId,
-            PositionId = employee.PositionId,
-            IsActive = employee.IsActive
+            IsActive = employee.IsActive,
+            // Find the object in the list so the autocomplete shows the name
+            Office = _offices.FirstOrDefault(o => o.Id == employee.OfficeId),
+            Department = _departments.FirstOrDefault(d => d.Id == employee.DepartmentId),
+            Position = _positions.FirstOrDefault(p => p.Id == employee.PositionId)
         };
         StateHasChanged();
     }
 
     private void ResetForm()
     {
-        _form = new();
+        _form = new EmployeeForm();
         EditingEmployee = null;
+        StateHasChanged();
     }
 
     private async Task DeleteEmployee(Guid id)
@@ -402,24 +353,11 @@
             await LoadEmployees();
             Snackbar.Add("Employee deleted", Severity.Success);
         }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Failed to delete employee: {ex.Message}", Severity.Error);
-        }
+        catch (Exception ex) { Snackbar.Add($"Error: {ex.Message}", Severity.Error); }
     }
 
-    private string GetOfficeName(Guid officeId)
-    {
-        return _offices.FirstOrDefault(o => o.Id == officeId)?.Name ?? "Unknown";
-    }
-
-    private string GetDepartmentName(Guid departmentId)
-    {
-        return _departments.FirstOrDefault(d => d.Id == departmentId)?.Name ?? "Unknown";
-    }
-
-    private string GetPositionName(Guid positionId)
-    {
-        return _positions.FirstOrDefault(p => p.Id == positionId)?.Name ?? "Unknown";
-    }
+    // Helper methods for the Table display
+    private string GetOfficeName(Guid id) => _offices.FirstOrDefault(o => o.Id == id)?.Name ?? "Unknown";
+    private string GetDepartmentName(Guid id) => _departments.FirstOrDefault(d => d.Id == id)?.Name ?? "Unknown";
+    private string GetPositionName(Guid id) => _positions.FirstOrDefault(p => p.Id == id)?.Name ?? "Unknown";
 }

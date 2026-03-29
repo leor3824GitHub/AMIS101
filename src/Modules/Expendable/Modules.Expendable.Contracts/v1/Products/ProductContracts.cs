@@ -12,6 +12,8 @@ public record ProductDto(
     string UnitOfMeasure,
     int MinimumStockLevel,
     int ReorderQuantity,
+    Guid? ParentProductId,
+    string? VariantName,
     string Status,
     string? CategoryId,
     string? SupplierId,
@@ -29,6 +31,8 @@ public record CreateProductCommand(
     string UnitOfMeasure,
     int MinimumStockLevel,
     int ReorderQuantity,
+    Guid? ParentProductId = null,
+    string? VariantName = null,
     string? CategoryId = null,
     string? SupplierId = null,
     string? ImageUrl = null) : ICommand<ProductDto>;
@@ -40,6 +44,7 @@ public record UpdateProductCommand(
     decimal UnitPrice,
     int MinimumStockLevel,
     int ReorderQuantity,
+    string? VariantName = null,
     string? CategoryId = null,
     string? SupplierId = null,
     string? ImageUrl = null) : ICommand<ProductDto>;
@@ -60,6 +65,7 @@ public sealed class SearchProductsQuery : IPagedQuery, IQuery<PagedResponse<Prod
 {
     public string? Keyword { get; set; }
     public string? Status { get; set; }
+    public Guid? ParentProductId { get; set; }
     public int? PageNumber { get; set; }
     public int? PageSize { get; set; }
     public string? Sort { get; set; }

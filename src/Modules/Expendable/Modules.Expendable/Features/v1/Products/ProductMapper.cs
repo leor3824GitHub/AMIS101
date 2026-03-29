@@ -15,6 +15,8 @@ internal static class ProductMapper
             product.UnitOfMeasure,
             product.MinimumStockLevel,
             product.ReorderQuantity,
+            product.ParentProductId,
+            product.VariantName,
             product.Status.ToString(),
             product.CategoryId,
             product.SupplierId,

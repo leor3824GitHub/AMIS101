@@ -25,6 +25,9 @@ public class Product : AggregateRoot<Guid>, IHasTenant, IAuditableEntity
     public ProductStatus Status { get; set; } = ProductStatus.Active;
     public string? CategoryId { get; set; }
     public string? SupplierId { get; set; }
+    // --- VARIANT PROPERTIES ---
+    public Guid? ParentProductId { get; private set; }
+    public string? VariantName { get; private set; } // e.g., "A4", "Long"
     public string? ImageUrl { get; set; }
     public byte[] Version { get; set; } = [];
 
@@ -39,6 +42,10 @@ public class Product : AggregateRoot<Guid>, IHasTenant, IAuditableEntity
     public string? DeletedBy { get; set; }
     public bool IsDeleted { get; set; }
 
+    // Navigation property for Entity Framework (Optional, but highly recommended)
+    public virtual Product? ParentProduct { get; private set; }
+    public virtual ICollection<Product> Variants { get; private set; } = new List<Product>();
+
     /// <summary>Factory method to create a new product</summary>
     public static Product Create(string tenantId, string sku, string name, string description,
         decimal unitPrice, string unitOfMeasure, int minimumStockLevel, int reorderQuantity)
@@ -50,6 +57,31 @@ public class Product : AggregateRoot<Guid>, IHasTenant, IAuditableEntity
             SKU = sku,
             Name = name,
             Description = description,
+            UnitPrice = unitPrice,
+            UnitOfMeasure = unitOfMeasure,
+            MinimumStockLevel = minimumStockLevel,
+            ReorderQuantity = reorderQuantity,
+            Status = ProductStatus.Active,
+            CreatedOnUtc = DateTimeOffset.UtcNow
+        };
+    }
+
+    /// <summary>Factory method to create a variant from an existing base product</summary>
+    public Product CreateVariant(string sku, string variantName, decimal unitPrice, 
+        string unitOfMeasure, int minimumStockLevel, int reorderQuantity)
+    {
+        return new Product
+        {
+            Id = Guid.NewGuid(),
+            TenantId = this.TenantId,
+            ParentProductId = this.Id, // Link to the base product
+            VariantName = variantName,
+            Name = $"{this.Name} - {variantName}", // Automatically format: "Bond Paper - A4"
+            Description = this.Description, // Inherit parent description
+            CategoryId = this.CategoryId,   // Inherit parent category
+            SupplierId = this.SupplierId,   // Inherit parent supplier
+            ImageUrl = this.ImageUrl,       // Inherit parent image
+            SKU = sku,
             UnitPrice = unitPrice,
             UnitOfMeasure = unitOfMeasure,
             MinimumStockLevel = minimumStockLevel,
@@ -100,6 +132,13 @@ public class Product : AggregateRoot<Guid>, IHasTenant, IAuditableEntity
         {
             ImageUrl = imageUrl;
         }
+        LastModifiedOnUtc = DateTimeOffset.UtcNow;
+    }
+
+    /// <summary>Set or rename the variant name</summary>
+    public void SetVariantName(string? variantName)
+    {
+        VariantName = variantName;
         LastModifiedOnUtc = DateTimeOffset.UtcNow;
     }
 

@@ -32,6 +32,11 @@ public sealed class UpdateProductCommandHandler : ICommandHandler<UpdateProductC
             command.ReorderQuantity,
             command.ImageUrl);
 
+        if (command.VariantName is not null)
+        {
+            product.SetVariantName(command.VariantName);
+        }
+
         product.CategoryId = command.CategoryId;
         product.SupplierId = command.SupplierId;
         product.LastModifiedBy = _currentUser.GetUserId().ToString();

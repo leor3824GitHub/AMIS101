@@ -24,15 +24,21 @@ public sealed class SearchProductsQueryHandler : IQueryHandler<SearchProductsQue
         // Apply filters
         if (!string.IsNullOrWhiteSpace(query.Keyword))
         {
+            var pattern = $"%{query.Keyword}%";
             productQuery = productQuery.Where(p =>
-                p.Name.Contains(query.Keyword) ||
-                p.SKU.Contains(query.Keyword) ||
-                p.Description.Contains(query.Keyword));
+                EF.Functions.ILike(p.Name, pattern) ||
+                EF.Functions.ILike(p.SKU, pattern) ||
+                EF.Functions.ILike(p.Description, pattern));
         }
 
         if (!string.IsNullOrWhiteSpace(query.Status) && Enum.TryParse<ProductStatus>(query.Status, out var status))
         {
             productQuery = productQuery.Where(p => p.Status == status);
+        }
+
+        if (query.ParentProductId is not null)
+        {
+            productQuery = productQuery.Where(p => p.ParentProductId == query.ParentProductId);
         }
 
         productQuery = productQuery.OrderBy(p => p.Name);

@@ -2,18 +2,22 @@
 @using System.Timers
 @using MudBlazor
 @using FSH.Playground.Blazor.ApiClient
+@using FSH.Playground.Blazor.Services
 @inject IProductsClient _productsClient
 @inject IEmployeeClient _employeeClient
 @inject ICartClient _cartClient
+@inject IInventoryClient _inventoryClient
+@inject IWarehouseClient _warehouseClient
 @inject NavigationManager _navigationManager
+@inject MasterDataService MasterDataService
 @inject ISnackbar _snackbar
 
 <MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
     <MudGrid>
         <MudItem xs="12">
-            <div Class="d-flex justify-space-between align-center">
+            <div class="d-flex justify-space-between align-center">
                 <MudText Typo="Typo.h4" Class="mb-6">Product Catalog</MudText>
-                <MudBadge Content="_cartItemCount" Color="Color.Primary" Overlap="true" Class="mb-6">
+                <MudBadge Content="@_cartItemCount" Color="Color.Primary" Overlap="true" Class="mb-6">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => _navigationManager.NavigateTo("/expendable/cart"))">
                         <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" /> Basket
                     </MudButton>
@@ -21,6 +25,20 @@
             </div>
         </MudItem>
         
+    <MudItem xs="12" Class="mb-4">
+        <MudChipSet T="string" 
+                    SelectedValue="_selectedCategory" 
+                    SelectedValueChanged="OnCategoryChanged" 
+                    CheckMark="true" 
+                    Variant="Variant.Text" 
+                    Color="Color.Primary">
+           <MudChip Value="@("All")" Default="true">All Categories</MudChip> 
+    @foreach (var cat in _categories)
+    {
+        <MudChip Value="@cat.Id.ToString()">@cat.Name</MudChip>
+    }
+        </MudChipSet>
+    </MudItem>
         <!-- Search Box -->
         <MudItem xs="12">
             <MudTextField @bind-Value="_searchKeyword"
@@ -44,16 +62,24 @@
                                 <MudCardMedia Image="@(product.ImageUrl ?? "/images/placeholder.png")"
                                               Height="250" />
                                 <MudCardContent Class="flex-grow-1">
-                                    <MudText Typo="Typo.body2" Class="mb-2">
-                                        <strong>@product.Name</strong>
-                                    </MudText>
-                                    <MudText Typo="Typo.caption" Color="Color.Default">
-                                        SKU: @product.Sku
-                                    </MudText>
-                                    <MudDivider Class="my-2" />
-                                    <MudText Typo="Typo.h6" Color="Color.Primary">
-                                        $@product.UnitPrice.ToString("F2")
-                                    </MudText>
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="7">
+                                            <MudText Typo="Typo.body2" Class="mb-1">
+                                                <strong>@product.Name</strong>
+                                            </MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Default">
+                                                SKU: @product.Sku
+                                            </MudText>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="5" Class="text-sm-right">
+                                            <MudText Typo="Typo.h6" Color="Color.Primary" Class="mb-0">
+                                                @($"${product.UnitPrice:F2}")
+                                            </MudText>
+                                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                                Balance: @GetProductBalance(product)
+                                            </MudText>
+                                        </MudItem>
+                                    </MudGrid>
                                 </MudCardContent>
                                 <MudCardActions>
                                     <MudButton Variant="Variant.Text"
@@ -106,7 +132,7 @@
                     </MudItem>
                     <MudItem xs="12" sm="6">
                         <MudText Typo="Typo.caption" Color="Color.Default">SKU: @_selectedProduct.Sku</MudText>
-                        <MudText Typo="Typo.h5" Class="my-3">$@_selectedProduct.UnitPrice.ToString("F2")</MudText>
+                        <MudText Typo="Typo.h5" Class="my-3">@($"${_selectedProduct.UnitPrice:F2}")</MudText>
                         <MudText Typo="Typo.body2" Class="mb-4">@_selectedProduct.Description</MudText>
                         
                         <MudStack>
@@ -150,13 +176,13 @@
                     </MudItem>
                     <MudItem xs="12" sm="8">
                         <MudText Typo="Typo.body2"><strong>@_selectedProductForCart.Name</strong></MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Default">Price: $@_selectedProductForCart.UnitPrice.ToString("F2")</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Default">Price: @($"${_selectedProductForCart.UnitPrice:F2}")</MudText>
                         <MudNumericField @bind-Value="_cartQuantity"
                                         Label="Quantity"
                                         Min="1"
                                         Class="my-3" />
                         <MudText Typo="Typo.h6">
-                            Subtotal: $@((_selectedProductForCart.UnitPrice * _cartQuantity).ToString("F2"))
+                            Subtotal: @($"${(_selectedProductForCart.UnitPrice * _cartQuantity):F2}")
                         </MudText>
                     </MudItem>
                 </MudGrid>
@@ -178,6 +204,8 @@
     private string _searchKeyword = "";
     private bool _isLoading = false;
     private int _cartItemCount = 0;
+    private Guid? _warehouseLocationId = null;
+    private Dictionary<Guid, int> _productBalances = new();
 
     private bool _showProductDetailsDialog = false;
     private ProductDto? _selectedProduct;
@@ -186,33 +214,144 @@
     private ProductDto? _selectedProductForCart;
     private int _cartQuantity = 1;
 
-    private string _currentEmployeeId = "test-employee"; // TODO: Get from authentication context
-    private Guid? _currentCartId;
+    private List<CategoryDto> _categories = new();
+    private string _selectedCategory = "All"; // holds either "All" or Category.Id.ToString()
 
-    protected override async Task OnInitializedAsync()
+    private string _currentEmployeeId = "test-employee"; // TODO: Get from authentication context
+
+    private int GetProductBalance(ProductDto product)
     {
-        await LoadProducts();
-        await GetOrCreateCart();
+        return _productBalances.TryGetValue(product.Id, out var balance) ? balance : 0;
     }
 
-    private async Task LoadProducts()
+    private Guid? _currentCartId;
+
+    private async Task OnSearchTriggered()
     {
-        try
+        await LoadProducts();
+    }
+
+    private async Task LoadCategories()
+    {
+        try 
         {
             _isLoading = true;
-            var query = new SearchProductsQuery { Keyword = _searchKeyword };
-            var result = await _productsClient.SearchAsync(query);
-            _products = result.Items?.ToList() ?? new List<ProductDto>();
+            // Use the same service and method from your Master Data page
+            var response = await MasterDataService.GetCategoriesAsync(pageSize: 100);
+
+            _categories = new List<CategoryDto>();
+            if (response?.Items != null)
+            {
+                // Keep the full CategoryDto so we can map ids for filtering
+                _categories = response.Items
+                    .Where(x => !string.IsNullOrWhiteSpace(x.Name))
+                    .ToList();
+            }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _snackbar.Add($"Error loading products: {ex.Message}", Severity.Error);
+            _categories = new List<CategoryDto>();
+            _snackbar.Add("Could not load categories", Severity.Warning);
         }
         finally
         {
             _isLoading = false;
         }
     }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _isLoading = true; // Start loading state
+        await LoadCategories(); // MUST call this to see chips!
+        await GetOrCreateCart();
+        await LoadProductBalancesAsync();
+        await LoadProducts();
+        _isLoading = false;
+    }
+
+    private async Task LoadProducts()
+{
+    try
+    {
+        _isLoading = true;
+
+        // 1. Fetch products based on the search keyword
+        var query = new SearchProductsQuery
+        {
+            Keyword = _searchKeyword,
+            PageSize = 100 
+        };
+
+        var result = await _productsClient.SearchAsync(query);
+        var allItems = result.Items?.ToList() ?? new List<ProductDto>();
+
+        // 2. Apply the Category Filter locally
+        // We compare the ProductDto.CategoryId (string) to our _selectedCategory (string)
+        if (_selectedCategory != "All")
+        {
+            _products = allItems
+                .Where(p => string.Equals(p.CategoryId, _selectedCategory, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+        else
+        {
+            _products = allItems;
+        }
+    }
+    catch (Exception ex)
+    {
+        _snackbar.Add($"Error loading products: {ex.Message}", Severity.Error);
+    }
+    finally
+    {
+        _isLoading = false;
+        // In Blazor, StateHasChanged is usually automatic after Task-based events, 
+        // but it doesn't hurt to ensure the UI updates here.
+    }
+}
+    private async Task OnCategoryChanged(string category)
+    {
+       // If null (deselected), default to "All"
+        _selectedCategory = string.IsNullOrEmpty(category) ? "All" : category;
+        
+        // Refresh the list with the new filter
+        await LoadProducts();
+    }
+
+    private async Task LoadProductBalancesAsync()
+    {
+        try
+        {
+            // Find a warehouse location from inventory data, if available.
+            if (!_warehouseLocationId.HasValue || _warehouseLocationId == Guid.Empty)
+            {
+                var inventoryList = await _inventoryClient.SearchAsync(new SearchProductInventoryQuery
+                {
+                    PageNumber = 1,
+                    PageSize = 1000
+                });
+
+                _warehouseLocationId = inventoryList.Items?.FirstOrDefault()?.WarehouseLocationId;
+            }
+
+            if (_warehouseLocationId.HasValue && _warehouseLocationId.Value != Guid.Empty)
+            {
+                var stockLevels = await _warehouseClient.StockLevelsAsync(_warehouseLocationId.Value, pageNumber: 1, pageSize: 1000);
+                _productBalances = stockLevels.Items?.ToDictionary(i => i.ProductId, i => i.QuantityAvailable) ?? new Dictionary<Guid, int>();
+            }
+            else
+            {
+                _productBalances.Clear();
+            }
+        }
+        catch (Exception ex)
+        {
+            // fallback: show product minimum stock level as balance
+            _snackbar.Add($"Unable to load warehouse balance; fallback to product minimum stock: {ex.Message}", Severity.Warning);
+            _productBalances.Clear();
+        }
+    }
+
 
     private async Task GetOrCreateCart()
     {
@@ -274,8 +413,8 @@
             };
 
             await _cartClient.ItemsPostAsync(_currentCartId.Value, command);
+            await GetOrCreateCart();
             _snackbar.Add($"Added {product.Name} to basket!", Severity.Success);
-            _cartItemCount++;
         }
         catch (Exception ex)
         {
@@ -299,9 +438,9 @@
             };
 
             await _cartClient.ItemsPostAsync(_currentCartId.Value, command);
+            await GetOrCreateCart();
             _snackbar.Add("Item added to basket!", Severity.Success);
             _showAddToCartDialog = false;
-            _cartItemCount++;
         }
         catch (Exception ex)
         {

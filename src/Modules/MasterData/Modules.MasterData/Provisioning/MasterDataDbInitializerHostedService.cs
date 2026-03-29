@@ -1,24 +1,24 @@
 using FSH.Framework.Persistence;
-using FSH.Modules.Expendable.Data;
+using FSH.Modules.MasterData.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace FSH.Modules.Expendable.Provisioning;
+namespace FSH.Modules.MasterData.Provisioning;
 
 /// <summary>
-/// Initializes the Expendable module database schema and seeds data on app startup.
-/// Runs migrations for the shared Expendable database before any tenant operations.
+/// Initializes the MasterData module database schema and seeds data on app startup.
+/// Runs migrations for the MasterData database before any tenant operations.
 /// </summary>
-internal sealed class ExpendableDbInitializerHostedService : IHostedService
+internal sealed class MasterDataDbInitializerHostedService : IHostedService
 {
     private readonly IServiceProvider _serviceProvider;
-    private readonly ILogger<ExpendableDbInitializerHostedService> _logger;
+    private readonly ILogger<MasterDataDbInitializerHostedService> _logger;
 
-    public ExpendableDbInitializerHostedService(
+    public MasterDataDbInitializerHostedService(
         IServiceProvider serviceProvider,
-        ILogger<ExpendableDbInitializerHostedService> logger)
+        ILogger<MasterDataDbInitializerHostedService> logger)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
@@ -29,12 +29,12 @@ internal sealed class ExpendableDbInitializerHostedService : IHostedService
         using var scope = _serviceProvider.CreateScope();
 
         var initializers = scope.ServiceProvider.GetServices<IDbInitializer>()
-            .OfType<ExpendableDbInitializer>()
+            .OfType<MasterDataDbInitializer>()
             .ToList();
 
         if (initializers.Count == 0)
         {
-            _logger.LogInformation("No database initializers found for Expendable module.");
+            _logger.LogInformation("No database initializers found for MasterData module.");
             return;
         }
 

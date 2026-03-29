@@ -433,6 +433,12 @@ namespace FSH.Modules.Expendable.Data.Migrations
                     b.Property<int>("ReorderQuantity")
                         .HasColumnType("integer");
 
+                        b.Property<Guid?>("ParentProductId")
+                            .HasColumnType("uuid");
+
+                        b.Property<string>("VariantName")
+                            .HasColumnType("text");
+
                     b.Property<string>("SKU")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -470,10 +476,24 @@ namespace FSH.Modules.Expendable.Data.Migrations
 
                     b.HasIndex("TenantId", "Status");
 
+                        b.HasIndex("TenantId", "ParentProductId");
+
                     b.ToTable("Products", "expendable");
 
                     b.HasAnnotation("Finbuckle:MultiTenant", true);
                 });
+
+                modelBuilder.Entity("FSH.Modules.Expendable.Domain.Products.Product", b =>
+                    {
+                        b.HasOne("FSH.Modules.Expendable.Domain.Products.Product", "ParentProduct")
+                            .WithMany("Variants")
+                            .HasForeignKey("ParentProductId")
+                            .OnDelete(DeleteBehavior.Restrict);
+
+                        b.Navigation("ParentProduct");
+
+                        b.Navigation("Variants");
+                    });
 
             modelBuilder.Entity("FSH.Modules.Expendable.Domain.Purchases.Purchase", b =>
                 {
